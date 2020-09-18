@@ -8,13 +8,8 @@ The scaffolding CLI for the Snap SKD.
 - install the project in your working directory
     - `git clone git@github.com:searchspring/snapfu.git`
     - `cd snapfu && npm i`
-- install the github-token-exchange repo locally
 
 ## Development
-
-Run the token exchange server locally
-
-`vercel dev`
 
 Run the snapfu client
 
