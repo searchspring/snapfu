@@ -1,0 +1,19 @@
+{
+    "env": {
+        "GITHUB_CLIENT_ID": "@snapfu-github-client-id",
+        "GITHUB_CLIENT_SECRET": "@snapfu-github-client-secret",
+        "GITHUB_REDIRECT_URL": "@snapfu-github-redirect-url"
+    },
+    "builds": [
+        {
+            "src": "api/index.go",
+            "use": "@now/go"
+        }
+    ],
+    "routes": [
+        {
+            "src": "/(.*)",
+            "dest": "api/index.go"
+        }
+    ]
+}
