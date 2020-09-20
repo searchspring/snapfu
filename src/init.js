@@ -1,19 +1,35 @@
 const os = require('os')
 const { readdirSync, readFileSync, existsSync } = require('fs')
 const { exit, cwd } = require('process')
+const fs = require('fs').promises
+const path = require('path')
 const chalk = require('chalk')
 const { Octokit } = require('@octokit/rest')
 const inquirer = require('inquirer')
 const clone = require('git-clone')
+var ncp = require('ncp').ncp
 
-export default async function init(options) {
+exports.createDir = function (dir) {
+    return new Promise((resolutionFunc, rejectionFunc) => {
+        let folderName = dir.substring(dir.lastIndexOf('/') + 1)
+        let files = readdirSync(dir)
+        if (files.length !== 0) {
+            rejectionFunc('folder not empty, exiting')
+        }
+        resolutionFunc(folderName)
+    })
+}
+exports.init = async function (config) {
     let dir = cwd()
-    let folderName = dir.substring(dir.lastIndexOf('/') + 1)
-    let files = readdirSync(dir)
-    if (files.length !== 0) {
-        console.log(chalk.red(`folder not empty, exiting`))
-        exit(1)
-    }
+    let folderName = await exports
+        .createDir(dir)
+        .then((folderName) => {
+            return folderName
+        })
+        .catch((err) => {
+            console.log(chalk.red(err))
+            exit(1)
+        })
     let credsLocation = os.homedir() + '/.searchspring/creds.json'
     if (!existsSync(credsLocation)) {
         console.log(chalk.red(`no creds file found, please use snapfu login`))
@@ -65,29 +81,23 @@ export default async function init(options) {
                 type: 'list',
                 name: 'color',
                 message: 'Please choose a color scheme',
-                choices: ['light', 'simple', 'custom'],
+                choices: ['simple'],
                 default: 'simple',
-            },
-            {
-                type: 'input',
-                name: 'hex',
-                message:
-                    'Please pass in a color scheme using: https://colorscheme.searchspring.com/v1',
-                when: (answers) => {
-                    return answers.color === 'custom'
-                },
-                validate: (input) => {
-                    return input && input.length > 0
-                },
             },
         ]
         const answers = await inquirer.prompt(questions)
         try {
-            await octokit.repos.createInOrg({
-                org: answers.organization,
-                name: answers.name,
-                private: true,
-            })
+            if (config.dev) {
+                console.log(
+                    chalk.blueBright('dev mode skipping new repo creation')
+                )
+            } else {
+                await octokit.repos.createInOrg({
+                    org: answers.organization,
+                    name: answers.name,
+                    private: true,
+                })
+            }
         } catch (exception) {
             if (!exception.message.indexOf('already exists') === -1) {
                 console.log(chalk.red(exception.message))
@@ -95,12 +105,65 @@ export default async function init(options) {
             }
         }
         let repoUrl = `https://github.com/${answers.organization}/${answers.name}`
-        clone(repoUrl, '.', () => {
-            console.log(`repository: ${chalk.blue(repoUrl)}`)
-        })
+        if (!config.dev) {
+            await exports
+                .cloneAndCopyRepo(repoUrl)
+                .then(() => {
+                    console.log(`repository: ${chalk.blue(repoUrl)}`)
+                })
+                .catch((err) => {
+                    throw err
+                })
+        }
+        let templateUrl = `https://github.com/searchspring/snapfu-template-${answers.framework}`
+        await exports
+            .cloneAndCopyRepo(templateUrl, true)
+            .then(() => {
+                console.log(`template initialized: ${chalk.blue(templateUrl)}`)
+            })
+            .catch((err) => {
+                throw err
+            })
     } catch (exception) {
         console.log(exception)
         console.log(chalk.red(`creds file corrupt, please use snapfu login`))
         exit(1)
     }
+}
+
+exports.cloneAndCopyRepo = async function (sourceRepo, excludeGit) {
+    let folder = await fs
+        .mkdtemp(path.join(os.tmpdir(), 'snapfu-temp'))
+        .then(async (folder, err) => {
+            if (err) throw err
+            return folder
+        })
+    await clonePromise(sourceRepo, folder)
+    let options = { clobber: false }
+    if (excludeGit) {
+        options.filter = (name) => {
+            return !name.endsWith('/.git')
+        }
+    }
+    await copyPromise(folder, '.', options)
+}
+
+function clonePromise(repoUrl, destination) {
+    return new Promise(async (resolutionFunc, rejectionFunc) => {
+        clone(repoUrl, destination, () => {
+            resolutionFunc()
+        })
+    })
+}
+
+function copyPromise(source, destination, options) {
+    return new Promise(async (resolutionFunc, rejectionFunc) => {
+        // ncp can be used to modify the files while copying - see https://www.npmjs.com/package/ncp
+        ncp(source, destination, options, function (err) {
+            if (err) {
+                rejectionFunc(err)
+            }
+            resolutionFunc()
+        })
+    })
 }

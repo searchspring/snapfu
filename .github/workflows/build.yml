@@ -36,6 +36,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:
           msg: "<b>Coverage Report</b><br>\n```bash\n${{ env.COVERAGE }}\n```"
+<<<<<<< Updated upstream
           check_for_duplicate_msg: true 
 
   build-go:
@@ -87,3 +88,6 @@ jobs:
         msg: "<b>Coverage Report</b><br>\n```bash\n${{ env.COVERAGE }}\n```"
         check_for_duplicate_msg: true 
       
+=======
+          check_for_duplicate_msg: true 
+>>>>>>> Stashed changes
