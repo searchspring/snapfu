@@ -9,7 +9,7 @@ const inquirer = require('inquirer')
 const clone = require('git-clone')
 var ncp = require('ncp').ncp
 
-exports.createDir = dir => {
+exports.createDir = (dir) => {
     return new Promise((resolutionFunc, rejectionFunc) => {
         let folderName = dir.substring(dir.lastIndexOf('/') + 1)
         let files = readdirSync(dir)
@@ -19,19 +19,22 @@ exports.createDir = dir => {
         resolutionFunc(folderName)
     })
 }
-exports.init = async config => {
-
+exports.init = async (config) => {
     try {
         let dir = cwd()
         let folderName = await exports.createDir(dir)
         let credsLocation = os.homedir() + '/.searchspring/creds.json'
         if (!existsSync(credsLocation)) {
-            console.log(chalk.red(`no creds file found, please use snapfu login`))
+            console.log(
+                chalk.red(`no creds file found, please use snapfu login`)
+            )
             exit(1)
         }
         let creds = readFileSync(credsLocation, 'utf8')
         if (!creds) {
-            console.log(chalk.red(`no creds file found, please use snapfu login`))
+            console.log(
+                chalk.red(`no creds file found, please use snapfu login`)
+            )
             exit(1)
         }
         let user = JSON.parse(creds)
@@ -80,22 +83,26 @@ exports.init = async config => {
         ]
         const answers = await inquirer.prompt(questions)
         if (config.dev) {
-            console.log(
-                chalk.blueBright('dev mode skipping new repo creation')
-            )
+            console.log(chalk.blueBright('dev mode skipping new repo creation'))
         } else {
-            await octokit.repos.createInOrg({
-                org: answers.organization,
-                name: answers.name,
-                private: true,
-            }).catch((exception) => {
-                if (!exception.message.includes('already exists')) {
-                    console.log(chalk.red(exception.message))
-                    exit(1)
-                } else {
-                    console.log(chalk.yellow('repository already exists, continuing...'))
-                }
-            })
+            await octokit.repos
+                .createInOrg({
+                    org: answers.organization,
+                    name: answers.name,
+                    private: true,
+                })
+                .catch((exception) => {
+                    if (!exception.message.includes('already exists')) {
+                        console.log(chalk.red(exception.message))
+                        exit(1)
+                    } else {
+                        console.log(
+                            chalk.yellow(
+                                'repository already exists, continuing...'
+                            )
+                        )
+                    }
+                })
         }
 
         let repoUrl = `https://github.com/${answers.organization}/${answers.name}`
@@ -105,7 +112,9 @@ exports.init = async config => {
         }
         let templateUrl = `https://github.com/searchspring/snapfu-template-${answers.framework}`
         await exports.cloneAndCopyRepo(templateUrl, true)
-        console.log(`template initialized from: snapfu-template-${answers.framework}`)
+        console.log(
+            `template initialized from: snapfu-template-${answers.framework}`
+        )
     } catch (exception) {
         console.log(chalk.red(exception))
         exit(1)
