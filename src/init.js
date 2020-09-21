@@ -9,7 +9,7 @@ const inquirer = require('inquirer')
 const clone = require('git-clone')
 var ncp = require('ncp').ncp
 
-exports.createDir = function (dir) {
+exports.createDir = dir => {
     return new Promise((resolutionFunc, rejectionFunc) => {
         let folderName = dir.substring(dir.lastIndexOf('/') + 1)
         let files = readdirSync(dir)
@@ -19,28 +19,21 @@ exports.createDir = function (dir) {
         resolutionFunc(folderName)
     })
 }
-exports.init = async function (config) {
-    let dir = cwd()
-    let folderName = await exports
-        .createDir(dir)
-        .then((folderName) => {
-            return folderName
-        })
-        .catch((err) => {
-            console.log(chalk.red(err))
-            exit(1)
-        })
-    let credsLocation = os.homedir() + '/.searchspring/creds.json'
-    if (!existsSync(credsLocation)) {
-        console.log(chalk.red(`no creds file found, please use snapfu login`))
-        exit(1)
-    }
-    let creds = readFileSync(credsLocation, 'utf8')
-    if (!creds) {
-        console.log(chalk.red(`no creds file found, please use snapfu login`))
-        exit(1)
-    }
+exports.init = async config => {
+
     try {
+        let dir = cwd()
+        let folderName = await exports.createDir(dir)
+        let credsLocation = os.homedir() + '/.searchspring/creds.json'
+        if (!existsSync(credsLocation)) {
+            console.log(chalk.red(`no creds file found, please use snapfu login`))
+            exit(1)
+        }
+        let creds = readFileSync(credsLocation, 'utf8')
+        if (!creds) {
+            console.log(chalk.red(`no creds file found, please use snapfu login`))
+            exit(1)
+        }
         let user = JSON.parse(creds)
         let octokit = new Octokit({
             auth: user.token,
@@ -86,47 +79,35 @@ exports.init = async function (config) {
             },
         ]
         const answers = await inquirer.prompt(questions)
-        try {
-            if (config.dev) {
-                console.log(
-                    chalk.blueBright('dev mode skipping new repo creation')
-                )
-            } else {
-                await octokit.repos.createInOrg({
-                    org: answers.organization,
-                    name: answers.name,
-                    private: true,
-                })
-            }
-        } catch (exception) {
-            if (!exception.message.indexOf('already exists') === -1) {
-                console.log(chalk.red(exception.message))
-                exit(1)
-            }
+        if (config.dev) {
+            console.log(
+                chalk.blueBright('dev mode skipping new repo creation')
+            )
+        } else {
+            await octokit.repos.createInOrg({
+                org: answers.organization,
+                name: answers.name,
+                private: true,
+            }).catch((exception) => {
+                if (!exception.message.includes('already exists')) {
+                    console.log(chalk.red(exception.message))
+                    exit(1)
+                } else {
+                    console.log(chalk.yellow('repository already exists, continuing...'))
+                }
+            })
         }
+
         let repoUrl = `https://github.com/${answers.organization}/${answers.name}`
         if (!config.dev) {
-            await exports
-                .cloneAndCopyRepo(repoUrl)
-                .then(() => {
-                    console.log(`repository: ${chalk.blue(repoUrl)}`)
-                })
-                .catch((err) => {
-                    throw err
-                })
+            await exports.cloneAndCopyRepo(repoUrl, false)
+            console.log(`repository: ${chalk.blue(repoUrl)}`)
         }
         let templateUrl = `https://github.com/searchspring/snapfu-template-${answers.framework}`
-        await exports
-            .cloneAndCopyRepo(templateUrl, true)
-            .then(() => {
-                console.log(`template initialized: ${chalk.blue(templateUrl)}`)
-            })
-            .catch((err) => {
-                throw err
-            })
+        await exports.cloneAndCopyRepo(templateUrl, true)
+        console.log(`template initialized from: snapfu-template-${answers.framework}`)
     } catch (exception) {
-        console.log(exception)
-        console.log(chalk.red(`creds file corrupt, please use snapfu login`))
+        console.log(chalk.red(exception))
         exit(1)
     }
 }
@@ -150,7 +131,10 @@ exports.cloneAndCopyRepo = async function (sourceRepo, excludeGit) {
 
 function clonePromise(repoUrl, destination) {
     return new Promise(async (resolutionFunc, rejectionFunc) => {
-        clone(repoUrl, destination, () => {
+        clone(repoUrl, destination, (err) => {
+            if (err) {
+                rejectionFunc(err)
+            }
             resolutionFunc()
         })
     })
