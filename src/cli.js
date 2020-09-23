@@ -1,7 +1,7 @@
 import arg from 'arg'
 import inquirer from 'inquirer'
 import { login } from './login'
-import init from './init'
+import { init } from './init'
 
 function parseArgumentsIntoOptions(rawArgs) {
     const args = arg(

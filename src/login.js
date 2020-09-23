@@ -35,8 +35,12 @@ export const login = async (options, opener, port) => {
 export const github = {
     scopes: 'user:email,repo',
     createOauthUrl: (config) => {
-        let clientId = config.isDev ? 'e02c8965ff92aa84b6ee' : '5df635731e7fa3513c1d'
-        let redirectUrl = config.isDev ? 'http://localhost:3000' : 'http://token.searchspring.com'
+        let clientId = config.isDev
+            ? 'e02c8965ff92aa84b6ee'
+            : '5df635731e7fa3513c1d'
+        let redirectUrl = config.isDev
+            ? 'http://localhost:3000'
+            : 'http://token.searchspring.com'
         return `https://github.com/login/oauth/authorize?response_type=token&scope=${escape(
             github.scopes
         )}&client_id=${clientId}&redirect_uri=${escape(redirectUrl)}`
@@ -65,7 +69,7 @@ export const auth = {
     },
     listenForCallback: (port) => {
         return new Promise((resolutionFunc, rejectionFunc) => {
-            var server = http.createServer(function (req, res) {
+            let server = http.createServer(function (req, res) {
                 let url = req.url
                 res.end(
                     `<html><body>You may close this window now.<script>javascript:window.close('','_parent','')</script></body></html>`
@@ -73,9 +77,9 @@ export const auth = {
                 server.close()
                 resolutionFunc(url)
             })
-                ; (async function () {
-                    server.listen(port)
-                })()
+            ;(async function () {
+                server.listen(port)
+            })()
         })
     },
 }
