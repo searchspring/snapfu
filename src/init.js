@@ -7,7 +7,7 @@ const chalk = require('chalk')
 const { Octokit } = require('@octokit/rest')
 const inquirer = require('inquirer')
 const clone = require('git-clone')
-var ncp = require('ncp').ncp
+const ncp = require('ncp').ncp
 
 exports.createDir = (dir) => {
     return new Promise((resolutionFunc, rejectionFunc) => {

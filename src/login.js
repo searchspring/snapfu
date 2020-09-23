@@ -69,7 +69,7 @@ export const auth = {
     },
     listenForCallback: (port) => {
         return new Promise((resolutionFunc, rejectionFunc) => {
-            var server = http.createServer(function (req, res) {
+            let server = http.createServer(function (req, res) {
                 let url = req.url
                 res.end(
                     `<html><body>You may close this window now.<script>javascript:window.close('','_parent','')</script></body></html>`
