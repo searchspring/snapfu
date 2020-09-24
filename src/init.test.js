@@ -31,7 +31,7 @@ describe('transforms', () => {
     it('change name', async () => {
         let read = Readable.from(
             Buffer.from(
-                'the name is: {{snapfu.name}} by author: {{snapfu.author}}',
+                'the name is: {{  snapfu.name}} by author: {{snapfu.author}}',
                 'utf8'
             )
         )

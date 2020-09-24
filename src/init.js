@@ -149,7 +149,7 @@ exports.transform = async function (read, write, transforms) {
     let content = await streamToString(read)
     Object.keys(transforms).forEach(function (key) {
         let t = transforms[key]
-        let r = new RegExp('{{' + key + '}}', 'gi')
+        let r = new RegExp('{{\\s*' + key + '\\s*}}', 'gi')
         content = content.replace(r, t)
     })
     write.write(content)
