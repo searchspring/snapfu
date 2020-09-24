@@ -111,7 +111,9 @@ exports.init = async (config) => {
             console.log(`repository: ${chalk.blue(repoUrl)}`)
         }
         let templateUrl = `https://github.com/searchspring/snapfu-template-${answers.framework}`
-        await exports.cloneAndCopyRepo(templateUrl, true)
+        await exports.cloneAndCopyRepo(templateUrl, true, {
+            'snapfu.name': answers.name,
+        })
         console.log(
             `template initialized from: snapfu-template-${answers.framework}`
         )
@@ -121,7 +123,7 @@ exports.init = async (config) => {
     }
 }
 
-exports.cloneAndCopyRepo = async function (sourceRepo, excludeGit) {
+exports.cloneAndCopyRepo = async function (sourceRepo, excludeGit, transforms) {
     let folder = await fs
         .mkdtemp(path.join(os.tmpdir(), 'snapfu-temp'))
         .then(async (folder, err) => {
@@ -135,7 +137,31 @@ exports.cloneAndCopyRepo = async function (sourceRepo, excludeGit) {
             return !name.endsWith('/.git')
         }
     }
+    if (transforms) {
+        options.transform = async (read, write) => {
+            exports.transform(read, write, transforms)
+        }
+    }
     await copyPromise(folder, '.', options)
+}
+
+exports.transform = async function (read, write, transforms) {
+    let content = await streamToString(read)
+    Object.keys(transforms).forEach(function (key) {
+        let t = transforms[key]
+        let r = new RegExp('{{' + key + '}}', 'gi')
+        content = content.replace(r, t)
+    })
+    write.write(content)
+}
+
+function streamToString(stream) {
+    const chunks = []
+    return new Promise((resolve, reject) => {
+        stream.on('data', (chunk) => chunks.push(chunk))
+        stream.on('error', reject)
+        stream.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')))
+    })
 }
 
 function clonePromise(repoUrl, destination) {
