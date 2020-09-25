@@ -138,21 +138,26 @@ exports.cloneAndCopyRepo = async function (sourceRepo, excludeGit, transforms) {
         }
     }
     if (transforms) {
-        options.transform = async (read, write) => {
-            exports.transform(read, write, transforms)
+        options.transform = async (read, write, file) => {
+            exports.transform(read, write, transforms, file)
         }
     }
     await copyPromise(folder, '.', options)
 }
 
-exports.transform = async function (read, write, transforms) {
-    let content = await streamToString(read)
-    Object.keys(transforms).forEach(function (key) {
-        let t = transforms[key]
-        let r = new RegExp('{{\\s*' + key + '\\s*}}', 'gi')
-        content = content.replace(r, t)
-    })
-    write.write(content)
+exports.transform = async function (read, write, transforms, file) {
+    if (file.name.endsWith('.json')) {
+        let content = await streamToString(read)
+        Object.keys(transforms).forEach(function (key) {
+            let t = transforms[key]
+            let r = new RegExp('{{\\s*' + key + '\\s*}}', 'gi')
+            content = content.replace(r, t)
+        })
+        write.write(content)
+    } else {
+        let content = await streamToByte(read)
+        write.write(content)
+    }
 }
 
 function streamToString(stream) {
@@ -161,6 +166,14 @@ function streamToString(stream) {
         stream.on('data', (chunk) => chunks.push(chunk))
         stream.on('error', reject)
         stream.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')))
+    })
+}
+function streamToByte(stream) {
+    const chunks = []
+    return new Promise((resolve, reject) => {
+        stream.on('data', (chunk) => chunks.push(chunk))
+        stream.on('error', reject)
+        stream.on('end', () => resolve(Buffer.concat(chunks)))
     })
 }
 

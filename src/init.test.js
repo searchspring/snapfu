@@ -28,7 +28,7 @@ describe('check empty dir', () => {
 })
 
 describe('transforms', () => {
-    it('change name', async () => {
+    it('replace tokens', async () => {
         let read = Readable.from(
             Buffer.from(
                 'the name is: {{  snapfu.name}} by author: {{snapfu.author}}',
@@ -37,12 +37,30 @@ describe('transforms', () => {
         )
         let write = MemoryStream.createWriteStream()
 
-        await transform(read, write, {
-            'snapfu.name': 'destination name',
-            'snapfu.author': 'codeallthethingz',
-        })
+        await transform(
+            read,
+            write,
+            {
+                'snapfu.name': 'destination name',
+                'snapfu.author': 'codeallthethingz',
+            },
+            { name: 'package.json' }
+        )
         expect(write.toString()).toEqual(
             'the name is: destination name by author: codeallthethingz'
         )
+    })
+    it('edges', async () => {
+        let read = Readable.from(Buffer.from('{{snapfu.name}}', 'utf8'))
+        let write = MemoryStream.createWriteStream()
+        await transform(
+            read,
+            write,
+            {
+                'snapfu.name': 'destination name',
+            },
+            { name: 'something.icon' }
+        )
+        expect(write.toString()).toEqual('{{snapfu.name}}')
     })
 })
