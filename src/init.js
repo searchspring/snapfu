@@ -160,15 +160,12 @@ exports.transform = async function (read, write, transforms, file) {
     }
 }
 
-function streamToString(stream) {
-    const chunks = []
-    return new Promise((resolve, reject) => {
-        stream.on('data', (chunk) => chunks.push(chunk))
-        stream.on('error', reject)
-        stream.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')))
-    })
+async function streamToString(stream) {
+    let bytes = await streamToByte(stream)
+    return bytes.toString('utf8')
 }
-function streamToByte(stream) {
+
+async function streamToByte(stream) {
     const chunks = []
     return new Promise((resolve, reject) => {
         stream.on('data', (chunk) => chunks.push(chunk))
