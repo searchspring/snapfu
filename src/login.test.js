@@ -50,7 +50,7 @@ describe('create github oauth url', () => {
         expect(params.get('scope')).toEqual(github.scopes)
         expect(params.get('client_id')).toEqual('5df635731e7fa3513c1d')
         expect(params.get('redirect_uri')).toEqual(
-            'http://token.searchspring.com'
+            'https://token.searchspring.com'
         )
     })
 })

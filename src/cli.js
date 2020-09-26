@@ -1,6 +1,6 @@
 import arg from 'arg'
 import inquirer from 'inquirer'
-import { login } from './login'
+import { login, orgAccess } from './login'
 import { init } from './init'
 
 function parseArgumentsIntoOptions(rawArgs) {
@@ -28,6 +28,9 @@ export async function cli(args) {
     if (options.command === 'login') {
         login(options)
     }
+    if (options.command === 'org-access') {
+        orgAccess(options)
+    }
     if (options.command === 'init') {
         init(options)
     }
@@ -45,6 +48,7 @@ function displayHelp() {
     
 These are the snapfu commnads used in various situations
 
-    login    Oauths with github
-    init     Creates a new snap project`)
+    login       Oauths with github
+    org-access  Review and change organization access for the tool
+    init        Creates a new snap project`)
 }
