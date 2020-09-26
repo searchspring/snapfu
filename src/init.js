@@ -71,7 +71,18 @@ exports.init = async (config) => {
                 message:
                     'Please choose which github organization to create this repository in',
                 choices: orgs,
-                default: 'searchspring',
+                default: 'searchspring-implementations',
+            },
+            {
+                type: 'input',
+                name: 'siteId',
+                message:
+                    'Please enter the siteId as found in the SMC console (a1b2c3)',
+                validate: (input) => {
+                    return (
+                        input && input.length > 0 && /[0-9a-z]{6}/.test(input)
+                    )
+                },
             },
             {
                 type: 'list',
@@ -113,6 +124,8 @@ exports.init = async (config) => {
         let templateUrl = `https://github.com/searchspring/snapfu-template-${answers.framework}`
         await exports.cloneAndCopyRepo(templateUrl, true, {
             'snapfu.name': answers.name,
+            'snapfu.siteId': answers.siteId,
+            'snapfu.author': user.login,
         })
         console.log(
             `template initialized from: snapfu-template-${answers.framework}`
@@ -146,7 +159,8 @@ exports.cloneAndCopyRepo = async function (sourceRepo, excludeGit, transforms) {
 }
 
 exports.transform = async function (read, write, transforms, file) {
-    if (file.name.endsWith('.json')) {
+    console.log(file.name)
+    if (file.name.endsWith('.json') || file.name.endsWith('.yml')) {
         let content = await streamToString(read)
         Object.keys(transforms).forEach(function (key) {
             let t = transforms[key]

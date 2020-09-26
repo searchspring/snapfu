@@ -8,11 +8,7 @@ const fs = require('fs')
 const chalk = require('chalk')
 const os = require('os')
 
-export const login = async (options, opener, port) => {
-    if (!options.dev) {
-        console.log("must use --dev as everything else isn't implemented")
-        exit(1)
-    }
+exports.login = async (options, opener, port) => {
     let uri = github.createOauthUrl({ isDev: options.dev })
     let receivedUrl = auth.listenForCallback(port | 3827)
     if (!opener) {
@@ -32,7 +28,16 @@ export const login = async (options, opener, port) => {
     })
 }
 
-export const github = {
+exports.orgAccess = async (options, opener) => {
+    let uri = github.createOrgAccessUrl({ isDev: options.dev })
+    if (!opener) {
+        open(uri)
+    } else {
+        opener(uri)
+    }
+}
+
+exports.github = {
     scopes: 'user:email,repo',
     createOauthUrl: (config) => {
         let clientId = config.isDev
@@ -40,14 +45,20 @@ export const github = {
             : '5df635731e7fa3513c1d'
         let redirectUrl = config.isDev
             ? 'http://localhost:3000'
-            : 'http://token.searchspring.com'
+            : 'https://token.searchspring.com'
         return `https://github.com/login/oauth/authorize?response_type=token&scope=${escape(
-            github.scopes
+            exports.github.scopes
         )}&client_id=${clientId}&redirect_uri=${escape(redirectUrl)}`
+    },
+    createOrgAccessUrl: (config) => {
+        let clientId = config.isDev
+            ? 'e02c8965ff92aa84b6ee'
+            : '5df635731e7fa3513c1d'
+        return `https://github.com/settings/connections/applications/${clientId}`
     },
 }
 
-export const auth = {
+exports.auth = {
     saveCredsFromUrl: async (url, location) => {
         let dir = os.homedir() + '/.searchspring'
         if (location) {
