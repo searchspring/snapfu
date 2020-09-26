@@ -159,7 +159,6 @@ exports.cloneAndCopyRepo = async function (sourceRepo, excludeGit, transforms) {
 }
 
 exports.transform = async function (read, write, transforms, file) {
-    console.log(file.name)
     if (file.name.endsWith('.json') || file.name.endsWith('.yml')) {
         let content = await streamToString(read)
         Object.keys(transforms).forEach(function (key) {
