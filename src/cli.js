@@ -1,7 +1,8 @@
 import arg from 'arg'
 import inquirer from 'inquirer'
-import { login, orgAccess } from './login'
+import { login, orgAccess, whoami } from './login'
 import { init } from './init'
+import chalk from 'chalk'
 
 function parseArgumentsIntoOptions(rawArgs) {
     const args = arg(
@@ -34,6 +35,19 @@ export async function cli(args) {
     if (options.command === 'init') {
         init(options)
     }
+    if (options.command === 'whoami') {
+        await whoami()
+            .then((user) => {
+                console.log(chalk.green(user))
+            })
+            .catch((err) => {
+                if (err === 'creds not found') {
+                    console.log('not logged in')
+                } else {
+                    console.log(chalk.red(err))
+                }
+            })
+    }
 }
 function debug(options, message) {
     if (options.dev) {
@@ -49,6 +63,7 @@ function displayHelp() {
 These are the snapfu commnads used in various situations
 
     login       Oauths with github
+    whoami      Shows the current user
     org-access  Review and change organization access for the tool
     init        Creates a new snap project`)
 }
