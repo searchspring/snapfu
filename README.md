@@ -4,7 +4,7 @@
 
 ![build](https://github.com/searchspring/snapfu/workflows/build/badge.svg?branch=master)
 
-The scaffolding command line tool for the Snap SKD. This tool creates a new Searchspring website from one of our existing templates and bootstraps a development environment and by default, deploys to an AWS S3 bucket behind a Cloudfront distribution.
+Snapfu is the scaffolding command line tool for the Snap SKD. This tool creates a new Searchspring website from one of our existing snap templates and bootstraps a development environment and, if you have access, deploys to an AWS S3 bucket behind a Cloudfront distribution.
 
 ## Installation
 
@@ -15,20 +15,34 @@ npm install -g snapfu
 ## Usage
 
 Login to access your github organizations - the following command will open a browser window
-to give snapfu access to your github organizations.
+to give snapfu access to your github organizations and to be able to create repositories in subsequent steps.
 
 ```bash
 snapfu login
 ```
 
 Create your website with the init command. Init will gather some information about the kind
-of Snap SDK template you wish to use. You will need your siteId from the SMC before you run this command.
+of Snap SDK template you wish to create. You will need your siteId from the SMC before you run this command. This command will,
+
+-   download template files in the current directory
+-   create and initialize a repository in the github org you selected
 
 ```bash
 mkdir my-awesome-website
 cd my-awesome-website
 snapfu init
 ```
+
+<img src="cli.png">
+
+Now you can run the project with your standard `npm` tools.
+
+```bash
+npm install
+npm run dev
+```
+
+See the `package.json` for other npm commands.
 
 ## Deployment
 
