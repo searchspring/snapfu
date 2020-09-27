@@ -9,8 +9,8 @@ const chalk = require('chalk')
 const os = require('os')
 
 exports.login = async (options, opener, port) => {
-    let uri = github.createOauthUrl({ isDev: options.dev })
-    let receivedUrl = auth.listenForCallback(port | 3827)
+    let uri = exports.github.createOauthUrl({ isDev: options.dev })
+    let receivedUrl = exports.auth.listenForCallback(port | 3827)
     if (!opener) {
         open(uri, { wait: true })
     } else {
@@ -18,7 +18,7 @@ exports.login = async (options, opener, port) => {
     }
     await receivedUrl.then(async (val) => {
         try {
-            let creds = await auth.saveCredsFromUrl(val)
+            let creds = await exports.auth.saveCredsFromUrl(val)
             console.log(`Authenticated ${chalk.green(creds.login)}`)
             exit(0)
         } catch (err) {
@@ -35,6 +35,9 @@ exports.orgAccess = async (options, opener) => {
     } else {
         opener(uri)
     }
+}
+exports.whoami = async (options) => {
+    return exports.auth.loadCreds()
 }
 
 exports.github = {
@@ -59,8 +62,11 @@ exports.github = {
 }
 
 exports.auth = {
+    home: () => {
+        return os.homedir()
+    },
     saveCredsFromUrl: async (url, location) => {
-        let dir = os.homedir() + '/.searchspring'
+        let dir = exports.auth.home() + '/.searchspring'
         if (location) {
             dir = location
         }
@@ -77,6 +83,21 @@ exports.auth = {
                 console.log(chalk.red(e.message, query.user))
             }
         }
+    },
+    loadCreds: async () => {
+        return new Promise((resolve, reject) => {
+            let credsLocation =
+                exports.auth.home() + '/.searchspring/creds.json'
+            if (!fs.existsSync(credsLocation)) {
+                reject('creds not found')
+            }
+            let creds = fs.readFileSync(credsLocation, 'utf8')
+            if (!creds) {
+                reject('creds not found')
+            }
+            let user = JSON.parse(creds)
+            resolve(user.login)
+        })
     },
     listenForCallback: (port) => {
         return new Promise((resolutionFunc, rejectionFunc) => {

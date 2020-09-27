@@ -1,8 +1,10 @@
-const { github, auth, login } = require('./login')
+const { github, auth, whoami } = require('./login')
 const tempDirectory = require('temp-dir')
 const fs = require('fs-extra')
 const request = require('request-promise')
 const fp = require('find-free-port')
+
+const fsp = require('fs').promises
 
 let tempDir = ''
 let port = -1
@@ -12,6 +14,7 @@ beforeEach(async () => {
         return freep
     })
     tempDir = tempDirectory + '/' + Math.random()
+    fs.mkdirsSync(tempDir + '/.searchspring')
 })
 
 afterEach(() => {
@@ -26,6 +29,30 @@ describe('listen for callback', () => {
         await request(`http://localhost:${port}?user={"name":"bob"}`)
         await receivedUrl.then((resolvedUrl) => {
             expect(resolvedUrl).toEqual('/?user=%7B%22name%22:%22bob%22%7D')
+        })
+    })
+})
+
+describe('whoami', () => {
+    it('with creds', async () => {
+        auth.home = () => {
+            return tempDir
+        }
+        await fsp.writeFile(
+            tempDir + '/.searchspring/creds.json',
+            '{"login":"mylogin"}'
+        )
+        let user = await whoami()
+        expect(user).toEqual('mylogin')
+    })
+
+    it('without creds', async () => {
+        expect.assertions(1)
+        auth.home = () => {
+            return tempDir
+        }
+        await whoami().catch((err) => {
+            expect(err).toEqual('creds not found')
         })
     })
 })
