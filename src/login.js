@@ -29,7 +29,7 @@ exports.login = async (options, opener, port) => {
 }
 
 exports.orgAccess = async (options, opener) => {
-    let uri = github.createOrgAccessUrl({ isDev: options.dev })
+    let uri = exports.github.createOrgAccessUrl({ isDev: options.dev })
     if (!opener) {
         open(uri)
     } else {
