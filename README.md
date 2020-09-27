@@ -35,7 +35,7 @@ snapfu init
 
 <img src="https://raw.githubusercontent.com/searchspring/snapfu/master/cli.png">
 
-Now you can run the project with your standard `npm` tools.
+Now you can run the project with your standard `npm` tooling.
 
 ```bash
 npm install
@@ -46,9 +46,9 @@ See the `package.json` for other npm commands.
 
 ## Deployment
 
-This tool integrates with the Searchspring build and deploy process. In order to take advantage of this you must select searchspring-implementations as the organization you deploy into.
+This tool integrates with the Searchspring build and deploy process. In order to take advantage of this you must select searchspring-implementations as your organizaiton during init.
 
-The tool uses Github actions to create a distribution files that are deployed to our AWS S3 backed CDN (Cloudfront).
+The tool uses Github actions to copy files to our AWS S3 backed CDN (Cloudfront).
 
 When you commit to master, the github action will deploy all the files that build into `./dist` to a publicly readable S3 bucket which can be accessed at the following URL:
 
