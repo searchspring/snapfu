@@ -100,7 +100,7 @@ exports.init = async (config) => {
                 .createInOrg({
                     org: answers.organization,
                     name: answers.name,
-                    private: true,
+                    private: false,
                 })
                 .catch((exception) => {
                     if (!exception.message.includes('already exists')) {
@@ -159,7 +159,6 @@ exports.cloneAndCopyRepo = async function (sourceRepo, excludeGit, transforms) {
 }
 
 exports.transform = async function (read, write, transforms, file) {
-    console.log(file.name)
     if (file.name.endsWith('.json') || file.name.endsWith('.yml')) {
         let content = await streamToString(read)
         Object.keys(transforms).forEach(function (key) {
