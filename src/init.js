@@ -71,7 +71,18 @@ exports.init = async (config) => {
                 message:
                     'Please choose which github organization to create this repository in',
                 choices: orgs,
-                default: 'searchspring',
+                default: 'searchspring-implementations',
+            },
+            {
+                type: 'input',
+                name: 'siteId',
+                message:
+                    'Please enter the siteId as found in the SMC console (a1b2c3)',
+                validate: (input) => {
+                    return (
+                        input && input.length > 0 && /[0-9a-z]{6}/.test(input)
+                    )
+                },
             },
             {
                 type: 'list',
@@ -89,7 +100,7 @@ exports.init = async (config) => {
                 .createInOrg({
                     org: answers.organization,
                     name: answers.name,
-                    private: true,
+                    private: false,
                 })
                 .catch((exception) => {
                     if (!exception.message.includes('already exists')) {
@@ -111,7 +122,11 @@ exports.init = async (config) => {
             console.log(`repository: ${chalk.blue(repoUrl)}`)
         }
         let templateUrl = `https://github.com/searchspring/snapfu-template-${answers.framework}`
-        await exports.cloneAndCopyRepo(templateUrl, true)
+        await exports.cloneAndCopyRepo(templateUrl, true, {
+            'snapfu.name': answers.name,
+            'snapfu.siteId': answers.siteId,
+            'snapfu.author': user.login,
+        })
         console.log(
             `template initialized from: snapfu-template-${answers.framework}`
         )
@@ -121,7 +136,7 @@ exports.init = async (config) => {
     }
 }
 
-exports.cloneAndCopyRepo = async function (sourceRepo, excludeGit) {
+exports.cloneAndCopyRepo = async function (sourceRepo, excludeGit, transforms) {
     let folder = await fs
         .mkdtemp(path.join(os.tmpdir(), 'snapfu-temp'))
         .then(async (folder, err) => {
@@ -135,7 +150,41 @@ exports.cloneAndCopyRepo = async function (sourceRepo, excludeGit) {
             return !name.endsWith('/.git')
         }
     }
+    if (transforms) {
+        options.transform = async (read, write, file) => {
+            exports.transform(read, write, transforms, file)
+        }
+    }
     await copyPromise(folder, '.', options)
+}
+
+exports.transform = async function (read, write, transforms, file) {
+    if (file.name.endsWith('.json') || file.name.endsWith('.yml')) {
+        let content = await streamToString(read)
+        Object.keys(transforms).forEach(function (key) {
+            let t = transforms[key]
+            let r = new RegExp('{{\\s*' + key + '\\s*}}', 'gi')
+            content = content.replace(r, t)
+        })
+        write.write(content)
+    } else {
+        let content = await streamToByte(read)
+        write.write(content)
+    }
+}
+
+async function streamToString(stream) {
+    let bytes = await streamToByte(stream)
+    return bytes.toString('utf8')
+}
+
+async function streamToByte(stream) {
+    const chunks = []
+    return new Promise((resolve, reject) => {
+        stream.on('data', (chunk) => chunks.push(chunk))
+        stream.on('error', reject)
+        stream.on('end', () => resolve(Buffer.concat(chunks)))
+    })
 }
 
 function clonePromise(repoUrl, destination) {

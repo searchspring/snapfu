@@ -12,6 +12,9 @@
         "format": "prettier --write src *.json",
         "format-check": "prettier --check src *.json"
     },
+    "jest": {
+        "testEnvironment": "node"
+    },
     "author": "",
     "license": "MIT",
     "husky": {
@@ -42,6 +45,7 @@
         "get-port": "^5.1.1",
         "husky": "^4.3.0",
         "jest": "^26.4.0",
+        "memorystream": "^0.3.1",
         "prettier": "^2.1.1",
         "pretty-quick": "^3.0.2",
         "request-promise": "^4.2.6",
