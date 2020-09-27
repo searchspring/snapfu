@@ -40,3 +40,7 @@ Format the code
 
 <img src="architecture.png">
 Open in <a href="https://miro.com/app/board/o9J_km-MoYk=/?moveToWidget=3074457349590531586&cot=12">Miro</a>
+
+## Deploy to npm
+
+-   Increase the version number
