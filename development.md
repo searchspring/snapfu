@@ -30,6 +30,26 @@ snapfu login --dev
 snapfu init --dev
 ```
 
+## Deploy to npm
+
+If you haven't already, log in to npm
+
+```bash
+npm login # user: searchspring-nebo
+```
+
+Increase the version number
+
+```bash
+npm version 1.0.2 # <- new version number
+```
+
+Publish
+
+```bash
+npm publish --access public
+```
+
 ## Misc
 
 Format the code
@@ -40,7 +60,3 @@ Format the code
 
 <img src="architecture.png">
 Open in <a href="https://miro.com/app/board/o9J_km-MoYk=/?moveToWidget=3074457349590531586&cot=12">Miro</a>
-
-## Deploy to npm
-
--   Increase the version number
