@@ -33,7 +33,7 @@ cd my-awesome-website
 snapfu init
 ```
 
-<img src="cli.png">
+<img src="https://raw.githubusercontent.com/searchspring/snapfu/master/cli.png">
 
 Now you can run the project with your standard `npm` tools.
 
