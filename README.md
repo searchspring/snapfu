@@ -1,6 +1,8 @@
 # Snapfu
 
-![build](https://github.com/searchspring/snapfu/workflows/build/badge.svg?branch=master) **snap·fu** - _the way of snap_
+**snap · fu** - "_the way of snap_"
+
+![build](https://github.com/searchspring/snapfu/workflows/build/badge.svg?branch=master)
 
 The scaffolding command line tool for the Snap SKD. This tool creates a new Searchspring website from one of our existing templates and bootstraps a development environment and by default, deploys to an AWS S3 bucket behind a Cloudfront distribution.
 
@@ -46,10 +48,11 @@ Similarly, if you push a branch to github called `my-branch` that will be availa
 https://b7i-customer-cdn.s3.amazonaws.com/<siteId>/my-branch/index.html
 ```
 
-## Other example deployments.
+## Deploying to other places
 
 You can modify the file `deploy.yml` in your generated project under `my-awesome-website/.github/workflows/deploy.yml`
-to complete different actions.
+to complete different actions if you don't want to use the Searchspring build process or
+don't have access to it.
 
 ### SCP
 
