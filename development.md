@@ -1,6 +1,6 @@
 # Snapfu
 
-The scaffolding CLI for the Snap SKD.
+The scaffolding CLI for the Snap SDK.
 
 ## Development Prerequisites
 

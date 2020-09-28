@@ -4,7 +4,7 @@
 
 ![build](https://github.com/searchspring/snapfu/workflows/build/badge.svg?branch=master)
 
-Snapfu is the scaffolding command line tool for the Snap SKD. This tool creates a new Searchspring website from one of our existing snap templates and bootstraps a development environment and, if you have access, deploys to an AWS S3 bucket behind a Cloudfront distribution.
+Snapfu is the scaffolding command line tool for the Snap SDK. This tool creates a new Searchspring website from one of our existing snap templates and bootstraps a development environment and, if you have access, deploys to an AWS S3 bucket behind a Cloudfront distribution.
 
 ## Installation
 
