@@ -1,6 +1,6 @@
 # Snapfu
 
-**snap · fu** - "_the way of snap_"
+**snap · fu** - _"the way of snap"_
 
 ![build](https://github.com/searchspring/snapfu/workflows/build/badge.svg?branch=master)
 
@@ -12,7 +12,7 @@ Snapfu is the scaffolding command line tool for the Snap SDK. This tool creates 
 npm install -g snapfu
 ```
 
-## Usage
+## Login
 
 Login to access your github organizations - the following command will open a browser window
 to give snapfu access to your github organizations and to be able to create repositories in subsequent steps.
@@ -20,6 +20,8 @@ to give snapfu access to your github organizations and to be able to create repo
 ```bash
 snapfu login
 ```
+
+## Init
 
 Create your website with the init command. Init will gather some information about the kind
 of Snap SDK template you wish to create. You will need your siteId from the SMC before you run this command. This command will,
@@ -34,6 +36,8 @@ snapfu init
 ```
 
 <img src="https://raw.githubusercontent.com/searchspring/snapfu/master/cli.png">
+
+# Run it
 
 Now you can run the project with your standard `npm` tooling.
 
