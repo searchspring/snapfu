@@ -37,7 +37,7 @@ snapfu init
 
 <img src="https://raw.githubusercontent.com/searchspring/snapfu/master/cli.png">
 
-# Run it
+## Run it
 
 Now you can run the project with your standard `npm` tooling.
 
