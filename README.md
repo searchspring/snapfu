@@ -1,42 +1,85 @@
 # Snapfu
 
-The scaffolding CLI for the Snap SKD.
+**snap · fu** - _"the way of snap"_
 
-## Development Prerequisites
+![build](https://github.com/searchspring/snapfu/workflows/build/badge.svg?branch=master)
 
-- node
-- golang
-- install the project in your workspace directory
-    - `git clone git@github.com:searchspring/snapfu.git`
-    - `cd snapfu && npm i`
-- install the token exchange project in your workspace directory
-    - `git clone git@github.com:searchspring/github-token-exchange.git`
-    - `cd github-token-exchange && go get -u`
+Snapfu is the scaffolding command line tool for the Snap SDK. This tool creates a new Searchspring website from one of our existing snap templates and bootstraps a development environment and, if you have access, deploys to an AWS S3 bucket behind a Cloudfront distribution.
 
-## Development
-
-Run the token exchange server
+## Installation
 
 ```bash
-cd github-token-exchange
-make run
+npm install -g snapfu
 ```
 
-Run the snapfu client
+## Login
+
+Login to access your github organizations - the following command will open a browser window
+to give snapfu access to your github organizations and to be able to create repositories in subsequent steps.
 
 ```bash
-cd snapfu
-snapfu login --dev
-snapfu init --dev
+snapfu login
 ```
 
-## Misc
- 
-Format the code
+## Init
 
-`npm run format`
+Create your website with the init command. Init will gather some information about the kind
+of Snap SDK template you wish to create. You will need your siteId from the SMC before you run this command. This command will,
 
-## Architecture
+-   download template files in the current directory
+-   create and initialize a repository in the github org you selected
 
-<img src="architecture.png">
-Open in <a href="https://miro.com/app/board/o9J_km-MoYk=/?moveToWidget=3074457349590531586&cot=12">Miro</a>
+```bash
+mkdir my-awesome-website
+cd my-awesome-website
+snapfu init
+```
+
+<img src="https://raw.githubusercontent.com/searchspring/snapfu/master/cli.png">
+
+## Run it
+
+Now you can run the project with your standard `npm` tooling.
+
+```bash
+npm install
+npm run dev
+```
+
+See the `package.json` for other npm commands.
+
+## Deployment
+
+This tool integrates with the Searchspring build and deploy process. In order to take advantage of this you must select searchspring-implementations as your organizaiton during init.
+
+The tool uses Github actions to copy files to our AWS S3 backed CDN (Cloudfront).
+
+When you commit to master, the github action will deploy all the files that build into `./dist` to a publicly readable S3 bucket which can be accessed at the following URL:
+
+```
+https://b7i-customer-cdn.s3.amazonaws.com/<siteId>/master/index.html
+```
+
+Similarly, if you push a branch to github called `my-branch` that will be available at
+
+```
+https://b7i-customer-cdn.s3.amazonaws.com/<siteId>/my-branch/index.html
+```
+
+## Deploying to other places
+
+You can modify the file `deploy.yml` in your generated project under `my-awesome-website/.github/workflows/deploy.yml`
+to complete different actions if you don't want to use the Searchspring build process or
+don't have access to it.
+
+### SCP
+
+Deploy the built artifacts using `scp`. [https://github.com/marketplace/actions/scp-command-to-transfer-files](https://github.com/marketplace/actions/scp-command-to-transfer-files)
+
+### Google Cloud
+
+Deploy to GCP using `gcloud`. [https://github.com/marketplace/actions/setup-gcloud-environment](https://github.com/marketplace/actions/setup-gcloud-environment)
+
+### SFTP
+
+Deploy a built artifacts through SFTP. [https://github.com/marketplace/actions/sftp-deploy](https://github.com/marketplace/actions/sftp-deploy)
