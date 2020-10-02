@@ -48,7 +48,7 @@ exports.github = {
             : '5df635731e7fa3513c1d'
         let redirectUrl = config.isDev
             ? 'http://localhost:3000'
-            : 'https://token.searchspring.com'
+            : 'https://token.kube.searchspring.io'
         return `https://github.com/login/oauth/authorize?response_type=token&scope=${escape(
             exports.github.scopes
         )}&client_id=${clientId}&redirect_uri=${escape(redirectUrl)}`
