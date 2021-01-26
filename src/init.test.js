@@ -1,10 +1,10 @@
-const { createDir, transform } = require('./init');
-const os = require('os');
-const fs = require('fs').promises;
-const path = require('path');
-const { fail } = require('assert');
-const { Readable } = require('stream');
-const MemoryStream = require('memorystream');
+import { createDir, transform } from './init';
+import os from 'os';
+import { promises as fs } from 'fs';
+import path from 'path';
+import { fail } from 'assert';
+import { Readable } from 'stream';
+import MemoryStream from 'memorystream';
 
 beforeEach(async () => {});
 

@@ -1,17 +1,17 @@
-const { escape } = require('querystring');
-const open = require('open');
-const http = require('http');
-const { parse } = require('url');
-const { exit } = require('process');
-const fsp = require('fs').promises;
-const path = require('path');
-const fs = require('fs');
-const chalk = require('chalk');
-const os = require('os');
+import { escape } from 'querystring';
+import open from 'open';
+import http from 'http';
+import { parse } from 'url';
+import { exit } from 'process';
+import { promises as fsp } from 'fs';
+import path from 'path';
+import fs from 'fs';
+import chalk from 'chalk';
+import os from 'os';
 
-exports.login = async (options, opener, port) => {
-	let uri = exports.github.createOauthUrl({ isDev: options.dev });
-	let receivedUrl = exports.auth.listenForCallback(port | 3827);
+export const login = async (options, opener, port) => {
+	let uri = github.createOauthUrl({ isDev: options.dev });
+	let receivedUrl = auth.listenForCallback(port | 3827);
 	if (!opener) {
 		open(uri, { wait: true });
 	} else {
@@ -19,7 +19,7 @@ exports.login = async (options, opener, port) => {
 	}
 	await receivedUrl.then(async (val) => {
 		try {
-			let creds = await exports.auth.saveCredsFromUrl(val);
+			let creds = await auth.saveCredsFromUrl(val);
 			console.log(`Authenticated ${chalk.green(creds.login)}`);
 			exit(0);
 		} catch (err) {
@@ -29,26 +29,26 @@ exports.login = async (options, opener, port) => {
 	});
 };
 
-exports.orgAccess = async (options, opener) => {
-	let uri = exports.github.createOrgAccessUrl({ isDev: options.dev });
+export const orgAccess = async (options, opener) => {
+	let uri = github.createOrgAccessUrl({ isDev: options.dev });
 	if (!opener) {
 		open(uri);
 	} else {
 		opener(uri);
 	}
 };
-exports.whoami = async (options) => {
-	return exports.auth.loadCreds();
+export const whoami = async (options) => {
+	return auth.loadCreds();
 };
 
-exports.github = {
+export const github = {
 	scopes: 'user:email,repo',
 	createOauthUrl: (config) => {
 		let clientId = config.isDev ? 'e02c8965ff92aa84b6ee' : '5df635731e7fa3513c1d';
 		let redirectUrl = config.isDev ? 'http://localhost:3000' : 'https://token.kube.searchspring.io';
-		return `https://github.com/login/oauth/authorize?response_type=token&scope=${escape(
-			exports.github.scopes
-		)}&client_id=${clientId}&redirect_uri=${escape(redirectUrl)}`;
+		return `https://github.com/login/oauth/authorize?response_type=token&scope=${escape(github.scopes)}&client_id=${clientId}&redirect_uri=${escape(
+			redirectUrl
+		)}`;
 	},
 	createOrgAccessUrl: (config) => {
 		let clientId = config.isDev ? 'e02c8965ff92aa84b6ee' : '5df635731e7fa3513c1d';
@@ -56,12 +56,12 @@ exports.github = {
 	},
 };
 
-exports.auth = {
+export const auth = {
 	home: () => {
 		return os.homedir();
 	},
 	saveCredsFromUrl: async (url, location) => {
-		let dir = path.join(exports.auth.home(), '/.searchspring');
+		let dir = path.join(auth.home(), '/.searchspring');
 		if (location) {
 			dir = location;
 		}
@@ -81,7 +81,7 @@ exports.auth = {
 	},
 	loadCreds: async () => {
 		return new Promise((resolve, reject) => {
-			let credsLocation = path.join(exports.auth.home(), '/.searchspring/creds.json');
+			let credsLocation = path.join(auth.home(), '/.searchspring/creds.json');
 			if (!fs.existsSync(credsLocation)) {
 				reject('creds not found');
 			}

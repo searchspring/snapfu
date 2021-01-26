@@ -1,15 +1,14 @@
-const os = require('os');
-const { readdirSync, readFileSync, existsSync } = require('fs');
-const { exit, cwd } = require('process');
-const fs = require('fs').promises;
-const path = require('path');
-const chalk = require('chalk');
-const { Octokit } = require('@octokit/rest');
-const inquirer = require('inquirer');
-const clone = require('git-clone');
-const ncp = require('ncp').ncp;
+import os from 'os';
+import { exit, cwd } from 'process';
+import { readdirSync, readFileSync, existsSync, promises as fs } from 'fs';
+import path from 'path';
+import chalk from 'chalk';
+import { Octokit } from '@octokit/rest';
+import inquirer from 'inquirer';
+import clone from 'git-clone';
+import { ncp } from 'ncp';
 
-exports.createDir = (dir) => {
+export const createDir = (dir) => {
 	return new Promise((resolutionFunc, rejectionFunc) => {
 		let folderName = dir.substring(dir.lastIndexOf('/') + 1);
 		let files = readdirSync(dir);
@@ -19,10 +18,10 @@ exports.createDir = (dir) => {
 		resolutionFunc(folderName);
 	});
 };
-exports.init = async (config) => {
+export const init = async (config) => {
 	try {
 		let dir = cwd();
-		let folderName = await exports.createDir(dir);
+		let folderName = await createDir(dir);
 		let credsLocation = path.join(os.homedir(), '/.searchspring/creds.json');
 		if (!existsSync(credsLocation)) {
 			console.log(chalk.red(`no creds file found, please use snapfu login`));
@@ -104,11 +103,11 @@ exports.init = async (config) => {
 
 		let repoUrl = `https://github.com/${answers.organization}/${answers.name}`;
 		if (!config.dev) {
-			await exports.cloneAndCopyRepo(repoUrl, false);
+			await cloneAndCopyRepo(repoUrl, false);
 			console.log(`repository: ${chalk.blue(repoUrl)}`);
 		}
 		let templateUrl = `https://github.com/searchspring/snapfu-template-${answers.framework}`;
-		await exports.cloneAndCopyRepo(templateUrl, true, {
+		await cloneAndCopyRepo(templateUrl, true, {
 			'snapfu.name': answers.name,
 			'snapfu.siteId': answers.siteId,
 			'snapfu.author': user.name,
@@ -120,7 +119,7 @@ exports.init = async (config) => {
 	}
 };
 
-exports.cloneAndCopyRepo = async function (sourceRepo, excludeGit, transforms) {
+export const cloneAndCopyRepo = async function (sourceRepo, excludeGit, transforms) {
 	let folder = await fs.mkdtemp(path.join(os.tmpdir(), 'snapfu-temp')).then(async (folder, err) => {
 		if (err) throw err;
 		return folder;
@@ -134,13 +133,13 @@ exports.cloneAndCopyRepo = async function (sourceRepo, excludeGit, transforms) {
 	}
 	if (transforms) {
 		options.transform = async (read, write, file) => {
-			exports.transform(read, write, transforms, file);
+			transform(read, write, transforms, file);
 		};
 	}
 	await copyPromise(folder, '.', options);
 };
 
-exports.transform = async function (read, write, transforms, file) {
+export const transform = async function (read, write, transforms, file) {
 	if (file.name.endsWith('.json') || file.name.endsWith('.yml')) {
 		let content = await streamToString(read);
 		Object.keys(transforms).forEach(function (key) {

@@ -1,11 +1,10 @@
-const { github, auth, whoami } = require('./login');
-const tempDirectory = require('temp-dir');
-const fs = require('fs-extra');
-const path = require('path');
-const request = require('request-promise');
-const fp = require('find-free-port');
-
-const fsp = require('fs').promises;
+import { github, auth, whoami } from './login';
+import tempDirectory from 'temp-dir';
+import fs from 'fs-extra';
+import path from 'path';
+import request from 'request-promise';
+import fp from 'find-free-port';
+import { promises as fsp } from 'fs';
 
 let tempDir = '';
 let port = -1;
