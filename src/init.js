@@ -23,7 +23,7 @@ exports.init = async (config) => {
 	try {
 		let dir = cwd();
 		let folderName = await exports.createDir(dir);
-		let credsLocation = os.homedir() + '/.searchspring/creds.json';
+		let credsLocation = path.join(os.homedir(), '/.searchspring/creds.json');
 		if (!existsSync(credsLocation)) {
 			console.log(chalk.red(`no creds file found, please use snapfu login`));
 			exit(1);
@@ -111,7 +111,7 @@ exports.init = async (config) => {
 		await exports.cloneAndCopyRepo(templateUrl, true, {
 			'snapfu.name': answers.name,
 			'snapfu.siteId': answers.siteId,
-			'snapfu.author': user.login,
+			'snapfu.author': user.name,
 		});
 		console.log(`template initialized from: snapfu-template-${answers.framework}`);
 	} catch (exception) {

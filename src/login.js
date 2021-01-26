@@ -4,6 +4,7 @@ const http = require('http');
 const { parse } = require('url');
 const { exit } = require('process');
 const fsp = require('fs').promises;
+const path = require('path');
 const fs = require('fs');
 const chalk = require('chalk');
 const os = require('os');
@@ -60,7 +61,7 @@ exports.auth = {
 		return os.homedir();
 	},
 	saveCredsFromUrl: async (url, location) => {
-		let dir = exports.auth.home() + '/.searchspring';
+		let dir = path.join(exports.auth.home(), '/.searchspring');
 		if (location) {
 			dir = location;
 		}
@@ -71,7 +72,7 @@ exports.auth = {
 		if (query && query.user) {
 			try {
 				let user = JSON.parse(query.user);
-				await fsp.writeFile(dir + '/creds.json', query.user);
+				await fsp.writeFile(path.join(dir, '/creds.json'), query.user);
 				return user;
 			} catch (e) {
 				console.log(chalk.red(e.message, query.user));
@@ -80,7 +81,7 @@ exports.auth = {
 	},
 	loadCreds: async () => {
 		return new Promise((resolve, reject) => {
-			let credsLocation = exports.auth.home() + '/.searchspring/creds.json';
+			let credsLocation = path.join(exports.auth.home(), '/.searchspring/creds.json');
 			if (!fs.existsSync(credsLocation)) {
 				reject('creds not found');
 			}
@@ -89,7 +90,7 @@ exports.auth = {
 				reject('creds not found');
 			}
 			let user = JSON.parse(creds);
-			resolve(user.login);
+			resolve({ login: user.login, name: user.name });
 		});
 	},
 	listenForCallback: (port) => {

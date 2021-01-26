@@ -16,6 +16,7 @@ function parseArgumentsIntoOptions(rawArgs) {
 	return {
 		dev: args['--dev'] || false,
 		command: args._[0],
+		args: args._.slice(1),
 	};
 }
 
@@ -38,7 +39,7 @@ export async function cli(args) {
 	if (options.command === 'whoami') {
 		await whoami()
 			.then((user) => {
-				console.log(chalk.green(user));
+				console.log(`${chalk.blue(user.name)} (${chalk.green(user.login)})`);
 			})
 			.catch((err) => {
 				if (err === 'creds not found') {
@@ -60,7 +61,7 @@ function debug(options, message) {
 function displayHelp() {
 	console.log(`usage: snapfu <command>
     
-These are the snapfu commnads used in various situations
+These are the snapfu commands used in various situations
 
     login       Oauths with github
     whoami      Shows the current user

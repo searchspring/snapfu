@@ -1,6 +1,7 @@
 const { github, auth, whoami } = require('./login');
 const tempDirectory = require('temp-dir');
 const fs = require('fs-extra');
+const path = require('path');
 const request = require('request-promise');
 const fp = require('find-free-port');
 
@@ -38,9 +39,9 @@ describe('whoami', () => {
 		auth.home = () => {
 			return tempDir;
 		};
-		await fsp.writeFile(tempDir + '/.searchspring/creds.json', '{"login":"mylogin"}');
+		await fsp.writeFile(path.join(tempDir, '/.searchspring/creds.json'), '{ "login": "mylogin", "name": "myname", "token": "xyz" }');
 		let user = await whoami();
-		expect(user).toEqual('mylogin');
+		expect(user).toStrictEqual({ login: 'mylogin', name: 'myname' });
 	});
 
 	it('without creds', async () => {
