@@ -140,7 +140,7 @@ export const cloneAndCopyRepo = async function (sourceRepo, excludeGit, transfor
 };
 
 export const transform = async function (read, write, transforms, file) {
-	if (file.name.endsWith('.json') || file.name.endsWith('.yml')) {
+	if (file.name.endsWith('package.json')) {
 		let content = await streamToString(read);
 		Object.keys(transforms).forEach(function (key) {
 			let t = transforms[key];
@@ -149,8 +149,9 @@ export const transform = async function (read, write, transforms, file) {
 		});
 		write.write(content);
 	} else {
-		let content = await streamToByte(read);
-		write.write(content);
+		write.on('open', function () {
+			read.pipe(write);
+		});
 	}
 };
 
