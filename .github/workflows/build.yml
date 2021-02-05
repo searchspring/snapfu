@@ -3,9 +3,9 @@
 name: build
 on:
   push:
-    branches: [ master ]
+    branches: [master]
   pull_request:
-    branches: [ master ]
+    branches: [master]
 jobs:
   build-cli:
     runs-on: ubuntu-latest
@@ -17,23 +17,3 @@ jobs:
       - run: npm install
       - run: npm test
       - run: npm run format-check
-      - name: Extract Branch Name
-        run: echo "::set-env name=BRANCH::$(echo ${GITHUB_REF##*/})"
-
-      - name: Create coverage variable
-        if: env.BRANCH != 'master'
-        run: |
-          COVER=$(node node_modules/jest/bin/jest.js --coverage --silent 2>&1 | grep -v Time)
-          COVER="${COVER//'%'/'%25'}"
-          COVER="${COVER//$'\n'/'%0A'}"
-          COVER="${COVER//$'\r'/'%0D'}"
-          echo "::set-env name=COVERAGE::$COVER"
-
-      - name: comment PR
-        if: env.BRANCH != 'master'
-        uses: unsplash/comment-on-pr@master
-        env:
-          GITHUB_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-        with:
-          msg: "<b>Coverage Report</b><br>\n```bash\n${{ env.COVERAGE }}\n```"
-          check_for_duplicate_msg: true 
