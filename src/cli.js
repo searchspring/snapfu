@@ -2,6 +2,7 @@ import arg from 'arg';
 import inquirer from 'inquirer';
 import { login, orgAccess, whoami } from './login';
 import { init } from './init';
+import { about } from './about';
 import chalk from 'chalk';
 
 function parseArgumentsIntoOptions(rawArgs) {
@@ -49,6 +50,9 @@ export async function cli(args) {
 				}
 			});
 	}
+	if (options.command === 'version') {
+		about(options);
+	}
 }
 function debug(options, message) {
 	if (options.dev) {
@@ -66,5 +70,6 @@ These are the snapfu commands used in various situations
     login       Oauths with github
     whoami      Shows the current user
     org-access  Review and change organization access for the tool
-    init        Creates a new snap project`);
+    init        Creates a new snap project
+    version     Shows versioning`);
 }
