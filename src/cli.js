@@ -50,7 +50,7 @@ export async function cli(args) {
 				}
 			});
 	}
-	if (options.command === 'version') {
+	if (options.command === 'about') {
 		about(options);
 	}
 }
@@ -71,5 +71,5 @@ These are the snapfu commands used in various situations
     whoami      Shows the current user
     org-access  Review and change organization access for the tool
     init        Creates a new snap project
-    version     Shows versioning`);
+    about     Shows versioning`);
 }
