@@ -60,16 +60,14 @@ function debug(options, message) {
 	}
 }
 
-// loadCreds()
-
 function displayHelp() {
 	console.log(`usage: snapfu <command>
-    
+
 These are the snapfu commands used in various situations
 
-    login       Oauths with github
-    whoami      Shows the current user
-    org-access  Review and change organization access for the tool
-    init        Creates a new snap project
-    about     Shows versioning`);
+    login           Oauths with github
+    whoami          Shows the current user
+    org-access      Review and change organization access for the tool
+    init            Creates a new snap project
+    about           Shows versioning`);
 }
