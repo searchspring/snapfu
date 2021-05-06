@@ -55,6 +55,9 @@ describe('transforms', () => {
 			},
 			{ name: 'something.icon' }
 		);
-		expect(write.toString()).toEqual('{{snapfu.name}}');
+
+		write.on('end', () => {
+			expect(write.toString()).toEqual('{{snapfu.name}}');
+		});
 	});
 });
