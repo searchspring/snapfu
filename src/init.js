@@ -70,15 +70,8 @@ export const init = async (config) => {
 				name: 'siteId',
 				message: 'Please enter the siteId as found in the SMC console (a1b2c3)',
 				validate: (input) => {
-					return input && input.length > 0 && /[0-9a-z]{6}/.test(input);
+					return input && input.length > 0 && /^[0-9a-z]{6}$/.test(input);
 				},
-			},
-			{
-				type: 'list',
-				name: 'color',
-				message: 'Please choose a color scheme',
-				choices: ['simple'],
-				default: 'simple',
 			},
 		];
 		const answers = await inquirer.prompt(questions);
@@ -90,6 +83,7 @@ export const init = async (config) => {
 					org: answers.organization,
 					name: answers.name,
 					private: false,
+					auto_init: true,
 				})
 				.catch((exception) => {
 					if (!exception.message.includes('already exists')) {
@@ -101,17 +95,18 @@ export const init = async (config) => {
 				});
 		}
 
-		let repoUrl = `https://github.com/${answers.organization}/${answers.name}`;
+		const repoUrl = `https://github.com/${answers.organization}/${answers.name}`;
 		if (!config.dev) {
 			await cloneAndCopyRepo(repoUrl, false);
 			console.log(`repository: ${chalk.blue(repoUrl)}`);
 		}
-		let templateUrl = `https://github.com/searchspring/snapfu-template-${answers.framework}`;
+		const templateUrl = `https://github.com/searchspring/snapfu-template-${answers.framework}`;
 		await cloneAndCopyRepo(templateUrl, true, {
 			'snapfu.name': answers.name,
 			'snapfu.siteId': answers.siteId,
 			'snapfu.author': user.name,
 		});
+
 		console.log(`template initialized from: snapfu-template-${answers.framework}`);
 	} catch (exception) {
 		console.log(chalk.red(exception));
@@ -124,6 +119,7 @@ export const cloneAndCopyRepo = async function (sourceRepo, excludeGit, transfor
 		if (err) throw err;
 		return folder;
 	});
+
 	await clonePromise(sourceRepo, folder);
 	let options = { clobber: false };
 	if (excludeGit) {
@@ -136,6 +132,7 @@ export const cloneAndCopyRepo = async function (sourceRepo, excludeGit, transfor
 			transform(read, write, transforms, file);
 		};
 	}
+
 	await copyPromise(folder, '.', options);
 };
 
@@ -149,8 +146,7 @@ export const transform = async function (read, write, transforms, file) {
 		});
 		write.write(content);
 	} else {
-		let content = await streamToByte(read);
-		write.write(content);
+		read.pipe(write);
 	}
 };
 
