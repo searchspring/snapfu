@@ -1,6 +1,6 @@
 import os from 'os';
 import { exit, cwd } from 'process';
-import { readdirSync, readFileSync, existsSync, promises as fs } from 'fs';
+import { readdirSync, readFileSync, existsSync, mkdirSync, promises as fs } from 'fs';
 import path from 'path';
 import chalk from 'chalk';
 import { Octokit } from '@octokit/rest';
@@ -10,6 +10,9 @@ import { ncp } from 'ncp';
 
 export const createDir = (dir) => {
 	return new Promise((resolutionFunc, rejectionFunc) => {
+		if (!existsSync(dir)) {
+			mkdirSync(dir);
+		}
 		let folderName = dir.substring(dir.lastIndexOf('/') + 1);
 		let files = readdirSync(dir);
 		if (files.length !== 0) {
@@ -20,7 +23,14 @@ export const createDir = (dir) => {
 };
 export const init = async (config) => {
 	try {
-		let dir = cwd();
+		let dir;
+		if (config.args.length === 1) {
+			// init was provided a folder name arg
+			dir = path.join(cwd(), config.args[0]);
+		} else {
+			dir = cwd();
+			console.log(chalk.blueBright(`A parameter was not provided to the init command. The current working directory will be initialized`));
+		}
 		let folderName = await createDir(dir);
 		let credsLocation = path.join(os.homedir(), '/.searchspring/creds.json');
 		if (!existsSync(credsLocation)) {
@@ -97,24 +107,30 @@ export const init = async (config) => {
 
 		const repoUrl = `https://${user.login}:${user.token}@github.com/${answers.organization}/${answers.name}.git`;
 		if (!config.dev) {
-			await cloneAndCopyRepo(repoUrl, false);
+			await cloneAndCopyRepo(repoUrl, dir, false);
 			console.log(`repository: ${chalk.blue(repoUrl)}`);
 		}
 		const templateUrl = `https://${user.login}:${user.token}@github.com/searchspring/snapfu-template-${answers.framework}.git`;
-		await cloneAndCopyRepo(templateUrl, true, {
+		await cloneAndCopyRepo(templateUrl, dir, true, {
 			'snapfu.name': answers.name,
 			'snapfu.siteId': answers.siteId,
 			'snapfu.author': user.name,
 		});
 
-		console.log(`template initialized from: snapfu-template-${answers.framework}`);
+		if (dir != cwd()) {
+			console.log(chalk.green(`A '${folderName}' directory has been created and initialized from snapfu-template-${answers.framework}\n`));
+			console.log(`Get started by installing package dependencies: \n\n\tcd ./${folderName} && npm install\n`);
+		} else {
+			console.log(chalk.green(`Current working directory has been initialized from snapfu-template-${answers.framework}\n`));
+			console.log(`Get started by installing package dependencies: \n\n\tnpm install\n`);
+		}
 	} catch (exception) {
 		console.log(chalk.red(exception));
 		exit(1);
 	}
 };
 
-export const cloneAndCopyRepo = async function (sourceRepo, excludeGit, transforms) {
+export const cloneAndCopyRepo = async function (sourceRepo, destination, excludeGit, transforms) {
 	let folder = await fs.mkdtemp(path.join(os.tmpdir(), 'snapfu-temp')).then(async (folder, err) => {
 		if (err) throw err;
 		return folder;
@@ -132,8 +148,7 @@ export const cloneAndCopyRepo = async function (sourceRepo, excludeGit, transfor
 			transform(read, write, transforms, file);
 		};
 	}
-
-	await copyPromise(folder, '.', options);
+	await copyPromise(folder, destination, options);
 };
 
 export const transform = async function (read, write, transforms, file) {
@@ -184,5 +199,6 @@ function copyPromise(source, destination, options) {
 			}
 			resolutionFunc();
 		});
+		resolutionFunc();
 	});
 }
