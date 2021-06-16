@@ -92,7 +92,7 @@ export const init = async (config) => {
 				.createInOrg({
 					org: answers.organization,
 					name: answers.name,
-					private: false,
+					private: true,
 					auto_init: true,
 				})
 				.catch((exception) => {
@@ -108,7 +108,7 @@ export const init = async (config) => {
 		const repoUrl = `https://${user.login}:${user.token}@github.com/${answers.organization}/${answers.name}.git`;
 		if (!config.dev) {
 			await cloneAndCopyRepo(repoUrl, dir, false);
-			console.log(`repository: ${chalk.blue(repoUrl)}`);
+			console.log(`repository: ${chalk.blueBright(repoUrl)}`);
 		}
 		const templateUrl = `https://${user.login}:${user.token}@github.com/searchspring/snapfu-template-${answers.framework}.git`;
 		await cloneAndCopyRepo(templateUrl, dir, true, {
