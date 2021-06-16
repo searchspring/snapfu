@@ -5,8 +5,10 @@ import path from 'path';
 import chalk from 'chalk';
 import { Octokit } from '@octokit/rest';
 import inquirer from 'inquirer';
-import clone from 'git-clone';
 import { ncp } from 'ncp';
+
+const util = require('util');
+const exec = util.promisify(require('child_process').exec);
 
 export const createDir = (dir) => {
 	return new Promise((resolutionFunc, rejectionFunc) => {
@@ -95,12 +97,12 @@ export const init = async (config) => {
 				});
 		}
 
-		const repoUrl = `https://github.com/${answers.organization}/${answers.name}`;
+		const repoUrl = `https://${user.login}:${user.token}@github.com/${answers.organization}/${answers.name}.git`;
 		if (!config.dev) {
 			await cloneAndCopyRepo(repoUrl, false);
 			console.log(`repository: ${chalk.blue(repoUrl)}`);
 		}
-		const templateUrl = `https://github.com/searchspring/snapfu-template-${answers.framework}`;
+		const templateUrl = `https://${user.login}:${user.token}@github.com/searchspring/snapfu-template-${answers.framework}.git`;
 		await cloneAndCopyRepo(templateUrl, true, {
 			'snapfu.name': answers.name,
 			'snapfu.siteId': answers.siteId,
@@ -165,13 +167,17 @@ async function streamToByte(stream) {
 }
 
 function clonePromise(repoUrl, destination) {
-	return new Promise(async (resolutionFunc, rejectionFunc) => {
-		clone(repoUrl, destination, (err) => {
-			if (err) {
-				rejectionFunc(err);
+	const command = `git clone ${repoUrl} ${destination}`;
+	return new Promise(async (resolve, reject) => {
+		try {
+			const { stderr } = await exec(command);
+			if (stderr && !stderr.includes(`Cloning into`)) {
+				reject(`Unexected return from git clone: \n${stderr}`);
 			}
-			resolutionFunc();
-		});
+			resolve();
+		} catch (e) {
+			reject(e);
+		}
 	});
 }
 
