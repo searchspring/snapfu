@@ -95,12 +95,12 @@ export const init = async (config) => {
 				});
 		}
 
-		const repoUrl = `https://github.com/${answers.organization}/${answers.name}`;
+		const repoUrl = `https://${user.login}:${user.token}@github.com/${answers.organization}/${answers.name}.git`;
 		if (!config.dev) {
 			await cloneAndCopyRepo(repoUrl, false);
 			console.log(`repository: ${chalk.blue(repoUrl)}`);
 		}
-		const templateUrl = `https://github.com/searchspring/snapfu-template-${answers.framework}`;
+		const templateUrl = `https://${user.login}:${user.token}@github.com/searchspring/snapfu-template-${answers.framework}.git`;
 		await cloneAndCopyRepo(templateUrl, true, {
 			'snapfu.name': answers.name,
 			'snapfu.siteId': answers.siteId,
