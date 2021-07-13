@@ -6,7 +6,10 @@ import { init } from './init';
 import { about } from './about';
 import { template } from './template';
 import { help } from './help';
+import path from 'path';
+import { promises as fsp } from 'fs';
 import chalk from 'chalk';
+import packageJSON from '../package.json';
 
 const exec = promisify(child_process.exec);
 
@@ -15,7 +18,6 @@ async function parseArgumentsIntoOptions(rawArgs) {
 		{
 			'--dev': Boolean,
 			'--secret-key': String,
-			'--branch': String,
 		},
 		{
 			argv: rawArgs.slice(2),
@@ -38,6 +40,8 @@ export async function cli(args) {
 	let options = await parseArgumentsIntoOptions(args);
 	debug(options, options);
 
+	await checkForLatestVersion(options);
+
 	switch (options.command) {
 		case 'init':
 			init(options);
@@ -57,17 +61,16 @@ export async function cli(args) {
 			break;
 
 		case 'whoami':
-			await whoami()
-				.then((user) => {
-					console.log(`${chalk.blue(user.name)} (${chalk.green(user.login)})`);
-				})
-				.catch((err) => {
-					if (err === 'creds not found') {
-						console.log('not logged in');
-					} else {
-						console.log(chalk.red(err));
-					}
-				});
+			try {
+				const user = await whoami();
+				console.log(`${chalk.blue(user.name)} (${chalk.green(user.login)})`);
+			} catch (err) {
+				if (err === 'creds not found') {
+					console.log('not logged in');
+				} else {
+					console.log(chalk.red(err));
+				}
+			}
 			break;
 
 		case 'about':
@@ -98,23 +101,82 @@ async function commandOutput(cmd) {
 }
 
 async function getContext() {
-	// TODO get searchspring details from package.json
-	const searchspring = {
-		creator: 'searchspring',
-		siteId: 'abc123',
-		framework: 'preact',
-		platform: 'custom',
-		tags: [],
-	};
+	try {
+		const user = await whoami();
+		const { searchspring, local } = await getPackageJSON();
 
-	// get git stuff
-	const repository = {
-		remote: await commandOutput('git branch --show-current'),
-		branch: await commandOutput('git config --get remote.origin.url'),
-	};
+		// get git stuff
+		const repository = {
+			branch: await commandOutput('git branch --show-current'),
+			remote: await commandOutput('git config --get remote.origin.url'),
+		};
 
-	return {
-		repository,
-		searchspring,
-	};
+		return {
+			user,
+			local,
+			repository,
+			searchspring,
+			version: packageJSON.version,
+		};
+	} catch (err) {
+		throw err;
+	}
+}
+
+async function checkForLatestVersion(options) {
+	const latest = await commandOutput('npm view snapfu version');
+
+	if (options.context.version != latest) {
+		console.log(`${chalk.bold.grey(`Version ${chalk.bold.red(`${latest}`)} of snapfu available.\nInstall with:`)}\n`);
+		console.log(`${chalk.bold.greenBright('npm -ig snapfu')}\n`);
+		console.log(`${chalk.grey('─────────────────────────────────────────────')}\n\n`);
+	}
+}
+
+async function getPackageJSON() {
+	try {
+		const [packageFile] = await getFiles(process.cwd(), 'package.json');
+
+		if (packageFile) {
+			const contents = await fsp.readFile(packageFile, 'utf8');
+			const parsedContents = JSON.parse(contents);
+
+			parsedContents.local = {
+				path: path.dirname(packageFile),
+				dirname: path.basename(path.dirname(packageFile)),
+			};
+
+			return parsedContents;
+		}
+
+		return {};
+	} catch (err) {
+		throw err;
+	}
+}
+
+async function getFiles(dir, fileName) {
+	const rootDir = path.parse(process.cwd()).root;
+	let results = [];
+
+	try {
+		const dirFiles = await fsp.readdir(dir);
+
+		for (const file of dirFiles) {
+			const filePath = path.resolve(dir, file);
+
+			if (file == fileName) {
+				results.push(filePath);
+			}
+		}
+
+		if (!results.length && dir != rootDir) {
+			const dirResults = await getFiles(path.resolve(dir, '../'), fileName);
+			results = results.concat(dirResults);
+		}
+	} catch (err) {
+		throw new Error('failed to getFiles!');
+	}
+
+	return results;
 }

@@ -30,6 +30,7 @@
 		"git-clone": "^0.1.0",
 		"inquirer": "^8.0.0",
 		"ncp": "^2.0.0",
+		"node-fetch": "^2.6.1",
 		"open": "^8.0.7"
 	},
 	"devDependencies": {

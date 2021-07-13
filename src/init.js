@@ -29,7 +29,7 @@ export const init = async (config) => {
 			dir = path.join(cwd(), config.args[0]);
 		} else {
 			dir = cwd();
-			console.log(chalk.blueBright(`A parameter was not provided to the init command. The current working directory will be initialized`));
+			console.log(chalk.green(`A parameter was not provided to the init command. The current working directory will be initialized.`));
 		}
 		let folderName = await createDir(dir);
 		let credsLocation = path.join(os.homedir(), '/.searchspring/creds.json');
@@ -106,22 +106,24 @@ export const init = async (config) => {
 		}
 
 		const repoUrl = `https://${user.login}:${user.token}@github.com/${answers.organization}/${answers.name}.git`;
+		const repoSafeUrl = `https://github.com/${answers.organization}/${answers.name}`;
 		if (!config.dev) {
 			await cloneAndCopyRepo(repoUrl, dir, false);
-			console.log(`repository: ${chalk.blueBright(repoUrl)}`);
+			console.log(`repository: ${chalk.greenBright(repoSafeUrl)}`);
 		}
 		const templateUrl = `https://${user.login}:${user.token}@github.com/searchspring/snapfu-template-${answers.framework}.git`;
 		await cloneAndCopyRepo(templateUrl, dir, true, {
 			'snapfu.name': answers.name,
 			'snapfu.siteId': answers.siteId,
 			'snapfu.author': user.name,
+			'snapfu.framework': answers.framework,
 		});
 
 		if (dir != cwd()) {
-			console.log(chalk.green(`A '${folderName}' directory has been created and initialized from snapfu-template-${answers.framework}\n`));
+			console.log(chalk.green(`A '${folderName}' directory has been created and initialized from snapfu-template-${answers.framework}.\n`));
 			console.log(`Get started by installing package dependencies: \n\n\tcd ./${folderName} && npm install\n`);
 		} else {
-			console.log(chalk.green(`Current working directory has been initialized from snapfu-template-${answers.framework}\n`));
+			console.log(chalk.green(`Current working directory has been initialized from snapfu-template-${answers.framework}.\n`));
 			console.log(`Get started by installing package dependencies: \n\n\tnpm install\n`);
 		}
 	} catch (exception) {
