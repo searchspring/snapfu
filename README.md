@@ -14,8 +14,8 @@ npm install -g snapfu
 
 ## Login
 
-Login to access your github organizations - the following command will open a browser window
-to give snapfu access to your github organizations and to be able to create repositories in subsequent steps.
+Login to access your Github organizations - the following command will open a browser window
+to give snapfu access to your Github organizations and to be able to create repositories in subsequent steps.
 
 ```bash
 snapfu login
@@ -24,18 +24,16 @@ snapfu login
 ## Init
 
 Create your website with the init command. Init will gather some information about the kind
-of Snap SDK template you wish to create. You will need your siteId from the SMC before you run this command. This command will,
+of Snap build template you wish to create. You will need your siteId from the SMC before you run this command. This command will,
 
--   download template files in the current directory
--   create and initialize a repository in the github org you selected
+-   download template files
+-   create and initialize a repository in the Github organization you selected
 
 ```bash
-mkdir my-awesome-website
-cd my-awesome-website
-snapfu init
+snapfu init my-awesome-website
 ```
 
-<img src="https://raw.githubusercontent.com/searchspring/snapfu/master/cli.png">
+<img src="https://raw.githubusercontent.com/searchspring/snapfu/main/cli.png">
 
 ## Run it
 
@@ -54,16 +52,17 @@ This tool integrates with the Searchspring build and deploy process. In order to
 
 The tool uses Github actions to copy files to our AWS S3 backed CDN (Cloudfront).
 
-When you commit to master, the github action will deploy all the files that build into `./dist` to a publicly readable S3 bucket which can be accessed at the following URL:
+When you commit to the main branch (production), the github action will deploy all the files that build into `./dist` to a publicly readable S3 bucket which can be accessed at the following URLs:
 
 ```
-https://b7i-customer-cdn.s3.amazonaws.com/<siteId>/master/index.html
+http://snapui.searchspring.io/<siteId>/bundle.js
+http://snapui.searchspring.io/<siteId>/production/bundle.js
 ```
 
 Similarly, if you push a branch to github called `my-branch` that will be available at
 
 ```
-https://b7i-customer-cdn.s3.amazonaws.com/<siteId>/my-branch/index.html
+http://snapui.searchspring.io/<siteId>/my-branch/bundle.js
 ```
 
 ## Deploying to other places

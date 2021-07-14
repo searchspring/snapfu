@@ -1,6 +1,6 @@
 import os from 'os';
 import { exit, cwd } from 'process';
-import { readdirSync, readFileSync, existsSync, promises as fs } from 'fs';
+import { readdirSync, readFileSync, existsSync, mkdirSync, promises as fs } from 'fs';
 import path from 'path';
 import chalk from 'chalk';
 import { Octokit } from '@octokit/rest';
@@ -10,37 +10,51 @@ import { ncp } from 'ncp';
 
 export const createDir = (dir) => {
 	return new Promise((resolutionFunc, rejectionFunc) => {
+		if (!existsSync(dir)) {
+			mkdirSync(dir);
+		}
+
 		let folderName = dir.substring(dir.lastIndexOf('/') + 1);
 		let files = readdirSync(dir);
+
 		if (files.length !== 0) {
 			rejectionFunc('folder not empty, exiting');
 		}
+
 		resolutionFunc(folderName);
 	});
 };
-export const init = async (config) => {
+
+export const init = async (options) => {
 	try {
-		let dir = cwd();
-		let folderName = await createDir(dir);
-		let credsLocation = path.join(os.homedir(), '/.searchspring/creds.json');
-		if (!existsSync(credsLocation)) {
-			console.log(chalk.red(`no creds file found, please use snapfu login`));
+		const { user } = options.context;
+
+		if (!user) {
+			console.log(chalk.red(`No creds file found, please use snapfu login`));
 			exit(1);
 		}
-		let creds = readFileSync(credsLocation, 'utf8');
-		if (!creds) {
-			console.log(chalk.red(`no creds file found, please use snapfu login`));
-			exit(1);
+
+		let dir;
+		if (options.args.length === 1) {
+			// init was provided a folder name arg
+			dir = path.join(cwd(), options.args[0]);
+		} else {
+			dir = cwd();
+			console.log(chalk.green(`A parameter was not provided to the init command. The current working directory will be initialized.`));
 		}
-		let user = JSON.parse(creds);
+		
 		let octokit = new Octokit({
 			auth: user.token,
 		});
+
 		let orgs = await octokit.orgs.listForAuthenticatedUser().then(({ data }) => {
 			return data.map((org) => {
 				return org.login;
 			});
 		});
+
+		let folderName = await createDir(dir);
+
 		let questions = [
 			{
 				type: 'input',
@@ -74,20 +88,22 @@ export const init = async (config) => {
 				},
 			},
 		];
+
 		const answers = await inquirer.prompt(questions);
-		if (config.dev) {
+
+		if (options.dev) {
 			console.log(chalk.blueBright('dev mode skipping new repo creation'));
 		} else {
 			await octokit.repos
 				.createInOrg({
 					org: answers.organization,
 					name: answers.name,
-					private: false,
+					private: true,
 					auto_init: true,
 				})
-				.catch((exception) => {
-					if (!exception.message.includes('already exists')) {
-						console.log(chalk.red(exception.message));
+				.catch((err) => {
+					if (!err.message.includes('already exists')) {
+						console.log(chalk.red(err.message));
 						exit(1);
 					} else {
 						console.log(chalk.yellow('repository already exists, continuing...'));
@@ -95,26 +111,37 @@ export const init = async (config) => {
 				});
 		}
 
-		const repoUrl = `https://github.com/${answers.organization}/${answers.name}`;
-		if (!config.dev) {
-			await cloneAndCopyRepo(repoUrl, false);
-			console.log(`repository: ${chalk.blue(repoUrl)}`);
+		const repoUrlSSH = `git@github.com:${answers.organization}/${answers.name}.git`;
+		const repoUrlHTTP = `https://github.com/${answers.organization}/${answers.name}`;
+
+		if (!options.dev) {
+			console.log(`repository: ${chalk.greenBright(repoUrlHTTP)}`);
+			await cloneAndCopyRepo(repoUrlHTTP, dir, false);
 		}
-		const templateUrl = `https://github.com/searchspring/snapfu-template-${answers.framework}`;
-		await cloneAndCopyRepo(templateUrl, true, {
+
+		const templateUrlHTTP = `https://github.com/searchspring/snapfu-template-${answers.framework}`;
+
+		await cloneAndCopyRepo(templateUrlHTTP, dir, true, {
 			'snapfu.name': answers.name,
 			'snapfu.siteId': answers.siteId,
 			'snapfu.author': user.name,
+			'snapfu.framework': answers.framework,
 		});
 
-		console.log(`template initialized from: snapfu-template-${answers.framework}`);
-	} catch (exception) {
-		console.log(chalk.red(exception));
+		if (dir != cwd()) {
+			console.log(chalk.green(`A '${folderName}' directory has been created and initialized from snapfu-template-${answers.framework}.\n`));
+			console.log(`Get started by installing package dependencies: \n\n\tcd ./${folderName} && npm install\n`);
+		} else {
+			console.log(chalk.green(`Current working directory has been initialized from snapfu-template-${answers.framework}.\n`));
+			console.log(`Get started by installing package dependencies: \n\n\tnpm install\n`);
+		}
+	} catch (err) {
+		console.log(chalk.red(err));
 		exit(1);
 	}
 };
 
-export const cloneAndCopyRepo = async function (sourceRepo, excludeGit, transforms) {
+export const cloneAndCopyRepo = async function (sourceRepo, destination, excludeGit, transforms) {
 	let folder = await fs.mkdtemp(path.join(os.tmpdir(), 'snapfu-temp')).then(async (folder, err) => {
 		if (err) throw err;
 		return folder;
@@ -122,28 +149,32 @@ export const cloneAndCopyRepo = async function (sourceRepo, excludeGit, transfor
 
 	await clonePromise(sourceRepo, folder);
 	let options = { clobber: false };
+
 	if (excludeGit) {
 		options.filter = (name) => {
 			return !name.endsWith('/.git');
 		};
 	}
+
 	if (transforms) {
 		options.transform = async (read, write, file) => {
 			transform(read, write, transforms, file);
 		};
 	}
 
-	await copyPromise(folder, '.', options);
+	await copyPromise(folder, destination, options);
 };
 
 export const transform = async function (read, write, transforms, file) {
 	if (file.name.endsWith('.json') || file.name.endsWith('.yml')) {
 		let content = await streamToString(read);
+
 		Object.keys(transforms).forEach(function (key) {
 			let t = transforms[key];
 			let r = new RegExp('{{\\s*' + key + '\\s*}}', 'gi');
 			content = content.replace(r, t);
 		});
+
 		write.write(content);
 	} else {
 		read.pipe(write);
@@ -157,6 +188,7 @@ async function streamToString(stream) {
 
 async function streamToByte(stream) {
 	const chunks = [];
+
 	return new Promise((resolve, reject) => {
 		stream.on('data', (chunk) => chunks.push(chunk));
 		stream.on('error', reject);
@@ -184,5 +216,6 @@ function copyPromise(source, destination, options) {
 			}
 			resolutionFunc();
 		});
+		resolutionFunc();
 	});
 }

@@ -27,7 +27,7 @@ describe('check empty dir', () => {
 
 describe('transforms', () => {
 	it('replace tokens', async () => {
-		let buf = Buffer.from('name {{  snapfu.name}} by {{snapfu.author}}', 'utf8');
+		let buf = Buffer.from('name {{ snapfu.name}} by {{ snapfu.author }}', 'utf8');
 		let write = MemoryStream.createWriteStream();
 		let transforms = {
 			'snapfu.name': 'destination name',
