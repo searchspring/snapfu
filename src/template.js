@@ -10,49 +10,17 @@ const devApiHost = 'http://localhost:9999';
 const DIR_BLACK_LIST = ['node_modules', '.git'];
 
 export const template = async (options) => {
-	if (!options.args.length) {
-		showTemplateHelp();
-		return;
-	}
 
-	const [command] = options.args;
-
-	switch (command) {
-		case 'init':
-			await initTemplate(options);
-			break;
-
-		case 'list':
-			await listTemplates(options);
-			break;
-
-		case 'archive':
-			removeTemplate(options);
-			break;
-
-		case 'sync':
-			syncTemplate(options);
-			break;
-
-		default:
-			showTemplateHelp();
-			break;
-	}
 };
 
 function showTemplateHelp() {
 	help({ command: 'help', args: ['template'] });
 }
 
-async function initTemplate(options) {
+export async function initTemplate(options) {
 	const { context } = options;
 	const { searchspring } = context;
 	const [command, name, dir] = options.args;
-
-	if (!name) {
-		showTemplateHelp();
-		return;
-	}
 
 	console.log(chalk.grey(`Initializing template...`));
 
@@ -63,7 +31,7 @@ async function initTemplate(options) {
 
 	const componentName = capitalizeFirstLetter(name);
 
-	if (!searchspring || !context.local.path) {
+	if (!searchspring || !context.project.path) {
 		console.log(chalk.red(`Error: No Snap project found in ${process.cwd()}.`));
 		return;
 	}
@@ -78,7 +46,7 @@ async function initTemplate(options) {
 	}
 
 	const framework = frameworks[searchspring.framework];
-	const templateDir = dir || path.resolve(context.local.path, framework.template.dir);
+	const templateDir = dir || path.resolve(context.project.path, framework.template.dir);
 
 	try {
 		await writeTemplateFile(path.resolve(process.cwd(), templateDir, componentName, `${componentName}.json`), generateTemplateSettings(name));
@@ -94,19 +62,19 @@ async function initTemplate(options) {
 	}
 }
 
-async function listTemplates(options) {
+export async function listTemplates(options) {
 	const { context } = options;
 	const { searchspring } = context;
 	const [command, location] = options.args;
 	const { secretKey } = options.options;
 
-	if (!searchspring || !context.local || !context.local.path) {
+	if (!searchspring || !context.project || !context.project.path) {
 		console.log(chalk.red(`Error: No Snap project found in ${process.cwd()}.`));
 		return;
 	}
 
 	if (!location || location == 'local') {
-		const templates = await getTemplates(context.local.path);
+		const templates = await getTemplates(context.project.path);
 
 		templates.forEach((template, index) => {
 			console.log(`${chalk.green(template.details.name)} (${template.details.label})`);
@@ -150,13 +118,13 @@ async function listTemplates(options) {
 	}
 }
 
-async function removeTemplate(options) {
+export async function removeTemplate(options) {
 	const { context } = options;
 	const { searchspring, repository } = context;
 	const [command, templateName, branch] = options.args;
 	const { secretKey } = options.options;
 
-	if (!searchspring || !context.local || !context.local.path) {
+	if (!searchspring || !context.project || !context.project.path) {
 		console.log(chalk.red(`Error: No Snap project found in ${process.cwd()}.`));
 		return;
 	}
@@ -192,18 +160,18 @@ async function removeTemplate(options) {
 	}
 }
 
-async function syncTemplate(options) {
+export async function syncTemplate(options) {
 	const { context } = options;
 	const { searchspring, repository } = context;
 	const [command, templateName, branch] = options.args;
 	const { secretKey } = options.options;
 
-	if (!searchspring || !context.local || !context.local.path) {
+	if (!searchspring || !context.project || !context.project.path) {
 		console.log(chalk.red(`Error: No Snap project found in ${process.cwd()}.`));
 		return;
 	}
 
-	const templates = await getTemplates(context.local.path);
+	const templates = await getTemplates(context.project.path);
 	const syncTemplates = templates.filter((template) => {
 		if (templateName) {
 			if (template.details.name == templateName) return template;
@@ -260,7 +228,7 @@ async function syncTemplate(options) {
 	}
 }
 
-function generateTemplateSettings(name) {
+export function generateTemplateSettings(name) {
 	const settings = {
 		name: name.toLowerCase(),
 		label: `${name}`,
@@ -280,7 +248,7 @@ function generateTemplateSettings(name) {
 	return JSON.stringify(settings, null, '\t');
 }
 
-async function writeTemplateFile(filePath, contents) {
+export async function writeTemplateFile(filePath, contents) {
 	const baseDir = path.dirname(filePath);
 
 	await fsp.mkdir(baseDir, { recursive: true });
@@ -294,7 +262,7 @@ async function writeTemplateFile(filePath, contents) {
 	}
 }
 
-async function readTemplateSettings(filePath) {
+export async function readTemplateSettings(filePath) {
 	let fileContents;
 
 	try {
@@ -313,7 +281,7 @@ async function readTemplateSettings(filePath) {
 	}
 }
 
-async function getTemplates(dir) {
+export async function getTemplates(dir) {
 	try {
 		const files = await findTemplateFiles(dir);
 		const fileReads = files.map((filePath) => readTemplateSettings(filePath));
@@ -336,8 +304,8 @@ async function getTemplates(dir) {
 	}
 }
 
-async function findTemplateFiles(dir) {
-	// get all JSON files (exclude node_modules)
+export async function findTemplateFiles(dir) {
+	// get all JSON files (exclude looking in blacklist)
 	// filter out only files with name same as parent directory
 	try {
 		const details = await fsp.stat(dir);
@@ -376,7 +344,7 @@ async function findTemplateFiles(dir) {
 	}
 }
 
-function buildTemplatePayload(template, vars) {
+export function buildTemplatePayload(template, vars) {
 	return {
 		name: template.name,
 		component: template.component,

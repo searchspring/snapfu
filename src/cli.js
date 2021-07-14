@@ -1,17 +1,12 @@
-import child_process from 'child_process';
-import { promisify } from 'util';
 import arg from 'arg';
+import chalk from 'chalk';
+
 import { login, orgAccess, whoami } from './login';
+import { initTemplate, listTemplates, removeTemplate, syncTemplate } from './template';
 import { init } from './init';
 import { about } from './about';
-import { template } from './template';
 import { help } from './help';
-import path from 'path';
-import { promises as fsp } from 'fs';
-import chalk from 'chalk';
-import packageJSON from '../package.json';
-
-const exec = promisify(child_process.exec);
+import { commandOutput, getContext } from './context';
 
 async function parseArgumentsIntoOptions(rawArgs) {
 	const args = arg(
@@ -29,7 +24,6 @@ async function parseArgumentsIntoOptions(rawArgs) {
 		command: args._[0],
 		args: args._.slice(1),
 		options: {
-			branch: args['--branch'],
 			secretKey: args['--secret-key'],
 		},
 		context: await getContext(),
@@ -38,7 +32,6 @@ async function parseArgumentsIntoOptions(rawArgs) {
 
 export async function cli(args) {
 	let options = await parseArgumentsIntoOptions(args);
-	debug(options, options);
 
 	await checkForLatestVersion(options);
 
@@ -49,7 +42,48 @@ export async function cli(args) {
 
 		case 'template':
 		case 'templates':
-			template(options);
+			{
+				function showTemplateHelp() {
+					help({ command: 'help', args: ['template'] });
+				}
+
+				if (!options.args.length) {
+					showTemplateHelp();
+					return;
+				}
+			
+				const [command] = options.args;
+			
+				switch (command) {
+					case 'init':
+						const [command, name, dir] = options.args;
+
+						if (!name) {
+							showTemplateHelp();
+						} else {
+							await initTemplate(options);
+						}
+
+						break;
+			
+					case 'list':
+						await listTemplates(options);
+						break;
+			
+					case 'archive':
+						removeTemplate(options);
+						break;
+			
+					case 'sync':
+						syncTemplate(options);
+						break;
+			
+					default:
+						showTemplateHelp();
+						break;
+				}
+			}
+
 			break;
 
 		case 'login':
@@ -89,94 +123,12 @@ function debug(options, message) {
 	}
 }
 
-async function commandOutput(cmd) {
-	try {
-		const { err, stdout, stderr } = await exec(cmd);
-		if (err) throw 'error';
-
-		return stdout.trim();
-	} catch (err) {
-		// cannot get branch details
-	}
-}
-
-async function getContext() {
-	try {
-		const user = await whoami();
-		const { searchspring, local } = await getPackageJSON();
-
-		// get git stuff
-		const repository = {
-			branch: await commandOutput('git branch --show-current'),
-			remote: await commandOutput('git config --get remote.origin.url'),
-		};
-
-		return {
-			user,
-			local,
-			repository,
-			searchspring,
-			version: packageJSON.version,
-		};
-	} catch (err) {
-		throw err;
-	}
-}
-
 async function checkForLatestVersion(options) {
 	const latest = await commandOutput('npm view snapfu version');
 
-	if (options.context.version != latest) {
+	if (latest && options.context.version != latest) {
 		console.log(`${chalk.bold.grey(`Version ${chalk.bold.red(`${latest}`)} of snapfu available.\nInstall with:`)}\n`);
 		console.log(`${chalk.bold.greenBright('npm -ig snapfu')}\n`);
 		console.log(`${chalk.grey('─────────────────────────────────────────────')}\n\n`);
 	}
-}
-
-async function getPackageJSON() {
-	try {
-		const [packageFile] = await getFiles(process.cwd(), 'package.json');
-
-		if (packageFile) {
-			const contents = await fsp.readFile(packageFile, 'utf8');
-			const parsedContents = JSON.parse(contents);
-
-			parsedContents.local = {
-				path: path.dirname(packageFile),
-				dirname: path.basename(path.dirname(packageFile)),
-			};
-
-			return parsedContents;
-		}
-
-		return {};
-	} catch (err) {
-		throw err;
-	}
-}
-
-async function getFiles(dir, fileName) {
-	const rootDir = path.parse(process.cwd()).root;
-	let results = [];
-
-	try {
-		const dirFiles = await fsp.readdir(dir);
-
-		for (const file of dirFiles) {
-			const filePath = path.resolve(dir, file);
-
-			if (file == fileName) {
-				results.push(filePath);
-			}
-		}
-
-		if (!results.length && dir != rootDir) {
-			const dirResults = await getFiles(path.resolve(dir, '../'), fileName);
-			results = results.concat(dirResults);
-		}
-	} catch (err) {
-		throw new Error('failed to getFiles!');
-	}
-
-	return results;
 }

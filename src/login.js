@@ -12,11 +12,13 @@ import os from 'os';
 export const login = async (options, opener, port) => {
 	let uri = github.createOauthUrl({ isDev: options.dev });
 	let receivedUrl = auth.listenForCallback(port | 3827);
+
 	if (!opener) {
 		open(uri, { wait: true });
 	} else {
 		opener(uri);
 	}
+
 	await receivedUrl.then(async (val) => {
 		try {
 			let creds = await auth.saveCredsFromUrl(val);
@@ -31,14 +33,17 @@ export const login = async (options, opener, port) => {
 
 export const orgAccess = async (options, opener) => {
 	let uri = github.createOrgAccessUrl({ isDev: options.dev });
+
 	if (!opener) {
 		open(uri);
 	} else {
 		opener(uri);
 	}
 };
+
 export const whoami = async (options) => {
-	return auth.loadCreds();
+	const user = await auth.loadCreds();
+	return { login: user.login, name: user.name };
 };
 
 export const github = {
@@ -90,7 +95,7 @@ export const auth = {
 				reject('creds not found');
 			}
 			let user = JSON.parse(creds);
-			resolve({ login: user.login, name: user.name });
+			resolve(user);
 		});
 	},
 	listenForCallback: (port) => {

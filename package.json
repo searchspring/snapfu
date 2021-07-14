@@ -10,6 +10,7 @@
 	"scripts": {
 		"commit": "cz",
 		"test": "jest",
+		"test:watch": "jest --watch",
 		"format": "prettier --write src *.json",
 		"format-check": "prettier --check src *.json",
 		"prepare": "husky install",
@@ -54,6 +55,12 @@
 		"memorystream": "^0.3.1",
 		"prettier": "^2.3.2",
 		"request-promise": "^4.2.6",
+		"standard-version": "^9.3.0",
 		"temp-dir": "^2.0.0"
+	},
+	"config": {
+		"commitizen": {
+			"path": "./node_modules/cz-conventional-changelog"
+		}
 	}
 }
