@@ -111,16 +111,17 @@ export const init = async (options) => {
 				});
 		}
 
-		const repoUrl = `https://github.com/${answers.organization}/${answers.name}`;
+		const repoUrlSSH = `git@github.com:${answers.organization}/${answers.name}.git`;
+		const repoUrlHTTP = `https://github.com/${answers.organization}/${answers.name}`;
 
 		if (!options.dev) {
-			await cloneAndCopyRepo(repoUrl, dir, false);
-			console.log(`repository: ${chalk.greenBright(repoSafeUrl)}`);
+			console.log(`repository: ${chalk.greenBright(repoUrlHTTP)}`);
+			await cloneAndCopyRepo(repoUrlHTTP, dir, false);
 		}
 
-		const templateUrl = `https://${user.login}:${user.token}@github.com/searchspring/snapfu-template-${answers.framework}.git`;
+		const templateUrlHTTP = `https://github.com/searchspring/snapfu-template-${answers.framework}`;
 
-		await cloneAndCopyRepo(templateUrl, dir, true, {
+		await cloneAndCopyRepo(templateUrlHTTP, dir, true, {
 			'snapfu.name': answers.name,
 			'snapfu.siteId': answers.siteId,
 			'snapfu.author': user.name,

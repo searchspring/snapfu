@@ -37,7 +37,8 @@
 		"inquirer": "^8.1.1",
 		"ncp": "^2.0.0",
 		"node-fetch": "^2.6.1",
-		"open": "^8.2.1"
+		"open": "^8.2.1",
+		"semver-compare": "^1.0.0"
 	},
 	"devDependencies": {
 		"@babel/plugin-transform-runtime": "^7.14.5",

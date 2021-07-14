@@ -1,5 +1,6 @@
 import arg from 'arg';
 import chalk from 'chalk';
+import cmp from 'semver-compare';
 
 import { login, orgAccess, whoami } from './login';
 import { initTemplate, listTemplates, removeTemplate, syncTemplate } from './template';
@@ -126,9 +127,9 @@ function debug(options, message) {
 async function checkForLatestVersion(options) {
 	const latest = await commandOutput('npm view snapfu version');
 
-	if (latest && options.context.version != latest) {
+	if (cmp(latest,options.context.version) == 1) {
 		console.log(`${chalk.bold.grey(`Version ${chalk.bold.red(`${latest}`)} of snapfu available.\nInstall with:`)}\n`);
-		console.log(`${chalk.bold.greenBright('npm -ig snapfu')}\n`);
-		console.log(`${chalk.grey('─────────────────────────────────────────────')}\n\n`);
+		console.log(`${chalk.bold.greenBright('npm install -g snapfu')}\n`);
+		console.log(`${chalk.grey('─────────────────────────────────────────────')}\n`);
 	}
 }
