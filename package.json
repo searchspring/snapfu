@@ -1,7 +1,9 @@
 {
 	"name": "snapfu",
 	"version": "1.0.5",
-	"description": "",
+	"author": "searchspring",
+	"license": "MIT",
+	"description": "Command line interface for Snap!",
 	"main": "src/index.js",
 	"prettier": "@searchspring/prettier",
 	"bin": {
@@ -18,11 +20,6 @@
 		"version": "standard-version",
 		"postversion": "git push && git push --tags"
 	},
-	"jest": {
-		"testEnvironment": "node"
-	},
-	"author": "",
-	"license": "MIT",
 	"lint-staged": {
 		"./package.json": [
 			"prettier --write"

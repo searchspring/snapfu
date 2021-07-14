@@ -49,9 +49,9 @@ export async function initTemplate(options) {
 	const templateDir = dir || path.resolve(context.project.path, framework.template.dir);
 
 	try {
-		await writeTemplateFile(path.resolve(process.cwd(), templateDir, componentName, `${componentName}.json`), generateTemplateSettings(name));
+		await writeTemplateSettings(path.resolve(process.cwd(), templateDir, componentName, `${componentName}.json`), generateTemplateSettings(name));
 		if (framework) {
-			await writeTemplateFile(
+			await writeTemplateSettings(
 				path.resolve(process.cwd(), templateDir, componentName, `${componentName}.jsx`),
 				framework.template.component(componentName)
 			);
@@ -248,7 +248,31 @@ export function generateTemplateSettings(name) {
 	return JSON.stringify(settings, null, '\t');
 }
 
-export async function writeTemplateFile(filePath, contents) {
+export async function getTemplates(dir) {
+	try {
+		const files = await findTemplateFiles(dir);
+		const fileReads = files.map((filePath) => readTemplateSettings(filePath));
+		const fileContents = await Promise.all(fileReads);
+
+		return fileContents
+			.map((template, index) => {
+				return {
+					path: files[index],
+					details: template,
+				};
+			})
+			.filter((template) => {
+				if (typeof template.details == 'object' && template.details.name && template.details.label && template.details.component) {
+					return template;
+				}
+			});
+	} catch (err) {
+		console.log(err);
+		return [];
+	}
+}
+
+export async function writeTemplateSettings(filePath, contents) {
 	const baseDir = path.dirname(filePath);
 
 	await fsp.mkdir(baseDir, { recursive: true });
@@ -281,35 +305,12 @@ export async function readTemplateSettings(filePath) {
 	}
 }
 
-export async function getTemplates(dir) {
-	try {
-		const files = await findTemplateFiles(dir);
-		const fileReads = files.map((filePath) => readTemplateSettings(filePath));
-		const fileContents = await Promise.all(fileReads);
-
-		return fileContents
-			.map((template, index) => {
-				return {
-					path: files[index],
-					details: template,
-				};
-			})
-			.filter((template) => {
-				if (typeof template.details == 'object' && template.details.name && template.details.label && template.details.component) {
-					return template;
-				}
-			});
-	} catch (err) {
-		console.log(err);
-	}
-}
-
 export async function findTemplateFiles(dir) {
 	// get all JSON files (exclude looking in blacklist)
 	// filter out only files with name same as parent directory
 	try {
 		const details = await fsp.stat(dir);
-		if (!details.isDirectory) {
+		if (!details || !details.isDirectory) {
 			throw 'Directory not provided.';
 		}
 
@@ -370,11 +371,11 @@ export function buildTemplatePayload(template, vars) {
 	};
 }
 
-function capitalizeFirstLetter(string) {
+export function capitalizeFirstLetter(string) {
 	return string.charAt(0).toUpperCase() + string.slice(1);
 }
 
-async function timeout(microSeconds) {
+export async function timeout(microSeconds) {
 	return new Promise((resolve, reject) => {
 		setTimeout(resolve, microSeconds);
 	});

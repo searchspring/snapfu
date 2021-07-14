@@ -13,20 +13,12 @@ const mockPackageJSON = {
 	},
 };
 
-const mockCreds = { login: 'mylogin', name: 'myname', token: 'xyz' };
-
-let homeDir = '';
 let projectDirRoot = '';
 let projectDir = '';
 let projectDirDeep = '';
 let packagePath = '';
 
-beforeEach(async () => {
-	// setup creds
-	homeDir = path.join(tempDirectory, Math.random() + '');
-	fs.mkdirsSync(path.join(homeDir, '.searchspring'));
-	await fsp.writeFile(path.join(homeDir, '.searchspring/creds.json'), JSON.stringify(mockCreds));
-
+beforeAll(async () => {
 	// setup project
 	projectDirRoot = path.join(tempDirectory, Math.random() + '');
 	projectDir = path.join(projectDirRoot, 'workbox/projects/Snapps/secret.project');
@@ -39,11 +31,7 @@ beforeEach(async () => {
 	await fsp.writeFile(packagePath, JSON.stringify(mockPackageJSON));
 });
 
-afterEach(() => {
-	fs.emptyDirSync(homeDir, (err) => {
-		if (err) return console.error(err);
-	});
-
+afterAll(() => {
 	fs.emptyDirSync(projectDirRoot, (err) => {
 		if (err) return console.error(err);
 	});
@@ -88,7 +76,11 @@ describe('getPackageJSON function', () => {
 describe('getContext function', () => {
 	it('makes available context data', async () => {
 		const context = await getContext();
-		expect(context).toHaveProperty('user', 'project', 'repository', 'searchspring', 'version');
+		expect(context).toHaveProperty('user');
+		expect(context).toHaveProperty('project');
+		expect(context).toHaveProperty('repository');
+		expect(context).toHaveProperty('searchspring');
+		expect(context).toHaveProperty('version');
 	});
 });
 
