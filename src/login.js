@@ -84,6 +84,25 @@ export const auth = {
 			}
 		}
 	},
+	saveSecretKey: async (key, siteId, location) => {
+		let dir = path.join(auth.home(), '/.searchspring');
+		if (location) {
+			dir = location;
+		}
+		if (!fs.existsSync(dir)) {
+			fs.mkdirSync(dir);
+		}
+		const creds = await this.auth.loadCreds();
+		if (creds && key && siteId) {
+			creds.keys = creds.keys || {};
+			creds.keys[siteId] = key;
+			try {
+				await fsp.writeFile(path.join(dir, '/creds.json'), JSON.stringify(creds));
+			} catch (e) {
+				console.log(chalk.red(e.message));
+			}
+		}
+	},
 	loadCreds: async () => {
 		return new Promise((resolve, reject) => {
 			let credsLocation = path.join(auth.home(), '/.searchspring/creds.json');

@@ -19,15 +19,16 @@ async function parseArgumentsIntoOptions(rawArgs) {
 			argv: rawArgs.slice(2),
 		}
 	);
-
+	const context = await getContext();
+	const secretKey = args['--secret-key'] || context.user.keys[context.searchspring.siteId];
 	return {
 		dev: args['--dev'] || false,
 		command: args._[0],
 		args: args._.slice(1),
 		options: {
-			secretKey: args['--secret-key'],
+			secretKey,
 		},
-		context: await getContext(),
+		context,
 	};
 }
 
@@ -52,9 +53,9 @@ export async function cli(args) {
 					showTemplateHelp();
 					return;
 				}
-			
+
 				const [command] = options.args;
-			
+
 				switch (command) {
 					case 'init':
 						const [command, name, dir] = options.args;
@@ -66,19 +67,19 @@ export async function cli(args) {
 						}
 
 						break;
-			
+
 					case 'list':
 						await listTemplates(options);
 						break;
-			
+
 					case 'archive':
 						removeTemplate(options);
 						break;
-			
+
 					case 'sync':
 						syncTemplate(options);
 						break;
-			
+
 					default:
 						showTemplateHelp();
 						break;
@@ -127,7 +128,7 @@ function debug(options, message) {
 async function checkForLatestVersion(options) {
 	const latest = await commandOutput('npm view snapfu version');
 
-	if (cmp(latest,options.context.version) == 1) {
+	if (cmp(latest, options.context.version) == 1) {
 		console.log(`${chalk.bold.grey(`Version ${chalk.bold.red(`${latest}`)} of snapfu available.\nInstall with:`)}\n`);
 		console.log(`${chalk.bold.greenBright('npm install -g snapfu')}\n`);
 		console.log(`${chalk.grey('─────────────────────────────────────────────')}\n`);

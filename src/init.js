@@ -7,6 +7,7 @@ import { Octokit } from '@octokit/rest';
 import inquirer from 'inquirer';
 import clone from 'git-clone';
 import { ncp } from 'ncp';
+import { auth } from './login';
 
 export const createDir = (dir) => {
 	return new Promise((resolutionFunc, rejectionFunc) => {
@@ -42,7 +43,7 @@ export const init = async (options) => {
 			dir = cwd();
 			console.log(chalk.green(`A parameter was not provided to the init command. The current working directory will be initialized.`));
 		}
-		
+
 		let octokit = new Octokit({
 			auth: user.token,
 		});
@@ -87,6 +88,14 @@ export const init = async (options) => {
 					return input && input.length > 0 && /^[0-9a-z]{6}$/.test(input);
 				},
 			},
+			{
+				type: 'input',
+				name: 'secretKey',
+				message: 'Please enter the secretKey as found in the SMC console (32 characters)',
+				validate: (input) => {
+					return input && input.length > 0 && /^[0-9a-zA-Z]{32}$/.test(input);
+				},
+			},
 		];
 
 		const answers = await inquirer.prompt(questions);
@@ -127,6 +136,8 @@ export const init = async (options) => {
 			'snapfu.author': user.name,
 			'snapfu.framework': answers.framework,
 		});
+
+		await auth.saveSecretKey(answers.secretKey, answers.siteId);
 
 		if (dir != cwd()) {
 			console.log(chalk.green(`A '${folderName}' directory has been created and initialized from snapfu-template-${answers.framework}.\n`));
