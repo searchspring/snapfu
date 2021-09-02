@@ -77,10 +77,42 @@ export const auth = {
 		if (query && query.user) {
 			try {
 				let user = JSON.parse(query.user);
-				await fsp.writeFile(path.join(dir, '/creds.json'), query.user);
+				try {
+					const creds = await this.auth.loadCreds();
+					user.keys = creds.keys || {}; // preserve any exisiting keys
+				} catch (e) {
+					// do nothing when login is invoked for the first time and creds.json doesn't exist
+					if (e != 'creds not found') {
+						console.log(chalk.red(e));
+					}
+				}
+				await fsp.writeFile(path.join(dir, '/creds.json'), JSON.stringify(user));
 				return user;
 			} catch (e) {
 				console.log(chalk.red(e.message, query.user));
+			}
+		}
+	},
+	saveSecretKey: async (secretKey, siteId, location) => {
+		let dir = path.join(auth.home(), '/.searchspring');
+		if (location) {
+			dir = location;
+		}
+		if (!fs.existsSync(dir)) {
+			fs.mkdirSync(dir);
+		}
+		const creds = await this.auth.loadCreds();
+		if (creds && secretKey && siteId) {
+			creds.keys = creds.keys || {};
+			creds.keys[siteId] = secretKey;
+			try {
+				await fsp.writeFile(path.join(dir, '/creds.json'), JSON.stringify(creds));
+				return {
+					siteId,
+					secretKey,
+				};
+			} catch (e) {
+				console.log(chalk.red(e.message));
 			}
 		}
 	},
