@@ -152,7 +152,7 @@ export const init = async (options) => {
 			if (keyResponse && keyResponse.status === 200 && keyResponse.data) {
 				const { key, key_id } = keyResponse.data;
 				const value = secretKey;
-				const secret_name = 'SNAPFU_SECRET_KEY';
+				const secret_name = 'WEBSITE_SECRET_KEY';
 
 				// Convert the message and key to Uint8Array's (Buffer implements that interface)
 				const messageBytes = Buffer.from(value);

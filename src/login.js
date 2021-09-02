@@ -77,7 +77,13 @@ export const auth = {
 		if (query && query.user) {
 			try {
 				let user = JSON.parse(query.user);
-				await fsp.writeFile(path.join(dir, '/creds.json'), query.user);
+				try {
+					const creds = await this.auth.loadCreds();
+					user.keys = creds.keys || {}; // preserve any exisiting keys
+				} catch (e) {
+					// skip when login is invoked for the first time and creds.json doesn't exist
+				}
+				await fsp.writeFile(path.join(dir, '/creds.json'), JSON.stringify(user));
 				return user;
 			} catch (e) {
 				console.log(chalk.red(e.message, query.user));
