@@ -1,13 +1,10 @@
-# This is a basic workflow to help you get started with Actions
-
-name: build
+name: Tests
 on:
-  push:
-    branches: [master]
   pull_request:
-    branches: [master]
+    branches: '*'
+
 jobs:
-  build-cli:
+  tests:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
