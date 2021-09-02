@@ -81,7 +81,10 @@ export const auth = {
 					const creds = await this.auth.loadCreds();
 					user.keys = creds.keys || {}; // preserve any exisiting keys
 				} catch (e) {
-					// skip when login is invoked for the first time and creds.json doesn't exist
+					// do nothing when login is invoked for the first time and creds.json doesn't exist
+					if (!e.includes('creds not found')) {
+						console.log(chalk.red(e));
+					}
 				}
 				await fsp.writeFile(path.join(dir, '/creds.json'), JSON.stringify(user));
 				return user;
