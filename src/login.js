@@ -82,7 +82,7 @@ export const auth = {
 					user.keys = creds.keys || {}; // preserve any exisiting keys
 				} catch (e) {
 					// do nothing when login is invoked for the first time and creds.json doesn't exist
-					if (!e.includes('creds not found')) {
+					if (e != 'creds not found') {
 						console.log(chalk.red(e));
 					}
 				}
