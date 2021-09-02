@@ -9,10 +9,6 @@ const apiHost = 'https://smc-config-api.kube.searchspring.io';
 const devApiHost = 'http://localhost:9999';
 const DIR_BLACK_LIST = ['node_modules', '.git'];
 
-export const template = async (options) => {
-
-};
-
 function showTemplateHelp() {
 	help({ command: 'help', args: ['template'] });
 }
