@@ -84,7 +84,7 @@ export const auth = {
 			}
 		}
 	},
-	saveSecretKey: async (key, siteId, location) => {
+	saveSecretKey: async (secretKey, siteId, location) => {
 		let dir = path.join(auth.home(), '/.searchspring');
 		if (location) {
 			dir = location;
@@ -93,11 +93,15 @@ export const auth = {
 			fs.mkdirSync(dir);
 		}
 		const creds = await this.auth.loadCreds();
-		if (creds && key && siteId) {
+		if (creds && secretKey && siteId) {
 			creds.keys = creds.keys || {};
-			creds.keys[siteId] = key;
+			creds.keys[siteId] = secretKey;
 			try {
 				await fsp.writeFile(path.join(dir, '/creds.json'), JSON.stringify(creds));
+				return {
+					siteId,
+					secretKey,
+				};
 			} catch (e) {
 				console.log(chalk.red(e.message));
 			}

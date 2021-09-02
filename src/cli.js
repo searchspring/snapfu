@@ -20,7 +20,13 @@ async function parseArgumentsIntoOptions(rawArgs) {
 		}
 	);
 	const context = await getContext();
-	const secretKey = args['--secret-key'] || context.user.keys[context.searchspring.siteId];
+	let secretKey;
+	try {
+		secretKey = args['--secret-key'] || context.user.keys[context.searchspring.siteId];
+	} catch (e) {
+		// do nothing - when running init context may not exist
+	}
+
 	return {
 		dev: args['--dev'] || false,
 		command: args._[0],

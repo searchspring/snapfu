@@ -8,6 +8,7 @@ import inquirer from 'inquirer';
 import clone from 'git-clone';
 import { ncp } from 'ncp';
 import { auth } from './login';
+const sodium = require('tweetsodium');
 
 export const createDir = (dir) => {
 	return new Promise((resolutionFunc, rejectionFunc) => {
@@ -137,7 +138,52 @@ export const init = async (options) => {
 			'snapfu.framework': answers.framework,
 		});
 
-		await auth.saveSecretKey(answers.secretKey, answers.siteId);
+		// save secretKey mapping to creds.json
+		const { siteId, secretKey } = await auth.saveSecretKey(answers.secretKey, answers.siteId);
+
+		// create/update repo secret
+		if (!options.dev && siteId && secretKey) {
+			// get repo public-key used for encrypting secerts
+			const keyResponse = await octokit.actions.getRepoPublicKey({
+				owner: answers.organization,
+				repo: answers.name,
+			});
+
+			if (keyResponse && keyResponse.status === 200 && keyResponse.data) {
+				const { key, key_id } = keyResponse.data;
+				const value = secretKey;
+				const secret_name = 'SNAPFU_SECRET_KEY';
+
+				// Convert the message and key to Uint8Array's (Buffer implements that interface)
+				const messageBytes = Buffer.from(value);
+				const keyBytes = Buffer.from(key, 'base64');
+				// Encrypt using LibSodium.
+				const encryptedBytes = sodium.seal(messageBytes, keyBytes);
+				// Base64 the encrypted secret
+				const encrypted_value = Buffer.from(encryptedBytes).toString('base64');
+
+				// create or update secret
+				const secretResponse = await octokit.actions.createOrUpdateRepoSecret({
+					owner: answers.organization,
+					repo: answers.name,
+					secret_name,
+					encrypted_value,
+					key_id,
+				});
+
+				if (secretResponse && secretResponse.status === 201) {
+					console.log(chalk.green(`Successfully created repository secret ${secret_name} in ${answers.organization}/${answers.name}`));
+				} else if (secretResponse && secretResponse.status === 204) {
+					console.log(chalk.green(`Successfully updated repository secret ${secret_name} in ${answers.organization}/${answers.name}`));
+				} else {
+					console.log(chalk.red(`Unable to create repository secret ${secret_name} in ${answers.organization}/${answers.name}`));
+				}
+			} else {
+				console.log(chalk.red(`Unable to fetch repository public key to create repository secret`));
+			}
+		} else {
+			console.log(chalk.yellow('skipping creation of repository secret, continuing...'));
+		}
 
 		if (dir != cwd()) {
 			console.log(chalk.green(`A '${folderName}' directory has been created and initialized from snapfu-template-${answers.framework}.\n`));
