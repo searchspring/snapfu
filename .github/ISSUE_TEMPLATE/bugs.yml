@@ -1,6 +1,5 @@
 name: 💢 Bug Report
 description: Something broke.
-title: ""
 labels: ["bug"]
 body:
   - type: markdown

@@ -1,6 +1,5 @@
 name: 📒 Documentation
 description: The documentation is missing information, unclear, or could be improved.
-title: ""
 labels: ["documentation"]
 body:
   - type: markdown

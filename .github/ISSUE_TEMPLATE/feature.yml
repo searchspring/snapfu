@@ -1,6 +1,5 @@
 name: 💡 Feature Request
 description: It would be great if Snapfu could do this.
-title: ""
 labels: ["feature request"]
 body:
   - type: markdown
