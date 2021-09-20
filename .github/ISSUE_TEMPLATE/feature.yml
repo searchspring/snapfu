@@ -1,0 +1,35 @@
+name: 💡 Feature Request
+description: It would be great if Snapfu could do this.
+title: ""
+labels: ["feature request"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping to improve Snapfu!
+  - type: textarea
+    attributes:
+      label: The Problem
+      description: A concise description of the problem.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Proposed Solution
+      description: A concise description of what could solve the problem.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Alternative Solutions
+      description: A concise description of alternative solutions to be considered.
+    validations:
+      required: false
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Code of Conduct
+      description: By submitting this issue, you agree to follow our [Code of Conduct](https://github.com/searchspring/community/blob/main/CODE_OF_CONDUCT.md)
+      options:
+        - label: I agree to follow this project's Code of Conduct
+          required: true

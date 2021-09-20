@@ -1,0 +1,29 @@
+name: 📒 Documentation
+description: The documentation is missing information, unclear, or could be improved.
+title: ""
+labels: ["documentation"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        In addition to creating this issue, if you have time please consider opening a Pull Request with your documentation changes.
+  - type: textarea
+    attributes:
+      label: Documentation Problem
+      description: What exactly is wrong with the current documentation.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Documentation Links
+      description: If existing documentation needs to be improved, is wrong, or unclear, please provide the links here.
+    validations:
+      required: false
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Code of Conduct
+      description: By submitting this issue, you agree to follow our [Code of Conduct](https://github.com/searchspring/community/blob/main/CODE_OF_CONDUCT.md)
+      options:
+        - label: I agree to follow this project's Code of Conduct
+          required: true
