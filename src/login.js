@@ -19,16 +19,14 @@ export const login = async (options, opener, port) => {
 		opener(uri);
 	}
 
-	await receivedUrl.then(async (val) => {
-		try {
-			let creds = await auth.saveCredsFromUrl(val);
-			console.log(`Authenticated ${chalk.green(creds.login)}`);
-			exit(0);
-		} catch (err) {
-			console.log(err);
-			exit(1);
-		}
-	});
+	try {
+		const value = await receivedUrl;
+		let creds = await auth.saveCredsFromUrl(value);
+		console.log(`Authenticated ${chalk.green(creds.login)}`);
+	} catch (err) {
+		console.log(err);
+		exit(1);
+	}
 };
 
 export const orgAccess = async (options, opener) => {
