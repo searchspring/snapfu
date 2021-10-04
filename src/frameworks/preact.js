@@ -11,13 +11,11 @@ export class ${name} extends Component {
 		const controller = props.controller;
 
 		if (!controller.store.profile) {
-			controller.init();
 			controller.search();
 		}
 	}
 	render() {
 		const controller = this.props.controller;
-		const store = controller?.store;
 
 		return (
 			<Recommendation controller={controller}/>
