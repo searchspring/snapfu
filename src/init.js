@@ -6,9 +6,10 @@ import chalk from 'chalk';
 import { Octokit } from '@octokit/rest';
 import inquirer from 'inquirer';
 import clone from 'git-clone';
+import sodium from 'tweetsodium';
 import { ncp } from 'ncp';
 import { auth } from './login';
-const sodium = require('tweetsodium');
+import { ConfigApi } from './services/ConfigApi';
 
 export const createDir = (dir) => {
 	return new Promise((resolutionFunc, rejectionFunc) => {
@@ -42,7 +43,7 @@ export const init = async (options) => {
 			dir = path.join(cwd(), options.args[0]);
 		} else {
 			dir = cwd();
-			console.log(chalk.green(`A parameter was not provided to the init command. The current working directory will be initialized.`));
+			console.log(chalk.yellow(`A parameter was not provided to the init command. The current working directory will be initialized.`));
 		}
 
 		let octokit = new Octokit({
@@ -100,10 +101,22 @@ export const init = async (options) => {
 		];
 
 		const answers = await inquirer.prompt(questions);
+		console.log();
+
+		try {
+			await new ConfigApi(answers.secretKey, options.dev).validateSite(answers.siteId);
+		} catch (err) {
+			console.log(chalk.red('Verification of siteId and secretKey failed.'));
+			console.log(chalk.red(err));
+			exit(1);
+		}
 
 		if (options.dev) {
-			console.log(chalk.blueBright('dev mode skipping new repo creation'));
+			console.log(chalk.blueBright('Skipping new repo creation...'));
 		} else {
+			// create the remote repo
+			console.log(`Creating repository...`);
+
 			await octokit.repos
 				.createInOrg({
 					org: answers.organization,
@@ -111,32 +124,54 @@ export const init = async (options) => {
 					private: true,
 					auto_init: true,
 				})
+				.then(() => console.log(`${chalk.greenBright(answers.name)}\n`))
 				.catch((err) => {
 					if (!err.message.includes('already exists')) {
 						console.log(chalk.red(err.message));
 						exit(1);
 					} else {
-						console.log(chalk.yellow('repository already exists, continuing...'));
+						console.log(chalk.yellow('repository already exists\n'));
 					}
 				});
 		}
 
+		// newly create repo URLs
 		const repoUrlSSH = `git@github.com:${answers.organization}/${answers.name}.git`;
 		const repoUrlHTTP = `https://github.com/${answers.organization}/${answers.name}`;
 
-		if (!options.dev) {
-			console.log(`repository: ${chalk.greenBright(repoUrlHTTP)}`);
-			await cloneAndCopyRepo(repoUrlHTTP, dir, false);
-		}
-
+		// template repo URLs
+		const templateUrlSSH = `git@github.com:searchspring/snapfu-template-${answers.framework}.git`;
 		const templateUrlHTTP = `https://github.com/searchspring/snapfu-template-${answers.framework}`;
 
-		await cloneAndCopyRepo(templateUrlHTTP, dir, true, {
-			'snapfu.name': answers.name,
-			'snapfu.siteId': answers.siteId,
-			'snapfu.author': user.name,
-			'snapfu.framework': answers.framework,
-		});
+		if (!options.dev) {
+			console.log(`Cloning repository...`);
+			try {
+				await cloneAndCopyRepo(repoUrlSSH, dir, false);
+				console.log(`${chalk.greenBright(repoUrlSSH)}\n`);
+			} catch (err) {
+				await cloneAndCopyRepo(repoUrlHTTP, dir, false);
+				console.log(`${chalk.greenBright(repoUrlHTTP)}\n`);
+			}
+		}
+
+		console.log(`Cloning template into ${dir}...`);
+		try {
+			await cloneAndCopyRepo(templateUrlSSH, dir, true, {
+				'snapfu.name': answers.name,
+				'snapfu.siteId': answers.siteId,
+				'snapfu.author': user.name,
+				'snapfu.framework': answers.framework,
+			});
+			console.log(`${chalk.greenBright(templateUrlSSH)}\n`);
+		} catch (err) {
+			await cloneAndCopyRepo(templateUrlHTTP, dir, true, {
+				'snapfu.name': answers.name,
+				'snapfu.siteId': answers.siteId,
+				'snapfu.author': user.name,
+				'snapfu.framework': answers.framework,
+			});
+			console.log(`${chalk.greenBright(templateUrlHTTP)}\n`);
+		}
 
 		// save secretKey mapping to creds.json
 		const { siteId, secretKey } = await auth.saveSecretKey(answers.secretKey, answers.siteId);
@@ -163,6 +198,7 @@ export const init = async (options) => {
 				const encrypted_value = Buffer.from(encryptedBytes).toString('base64');
 
 				// create or update secret
+				console.log(`Adding secret key to repository in ${answers.organization}/${answers.name}...`);
 				const secretResponse = await octokit.actions.createOrUpdateRepoSecret({
 					owner: answers.organization,
 					repo: answers.name,
@@ -172,25 +208,29 @@ export const init = async (options) => {
 				});
 
 				if (secretResponse && secretResponse.status === 201) {
-					console.log(chalk.green(`Successfully created repository secret ${secret_name} in ${answers.organization}/${answers.name}`));
+					console.log(chalk.green(`created ${secret_name} in ${answers.organization}/${answers.name}\n`));
 				} else if (secretResponse && secretResponse.status === 204) {
-					console.log(chalk.green(`Successfully updated repository secret ${secret_name} in ${answers.organization}/${answers.name}`));
+					console.log(chalk.green(`updated ${secret_name} in ${answers.organization}/${answers.name}\n`));
 				} else {
-					console.log(chalk.red(`Unable to create repository secret ${secret_name} in ${answers.organization}/${answers.name}`));
+					console.log(chalk.red(`failed to create repository secret\n`));
 				}
 			} else {
-				console.log(chalk.red(`Unable to fetch repository public key to create repository secret`));
+				console.log(chalk.red(`failed to create repository secret\n`));
 			}
 		} else {
-			console.log(chalk.yellow('skipping creation of repository secret, continuing...'));
+			console.log(chalk.yellow('skipping creation of repository secret\n'));
 		}
 
 		if (dir != cwd()) {
-			console.log(chalk.green(`A '${folderName}' directory has been created and initialized from snapfu-template-${answers.framework}.\n`));
-			console.log(`Get started by installing package dependencies: \n\n\tcd ./${folderName} && npm install\n`);
+			console.log(
+				`The ${chalk.blue(folderName)} directory has been created and initialized from ${chalk.blue(`snapfu-template-${answers.framework}`)}.`
+			);
+			console.log(`Get started by installing package dependencies:`);
+			console.log(chalk.grey(`\n\tcd ${folderName} && npm install\n`));
 		} else {
-			console.log(chalk.green(`Current working directory has been initialized from snapfu-template-${answers.framework}.\n`));
-			console.log(`Get started by installing package dependencies: \n\n\tnpm install\n`);
+			console.log(`Current working directory has been initialized from ${chalk.blue(`snapfu-template-${answers.framework}`)}.`);
+			console.log(`Get started by installing package dependencies:`);
+			console.log(chalk.grey(`\n\tnpm install\n`));
 		}
 	} catch (err) {
 		console.log(chalk.red(err));

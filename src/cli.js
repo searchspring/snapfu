@@ -1,4 +1,5 @@
 import arg from 'arg';
+import { exit } from 'process';
 import chalk from 'chalk';
 import cmp from 'semver-compare';
 
@@ -39,13 +40,11 @@ async function parseArgumentsIntoOptions(rawArgs) {
 }
 
 export async function cli(args) {
-	let options = await parseArgumentsIntoOptions(args);
-
-	await checkForLatestVersion(options);
+	const options = await parseArgumentsIntoOptions(args);
 
 	switch (options.command) {
 		case 'init':
-			init(options);
+			await init(options);
 			break;
 
 		case 'template':
@@ -79,11 +78,11 @@ export async function cli(args) {
 						break;
 
 					case 'archive':
-						removeTemplate(options);
+						await removeTemplate(options);
 						break;
 
 					case 'sync':
-						syncTemplate(options);
+						await syncTemplate(options);
 						break;
 
 					default:
@@ -95,7 +94,7 @@ export async function cli(args) {
 			break;
 
 		case 'login':
-			login(options);
+			await login(options);
 			break;
 
 		case 'org-access':
@@ -123,6 +122,10 @@ export async function cli(args) {
 			help(options);
 			break;
 	}
+
+	await checkForLatestVersion(options);
+
+	exit();
 }
 
 function debug(options, message) {
@@ -132,11 +135,17 @@ function debug(options, message) {
 }
 
 async function checkForLatestVersion(options) {
-	const latest = await commandOutput('npm view snapfu version');
+	// using Promise.race to wait a maximum of 1.2 seconds
+	const latest = await Promise.race([commandOutput('npm view snapfu version'), wait(1200)]);
 
-	if (cmp(latest, options.context.version) == 1) {
-		console.log(`${chalk.bold.grey(`Version ${chalk.bold.red(`${latest}`)} of snapfu available.\nInstall with:`)}\n`);
-		console.log(`${chalk.bold.greenBright('npm install -g snapfu')}\n`);
-		console.log(`${chalk.grey('─────────────────────────────────────────────')}\n`);
+	if (latest && cmp(latest, options.context.version) == 1) {
+		console.log(`\n\n${chalk.bold.white(`Version ${chalk.bold.red(`${latest}`)} of snapfu available.\nUpdate with:`)}`);
+		console.log(chalk.grey(`\n\tnpm install -g snapfu\n`));
 	}
+}
+
+function wait(us) {
+	return new Promise((resolve) => {
+		setTimeout(resolve, us);
+	});
 }

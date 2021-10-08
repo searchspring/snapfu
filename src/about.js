@@ -7,5 +7,5 @@ export const about = (options) => {
 		)}\n`
 	);
 	console.log(`${chalk.grey('─────────────────────────────────────────────')}\n`);
-	console.log(`${chalk.bold.grey('https://github.com/searchspring/snap')}\n`);
+	console.log(`${chalk.bold.grey('https://github.com/searchspring/snap')}`);
 };

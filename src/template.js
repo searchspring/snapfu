@@ -1,12 +1,10 @@
 import chalk from 'chalk';
-import fetch from 'node-fetch';
 import path from 'path';
 import fs, { promises as fsp } from 'fs';
 import { help } from './help';
 import { frameworks } from './frameworks';
+import { ConfigApi } from './services/ConfigApi';
 
-const apiHost = 'https://smc-config-api.kube.searchspring.io';
-const devApiHost = 'http://localhost:9999';
 const DIR_BLACK_LIST = ['node_modules', '.git'];
 
 function showTemplateHelp() {
@@ -18,7 +16,7 @@ export async function initTemplate(options) {
 	const { searchspring } = context;
 	const [command, name, dir] = options.args;
 
-	console.log(chalk.grey(`Initializing template...`));
+	console.log(`Initializing template...`);
 
 	if (name && !name.match(/^[a-zA-Z0-9_]*$/)) {
 		console.log(chalk.red(`Error: Template name must be an alphanumeric string.`));
@@ -73,7 +71,7 @@ export async function listTemplates(options) {
 		const templates = await getTemplates(context.project.path);
 
 		templates.forEach((template, index) => {
-			console.log(`${chalk.green(template.details.name)} (${template.details.label})`);
+			console.log(`${chalk.green(template.details.name)} (${template.details.label}) ${chalk.blueBright(template.path)}`);
 			console.log(`${chalk.grey(template.details.description)}`);
 			if (templates.length - 1 != index) {
 				console.log();
@@ -81,35 +79,25 @@ export async function listTemplates(options) {
 		});
 	} else if (location == 'remote') {
 		if (!secretKey) {
-			console.log(chalk.red(`Unauthorized: Provide secretKey.`));
+			console.log(chalk.red(`Unauthorized: Please provide secretKey.`));
 			return;
 		}
 
-		const apiPath = `${options.dev ? devApiHost : apiHost}/api/recsTemplates`;
-
 		try {
-			const response = await fetch(apiPath, { method: 'get', headers: { Accept: 'application/json', Authorization: secretKey } });
-
-			if (response.status == 200) {
-				const remoteTemplates = await response.json();
-				remoteTemplates.recommendTemplates.forEach((template, index) => {
-					const [name, branch] = template.name.split('__');
-					console.log(`${chalk.green(name)} ${branch ? `[${branch}]` : ''}`);
-					if (remoteTemplates.length - 1 != index) {
-						console.log();
-					}
-				});
-			} else if (response.status == 401) {
-				console.log(chalk.red(`Unauthorized: Please verify secretKey.`));
-			} else if (response.status == 405) {
-				console.log(chalk.red(`Error: Server method not allowed.`));
-			} else if (response.status == 500) {
-				console.log(chalk.red(`Server encounterd a problem.`));
-			} else {
-				console.log(chalk.red(`Unknown error has occured.`));
-			}
+			const remoteTemplates = await new ConfigApi(secretKey, options.dev).getTemplates();
+			remoteTemplates.recommendTemplates.forEach((template, index) => {
+				const [name, branch] = template.name.split('__');
+				console.log(
+					`${chalk.green(name)} ${branch ? `[${branch}]` : ''} ${chalk.blueBright(
+						`https://manage.searchspring.net/management/product-recs-templates/template-version-edit?template_name=${template.name}`
+					)}`
+				);
+				if (remoteTemplates.length - 1 != index) {
+					console.log();
+				}
+			});
 		} catch (err) {
-			console.log(chalk.red(`Failed to connect to: ${apiPath}`));
+			console.log(chalk.red(err));
 		}
 	}
 }
@@ -127,32 +115,12 @@ export async function removeTemplate(options) {
 
 	const payload = { name: templateName, branch: branch || repository.branch || 'production' };
 
-	const apiPath = `${options.dev ? devApiHost : apiHost}/api/recsTemplate`;
-
 	try {
-		const response = await fetch(apiPath, {
-			method: 'delete',
-			body: JSON.stringify(payload),
-			headers: { Accept: 'application/json', Authorization: secretKey },
-		});
-
-		if (response.status == 200) {
-			console.log(chalk.green(`${templateName}`), chalk.white(`[${payload.branch}]`));
-			console.log(chalk.green('Template removed from remote.'));
-		} else if (response.status == 401) {
-			console.log(chalk.red(`Unauthorized: Please verify secretKey.`));
-		} else if (response.status == 404) {
-			console.log(chalk.green(`${templateName}`), chalk.white(`[${payload.branch}]`));
-			console.log(chalk.red(`Template not found. Ensure correct branch and template name is specified.`));
-		} else if (response.status == 405) {
-			console.log(chalk.red(`Error: Server method not allowed.`));
-		} else if (response.status == 500) {
-			console.log(chalk.red(`Server encounterd a problem.`));
-		} else {
-			console.log(chalk.red(`Unknown error has occured.`));
-		}
+		await new ConfigApi(secretKey, options.dev).archiveTemplate(payload);
+		console.log(chalk.green(`${templateName}`), chalk.white(`[${payload.branch}]`));
+		console.log(chalk.green('Template archived in remote.'));
 	} catch (err) {
-		console.log(chalk.red(`Failed to connect to: ${apiPath}`));
+		console.log(chalk.red(err));
 	}
 }
 
@@ -187,39 +155,13 @@ export async function syncTemplate(options) {
 		const template = syncTemplates[i];
 		const payload = buildTemplatePayload(template.details, { branch: branchName, framework: searchspring.framework });
 
-		const apiPath = `${options.dev ? devApiHost : apiHost}/api/recsTemplate`;
+		const apiPath = `${options.dev ? DEV_API_HOST : API_HOST}/api/recsTemplate`;
 
 		try {
-			const response = await fetch(apiPath, {
-				method: 'put',
-				body: JSON.stringify(payload),
-				headers: { Accept: 'application/json', Authorization: secretKey },
-			});
-
-			console.log(chalk.green(`${template.details.name}`), chalk.white(`[${branchName}]`));
-
-			if (response.status == 200) {
-				console.log(chalk.green('Synchronization with remote complete.'));
-			} else if (response.status == 400) {
-				console.log(chalk.red(`Error: Problem with payload.`));
-			} else if (response.status == 401) {
-				console.log(chalk.red(`Unauthorized: Please verify secretKey.`));
-			} else if (response.status == 405) {
-				console.log(chalk.red(`Error: Server method not allowed.`));
-			} else if (response.status == 500) {
-				console.log(chalk.red(`Server encounterd a problem.`));
-			} else {
-				console.log(chalk.red(`Unknown error has occured.`));
-			}
-
-			if (i != syncTemplates.length - 1) {
-				console.log(`${chalk.grey('─────────────────────────────────────────────')}\n`);
-				console.log();
-				await timeout(1111);
-			}
+			await new ConfigApi(secretKey, options.dev).putTemplate(payload);
+			console.log(chalk.green('Synchronization with remote complete.'));
 		} catch (err) {
-			console.log(chalk.red(`Failed to connect to: ${apiPath}`));
-			break;
+			console.log(chalk.red(err));
 		}
 	}
 }
@@ -316,16 +258,21 @@ export async function findTemplateFiles(dir) {
 		const readPromises = contents
 			.filter((file) => {
 				const filePath = path.resolve(dir, file);
+				try {
+					const fileStats = fs.statSync(filePath);
 
-				if (fs.statSync(filePath).isDirectory() && !DIR_BLACK_LIST.includes(file)) {
-					return file;
-				} else if (file.match(/\.json$/)) {
-					const parentDir = path.dirname(filePath).split(path.sep).pop();
-					const fileName = file.replace(/\.json$/, '');
+					if (!fileStats.isSymbolicLink() && fileStats.isDirectory() && !DIR_BLACK_LIST.includes(file)) {
+						return file;
+					} else if (file.match(/\.json$/)) {
+						const parentDir = path.dirname(filePath).split(path.sep).pop();
+						const fileName = file.replace(/\.json$/, '');
 
-					if (fileName == parentDir) {
-						templateFiles.push(filePath);
+						if (fileName == parentDir) {
+							templateFiles.push(filePath);
+						}
 					}
+				} catch (err) {
+					// not doing anything currently...
 				}
 			})
 			.map((file) => {
