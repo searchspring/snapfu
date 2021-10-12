@@ -2,12 +2,12 @@ import {
 	timeout,
 	capitalizeFirstLetter,
 	buildTemplatePayload,
-	findTemplateFiles,
+	findJsonFiles,
 	readTemplateSettings,
 	writeTemplateSettings,
 	getTemplates,
 	generateTemplateSettings,
-} from './template';
+} from './recs';
 import tempDirectory from 'temp-dir';
 import fs from 'fs-extra';
 import path from 'path';
@@ -23,6 +23,7 @@ const mockPackageJSON = {
 };
 
 const mockTemplateSettings = {
+	type: 'snap/recommendation',
 	name: 'thing',
 	label: 'thing',
 	description: 'thing custom template.',
@@ -67,13 +68,10 @@ beforeAll(async () => {
 	packagePath = path.join(projectDir, 'package.json');
 	await fsp.writeFile(packagePath, JSON.stringify(mockPackageJSON));
 
-	fs.mkdirsSync(path.join(projectDirRecs, 'Recs1'), true);
-	fs.mkdirsSync(path.join(projectDirRecs, 'Recs2'), true);
-	fs.mkdirsSync(path.join(projectDirRecs, 'Recs3'), true);
-	recsSettings1Path = path.join(projectDirRecs, 'Recs1/Recs1.json');
-	recsSettings2Path = path.join(projectDirRecs, 'Recs2/Recs2.json');
-	recsSettings3Path = path.join(projectDirRecs, 'Recs3/Recs3.json');
-	recsSettings4Path = path.join(projectDirRecs, 'Recs4.json');
+	recsSettings1Path = path.join(projectDirRecs, 'Recs1.json');
+	recsSettings2Path = path.join(projectDirRecs, 'Recs2.json');
+	recsSettings3Path = path.join(projectDirRecs, 'Recs3.json');
+	recsSettings4Path = path.join(projectDir, 'Recs4.json');
 
 	await fsp.writeFile(recsSettings1Path, JSON.stringify(mockTemplateSettings));
 	await fsp.writeFile(recsSettings2Path, JSON.stringify(mockTemplateSettings));
@@ -123,7 +121,7 @@ describe('getTemplates function', () => {
 
 	it('filters out json files that are not valid template settings', async () => {
 		const files = await getTemplates(projectDirRoot);
-		expect(files.length).toBe(2);
+		expect(files.length).toBe(3);
 	});
 });
 
@@ -165,17 +163,17 @@ describe('readTemplateSettings function', () => {
 	});
 });
 
-describe('findTemplateFiles function', () => {
+describe('findJsonFiles function', () => {
 	it('expects a directory as the first parameter', async () => {
 		expect(async () => {
-			const files = await findTemplateFiles('some/place');
+			const files = await findJsonFiles('some/place');
 		}).rejects.toThrow();
 	});
 
-	it('looks for json files that have the same name as the directory they are in', async () => {
-		const files = await findTemplateFiles(projectDirRoot);
+	it('looks for json files', async () => {
+		const files = await findJsonFiles(projectDirRoot);
 
-		expect(files.length).toBe(3);
+		expect(files.length).toBe(6);
 	});
 });
 

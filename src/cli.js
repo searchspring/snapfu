@@ -4,7 +4,7 @@ import chalk from 'chalk';
 import cmp from 'semver-compare';
 
 import { login, orgAccess, whoami } from './login';
-import { initTemplate, listTemplates, removeTemplate, syncTemplate } from './template';
+import { initTemplate, listTemplates, removeTemplate, syncTemplate } from './recs';
 import { init } from './init';
 import { about } from './about';
 import { help } from './help';
@@ -47,11 +47,12 @@ export async function cli(args) {
 			await init(options);
 			break;
 
-		case 'template':
-		case 'templates':
+		case 'recs':
+		case 'recommendation':
+		case 'recommendations':
 			{
 				function showTemplateHelp() {
-					help({ command: 'help', args: ['template'] });
+					help({ command: 'help', args: ['recommendation'] });
 				}
 
 				if (!options.args.length) {

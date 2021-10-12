@@ -5,6 +5,7 @@ import { help } from './help';
 import { frameworks } from './frameworks';
 import { ConfigApi } from './services/ConfigApi';
 
+const TEMPLATE_TYPE_RECS = 'snap/recommendation';
 const DIR_BLACK_LIST = ['node_modules', '.git'];
 
 function showTemplateHelp() {
@@ -43,12 +44,9 @@ export async function initTemplate(options) {
 	const templateDir = dir || path.resolve(context.project.path, framework.template.dir);
 
 	try {
-		await writeTemplateSettings(path.resolve(process.cwd(), templateDir, componentName, `${componentName}.json`), generateTemplateSettings(name));
+		await writeTemplateSettings(path.resolve(process.cwd(), templateDir, `${componentName}.json`), generateTemplateSettings(name));
 		if (framework) {
-			await writeTemplateSettings(
-				path.resolve(process.cwd(), templateDir, componentName, `${componentName}.jsx`),
-				framework.template.component(componentName)
-			);
+			await writeTemplateSettings(path.resolve(process.cwd(), templateDir, `${componentName}.jsx`), framework.template.component(componentName));
 		}
 	} catch (err) {
 		console.log(chalk.red(`Error: Failed to initialize template.`));
@@ -68,16 +66,22 @@ export async function listTemplates(options) {
 	}
 
 	if (!location || location == 'local') {
+		console.log(`${chalk.grey('Local Templates')}`);
+
 		const templates = await getTemplates(context.project.path);
 
 		templates.forEach((template, index) => {
-			console.log(`${chalk.green(template.details.name)} (${template.details.label}) ${chalk.blueBright(template.path)}`);
-			console.log(`${chalk.grey(template.details.description)}`);
-			if (templates.length - 1 != index) {
-				console.log();
-			}
+			console.log(`${chalk.green(template.details.name)} ${chalk.blueBright(`(${template.path})`)}`);
 		});
-	} else if (location == 'remote') {
+	}
+
+	if (!location || location == 'remote') {
+		if (!location) {
+			console.log();
+		}
+
+		console.log(`${chalk.grey('Remote Templates (SMC)')}`);
+
 		if (!secretKey) {
 			console.log(chalk.red(`Unauthorized: Please provide secretKey.`));
 			return;
@@ -89,12 +93,9 @@ export async function listTemplates(options) {
 				const [name, branch] = template.name.split('__');
 				console.log(
 					`${chalk.green(name)} ${branch ? `[${branch}]` : ''} ${chalk.blueBright(
-						`https://manage.searchspring.net/management/product-recs-templates/template-version-edit?template_name=${template.name}`
+						`(https://manage.searchspring.net/management/product-recs-templates/template-version-edit?template_name=${template.name})`
 					)}`
 				);
-				if (remoteTemplates.length - 1 != index) {
-					console.log();
-				}
 			});
 		} catch (err) {
 			console.log(chalk.red(err));
@@ -155,8 +156,6 @@ export async function syncTemplate(options) {
 		const template = syncTemplates[i];
 		const payload = buildTemplatePayload(template.details, { branch: branchName, framework: searchspring.framework });
 
-		const apiPath = `${options.dev ? DEV_API_HOST : API_HOST}/api/recsTemplate`;
-
 		try {
 			await new ConfigApi(secretKey, options.dev).putTemplate(payload);
 			console.log(chalk.green('Synchronization with remote complete.'));
@@ -168,6 +167,7 @@ export async function syncTemplate(options) {
 
 export function generateTemplateSettings(name) {
 	const settings = {
+		type: TEMPLATE_TYPE_RECS,
 		name: name.toLowerCase(),
 		label: `${name}`,
 		description: `${name} custom template.`,
@@ -188,7 +188,7 @@ export function generateTemplateSettings(name) {
 
 export async function getTemplates(dir) {
 	try {
-		const files = await findTemplateFiles(dir);
+		const files = await findJsonFiles(dir);
 		const fileReads = files.map((filePath) => readTemplateSettings(filePath));
 		const fileContents = await Promise.all(fileReads);
 
@@ -200,7 +200,13 @@ export async function getTemplates(dir) {
 				};
 			})
 			.filter((template) => {
-				if (typeof template.details == 'object' && template.details.name && template.details.label && template.details.component) {
+				if (
+					typeof template.details == 'object' &&
+					template.details.type == TEMPLATE_TYPE_RECS &&
+					template.details.name &&
+					template.details.label &&
+					template.details.component
+				) {
 					return template;
 				}
 			});
@@ -243,9 +249,8 @@ export async function readTemplateSettings(filePath) {
 	}
 }
 
-export async function findTemplateFiles(dir) {
+export async function findJsonFiles(dir) {
 	// get all JSON files (exclude looking in blacklist)
-	// filter out only files with name same as parent directory
 	try {
 		const details = await fsp.stat(dir);
 		if (!details || !details.isDirectory) {
@@ -264,19 +269,14 @@ export async function findTemplateFiles(dir) {
 					if (!fileStats.isSymbolicLink() && fileStats.isDirectory() && !DIR_BLACK_LIST.includes(file)) {
 						return file;
 					} else if (file.match(/\.json$/)) {
-						const parentDir = path.dirname(filePath).split(path.sep).pop();
-						const fileName = file.replace(/\.json$/, '');
-
-						if (fileName == parentDir) {
-							templateFiles.push(filePath);
-						}
+						templateFiles.push(filePath);
 					}
 				} catch (err) {
 					// not doing anything currently...
 				}
 			})
 			.map((file) => {
-				return findTemplateFiles(path.resolve(dir, file));
+				return findJsonFiles(path.resolve(dir, file));
 			});
 
 		const dirContents = await Promise.all(readPromises);
