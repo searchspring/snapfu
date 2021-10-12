@@ -56,8 +56,6 @@ export const init = async (options) => {
 			});
 		});
 
-		let folderName = await createDir(dir);
-
 		let questions = [
 			{
 				type: 'input',
@@ -66,7 +64,7 @@ export const init = async (options) => {
 					return input && input.length > 0;
 				},
 				message: 'Please choose the name of this repository',
-				default: folderName,
+				default: path.basename(dir),
 			},
 			{
 				type: 'list',
@@ -110,6 +108,9 @@ export const init = async (options) => {
 			console.log(chalk.red(err));
 			exit(1);
 		}
+
+		// create local directory
+		let folderName = await createDir(dir);
 
 		if (options.dev) {
 			console.log(chalk.blueBright('Skipping new repo creation...'));
@@ -176,50 +177,8 @@ export const init = async (options) => {
 		// save secretKey mapping to creds.json
 		const { siteId, secretKey } = await auth.saveSecretKey(answers.secretKey, answers.siteId);
 
-		// create/update repo secret
-		if (!options.dev && siteId && secretKey) {
-			// get repo public-key used for encrypting secerts
-			const keyResponse = await octokit.actions.getRepoPublicKey({
-				owner: answers.organization,
-				repo: answers.name,
-			});
-
-			if (keyResponse && keyResponse.status === 200 && keyResponse.data) {
-				const { key, key_id } = keyResponse.data;
-				const value = secretKey;
-				const secret_name = 'WEBSITE_SECRET_KEY';
-
-				// Convert the message and key to Uint8Array's (Buffer implements that interface)
-				const messageBytes = Buffer.from(value);
-				const keyBytes = Buffer.from(key, 'base64');
-				// Encrypt using LibSodium.
-				const encryptedBytes = sodium.seal(messageBytes, keyBytes);
-				// Base64 the encrypted secret
-				const encrypted_value = Buffer.from(encryptedBytes).toString('base64');
-
-				// create or update secret
-				console.log(`Adding secret key to repository in ${answers.organization}/${answers.name}...`);
-				const secretResponse = await octokit.actions.createOrUpdateRepoSecret({
-					owner: answers.organization,
-					repo: answers.name,
-					secret_name,
-					encrypted_value,
-					key_id,
-				});
-
-				if (secretResponse && secretResponse.status === 201) {
-					console.log(chalk.green(`created ${secret_name} in ${answers.organization}/${answers.name}\n`));
-				} else if (secretResponse && secretResponse.status === 204) {
-					console.log(chalk.green(`updated ${secret_name} in ${answers.organization}/${answers.name}\n`));
-				} else {
-					console.log(chalk.red(`failed to create repository secret\n`));
-				}
-			} else {
-				console.log(chalk.red(`failed to create repository secret\n`));
-			}
-		} else {
-			console.log(chalk.yellow('skipping creation of repository secret\n'));
-		}
+		await setRepoSecret(options, { siteId: answers.siteId, secretKey: answers.secretKey, organization: answers.organization, name: answers.name });
+		console.log();
 
 		if (dir != cwd()) {
 			console.log(
@@ -235,6 +194,60 @@ export const init = async (options) => {
 	} catch (err) {
 		console.log(chalk.red(err));
 		exit(1);
+	}
+};
+
+export const setRepoSecret = async function (options, details) {
+	const { user } = options.context;
+
+	let octokit = new Octokit({
+		auth: user.token,
+	});
+
+	const { siteId, secretKey, organization, name } = details;
+
+	if (!options.dev && siteId && secretKey) {
+		// get repo public-key used for encrypting secerts
+		const keyResponse = await octokit.actions.getRepoPublicKey({
+			owner: organization,
+			repo: name,
+		});
+
+		if (keyResponse && keyResponse.status === 200 && keyResponse.data) {
+			const { key, key_id } = keyResponse.data;
+			const value = secretKey;
+			const secret_name = 'WEBSITE_SECRET_KEY';
+
+			// Convert the message and key to Uint8Array's (Buffer implements that interface)
+			const messageBytes = Buffer.from(value);
+			const keyBytes = Buffer.from(key, 'base64');
+			// Encrypt using LibSodium.
+			const encryptedBytes = sodium.seal(messageBytes, keyBytes);
+			// Base64 the encrypted secret
+			const encrypted_value = Buffer.from(encryptedBytes).toString('base64');
+
+			// create or update secret
+			console.log(`Setting secret key for repository in ${organization}/${name}...`);
+			const secretResponse = await octokit.actions.createOrUpdateRepoSecret({
+				owner: organization,
+				repo: name,
+				secret_name,
+				encrypted_value,
+				key_id,
+			});
+
+			if (secretResponse && secretResponse.status === 201) {
+				console.log(chalk.green(`created ${secret_name} in ${organization}/${name}`));
+			} else if (secretResponse && secretResponse.status === 204) {
+				console.log(chalk.green(`updated ${secret_name} in ${organization}/${name}`));
+			} else {
+				console.log(chalk.red(`failed to create repository secret`));
+			}
+		} else {
+			console.log(chalk.red(`failed to create repository secret`));
+		}
+	} else {
+		console.log(chalk.yellow('skipping creation of repository secret'));
 	}
 };
 

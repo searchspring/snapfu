@@ -22,7 +22,7 @@ export async function commandOutput(cmd) {
 }
 
 export async function getContext() {
-	let user, project, searchspring, branch, remote;
+	let user, project, searchspring, branch, remote, organization, name;
 
 	try {
 		user = await auth.loadCreds();
@@ -46,12 +46,26 @@ export async function getContext() {
 		// do nothing
 	}
 
+	if (remote) {
+		// get repo org and name from remote
+		// git@github.com:searchspring-implementations/demo.shopify.git
+		// https://github.com/searchspring-implementations/demo.shopify.git
+		// https://github.com/korgon/koatokensocketvue.git
+		[organization, name] = remote
+			.replace(/^git@github.com:/, '')
+			.replace(/^https:\/\/github.com\//, '')
+			.replace(/.git$/, '')
+			.split('/');
+	}
+
 	return {
 		user,
 		project,
 		repository: {
-			branch,
 			remote,
+			name,
+			organization,
+			branch,
 		},
 		searchspring,
 		version: packageJSON.version,

@@ -57,6 +57,7 @@ export async function initTemplate(options) {
 export async function listTemplates(options) {
 	const { context } = options;
 	const { searchspring } = context;
+	const { branch } = context.repository;
 	const [command, location] = options.args;
 	const { secretKey } = options.options;
 
@@ -70,9 +71,13 @@ export async function listTemplates(options) {
 
 		const templates = await getTemplates(context.project.path);
 
-		templates.forEach((template, index) => {
-			console.log(`${chalk.green(template.details.name)} ${chalk.blueBright(`(${template.path})`)}`);
-		});
+		if (!templates || !templates.length) {
+			console.log(chalk.italic('no templates found...'));
+		} else {
+			templates.forEach((template, index) => {
+				console.log(`${chalk.green(template.details.name)} ${branch ? `[${branch}]` : ''} ${chalk.blueBright(`(${template.path})`)}`);
+			});
+		}
 	}
 
 	if (!location || location == 'remote') {
@@ -89,14 +94,19 @@ export async function listTemplates(options) {
 
 		try {
 			const remoteTemplates = await new ConfigApi(secretKey, options.dev).getTemplates();
-			remoteTemplates.recommendTemplates.forEach((template, index) => {
-				const [name, branch] = template.name.split('__');
-				console.log(
-					`${chalk.green(name)} ${branch ? `[${branch}]` : ''} ${chalk.blueBright(
-						`(https://manage.searchspring.net/management/product-recs-templates/template-version-edit?template_name=${template.name})`
-					)}`
-				);
-			});
+
+			if (!remoteTemplates || !remoteTemplates.recommendTemplates || !remoteTemplates.recommendTemplates.length) {
+				console.log(chalk.italic('no templates found...'));
+			} else {
+				remoteTemplates.recommendTemplates.forEach((template, index) => {
+					const [name, branch] = template.name.split('__');
+					console.log(
+						`${chalk.green(name)} ${branch ? `[${branch}]` : ''} ${chalk.blueBright(
+							`(https://manage.searchspring.net/management/product-recs-templates/template-version-edit?template_name=${template.name})`
+						)}`
+					);
+				});
+			}
 		} catch (err) {
 			console.log(chalk.red(err));
 		}

@@ -9,6 +9,7 @@ These are the snapfu commands used in various situations
 
     ${chalk.whiteBright('init')} ${chalk.grey('<directory>')}              Creates a new snap project (optional directory)
     ${chalk.whiteBright('recs')}                          Recommendation template management
+    ${chalk.whiteBright('secrets')}                       Project secret management
     ${chalk.whiteBright('login')}                         Oauths with github
     ${chalk.whiteBright('org-access')}                    Review and change organization access for the tool
     ${chalk.whiteBright('whoami')}                        Shows the current user
@@ -31,12 +32,26 @@ These are the snapfu recommendation template commands and options
 )}          Synchronize recommendation template and parameters with remote (optional branch)
         ${chalk.green('--secret-key')} ${chalk.green('<key>')}`;
 
+// secrets help text
+const secretText = `Usage: snapfu secrets ${chalk.white('<' + chalk.underline('command') + '>')} ${chalk.grey(
+	'<' + chalk.underline('args') + '>'
+)} ${chalk.green('[' + chalk.underline('--options') + ']')}
+
+These are the snapfu secrets commands
+
+    ${chalk.whiteBright('add')}                           Adds secrets to snap project
+    ${chalk.whiteBright('update')}                        Update secrets in snap project
+    ${chalk.whiteBright('verify')}                        Verify secrets in snap project
+    ${chalk.whiteBright('help')} ${chalk.grey('<command>')}                Display help text (optional command)`;
+
 // help text mapping
 const helpMap = {
 	root: rootText,
 	recs: recommendationText,
 	recommendation: recommendationText,
 	recommendations: recommendationText,
+	secret: secretText,
+	secrets: secretText,
 };
 
 export const help = (options) => {

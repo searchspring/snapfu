@@ -9,6 +9,7 @@ import { init } from './init';
 import { about } from './about';
 import { help } from './help';
 import { commandOutput, getContext } from './context';
+import { setSecretKey, checkSecretKey } from './secret';
 
 async function parseArgumentsIntoOptions(rawArgs) {
 	const args = arg(
@@ -88,6 +89,38 @@ export async function cli(args) {
 
 					default:
 						showTemplateHelp();
+						break;
+				}
+			}
+
+			break;
+
+		case 'secret':
+		case 'secrets':
+			{
+				function showSecretHelp() {
+					help({ command: 'help', args: ['secret'] });
+				}
+
+				if (!options.args.length) {
+					showSecretHelp();
+					return;
+				}
+
+				const [command] = options.args;
+
+				switch (command) {
+					case 'add':
+					case 'update':
+						await setSecretKey(options);
+						break;
+
+					case 'verify':
+						await checkSecretKey(options);
+						break;
+
+					default:
+						showSecretHelp();
 						break;
 				}
 			}
