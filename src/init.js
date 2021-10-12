@@ -276,7 +276,7 @@ export const cloneAndCopyRepo = async function (sourceRepo, destination, exclude
 };
 
 export const transform = async function (read, write, transforms, file) {
-	if (file.name.endsWith('.json') || file.name.endsWith('.yml')) {
+	if (file.name.endsWith('.json') || file.name.endsWith('.yml') || file.name.endsWith('index.js')) {
 		let content = await streamToString(read);
 
 		Object.keys(transforms).forEach(function (key) {
