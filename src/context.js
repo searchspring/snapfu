@@ -47,10 +47,7 @@ export async function getContext() {
 	}
 
 	if (remote) {
-		// get repo org and name from remote
-		// git@github.com:searchspring-implementations/demo.shopify.git
-		// https://github.com/searchspring-implementations/demo.shopify.git
-		// https://github.com/korgon/koatokensocketvue.git
+		// get repo org and name from remote (URL is either HTTPS or SSH)
 		[organization, name] = remote
 			.replace(/^git@github.com:/, '')
 			.replace(/^https:\/\/github.com\//, '')
