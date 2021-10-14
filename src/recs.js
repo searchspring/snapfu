@@ -98,14 +98,23 @@ export async function listTemplates(options) {
 			if (!remoteTemplates || !remoteTemplates.recommendTemplates || !remoteTemplates.recommendTemplates.length) {
 				console.log(chalk.italic('no templates found...'));
 			} else {
+				let smcManaged;
+
 				remoteTemplates.recommendTemplates.forEach((template, index) => {
+					if (!template.managed) smcManaged = true;
+
 					const [name, branch] = template.name.split('__');
+
 					console.log(
-						`${chalk.green(name)} ${branch ? `[${branch}]` : ''} ${chalk.blueBright(
+						`${template.managed ? '' : `${chalk.yellow('*')} `}${chalk.green(name)} ${branch ? `[${branch}]` : ''} ${chalk.blueBright(
 							`(https://manage.searchspring.net/management/product-recs-templates/template-version-edit?template_name=${template.name})`
 						)}`
 					);
 				});
+
+				if (smcManaged) {
+					console.log(`\n${chalk.yellow('* manually managed in the SMC')}`);
+				}
 			}
 		} catch (err) {
 			console.log(chalk.red(err));
@@ -124,13 +133,22 @@ export async function removeTemplate(options) {
 		return;
 	}
 
-	const payload = { name: templateName, branch: branch || repository.branch || 'production' };
+	if (!templateName) {
+		console.log(chalk.red(`Template name is required.`));
+		return;
+	}
+
+	const branchName = branch || repository.branch || 'production';
+
+	const payload = { name: templateName, branch: branchName };
 
 	try {
+		process.stdout.write('archiving...   ');
 		await new ConfigApi(secretKey, options.dev).archiveTemplate(payload);
-		console.log(chalk.green(`${templateName}`), chalk.white(`[${payload.branch}]`));
+		console.log(chalk.green(`${templateName}`), chalk.white(`[${branchName}]`));
 		console.log(chalk.green('Template archived in remote.'));
 	} catch (err) {
+		console.log(chalk.red(`${templateName}`), chalk.white(`[${branchName}]`));
 		console.log(chalk.red(err));
 	}
 }
@@ -167,11 +185,16 @@ export async function syncTemplate(options) {
 		const payload = buildTemplatePayload(template.details, { branch: branchName, framework: searchspring.framework });
 
 		try {
+			process.stdout.write('synchronizing...   ');
 			await new ConfigApi(secretKey, options.dev).putTemplate(payload);
-			console.log(chalk.green('Synchronization with remote complete.'));
+			console.log(chalk.green(`${template.details.name}`), chalk.white(`[${branchName}]`));
 		} catch (err) {
+			console.log(chalk.red(`${template.details.name}`), chalk.white(`[${branchName}]`));
 			console.log(chalk.red(err));
 		}
+
+		// prevent rate limiting
+		await wait(1111);
 	}
 }
 
@@ -331,5 +354,11 @@ export function capitalizeFirstLetter(string) {
 export async function timeout(microSeconds) {
 	return new Promise((resolve, reject) => {
 		setTimeout(resolve, microSeconds);
+	});
+}
+
+function wait(us) {
+	return new Promise((resolve) => {
+		setTimeout(resolve, us);
 	});
 }
