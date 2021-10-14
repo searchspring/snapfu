@@ -36,6 +36,9 @@ export class ConfigApi {
 			throw new Error(`Inalid siteid and/or secretKey.`);
 		} else if (response.status == 405) {
 			throw new Error(`Server method not allowed.`);
+		} else if (response.status == 429) {
+			const text = (await response.text()).trim();
+			throw new Error(`Try again: ${text}`);
 		} else if (response.status == 500) {
 			throw new Error(`Server encounterd a problem.`);
 		} else {
@@ -61,6 +64,9 @@ export class ConfigApi {
 			throw new Error(`Invalid secretKey.`);
 		} else if (response.status == 405) {
 			throw new Error(`Server method not allowed.`);
+		} else if (response.status == 429) {
+			const text = (await response.text()).trim();
+			throw new Error(`Try again: ${text}`);
 		} else if (response.status == 500) {
 			throw new Error(`Server encounterd a problem.`);
 		} else {
@@ -87,6 +93,9 @@ export class ConfigApi {
 			throw new Error(`Invalid secretKey.`);
 		} else if (response.status == 405) {
 			throw new Error(`Server method not allowed.`);
+		} else if (response.status == 429) {
+			const text = (await response.text()).trim();
+			throw new Error(`Try again: ${text}`);
 		} else if (response.status == 500) {
 			throw new Error(`Server encounterd a problem.`);
 		} else {
@@ -102,8 +111,8 @@ export class ConfigApi {
 			body: JSON.stringify(payload),
 			headers: {
 				Accept: 'application/json',
-				Authorization: secretKey,
-				'User-Agent': USER_AGENT,
+				Authorization: this.secretKey,
+				'User-Agent': this.userAgent,
 			},
 		});
 
@@ -115,6 +124,12 @@ export class ConfigApi {
 			throw new Error(`Template '${payload.name}' not found. Ensure correct branch and template name is specified.`);
 		} else if (response.status == 405) {
 			throw new Error(`Server method not allowed.`);
+		} else if (response.status == 409) {
+			const text = (await response.text()).trim();
+			throw new Error(`Cannot archive ${text}`);
+		} else if (response.status == 429) {
+			const text = (await response.text()).trim();
+			throw new Error(`Try again: ${text}`);
 		} else if (response.status == 500) {
 			throw new Error(`Server encounterd a problem.`);
 		} else {
