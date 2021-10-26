@@ -23,7 +23,7 @@ const recommendationText = `Usage: snapfu recs ${chalk.white('<' + chalk.underli
 
 These are the snapfu recommendation template commands and options
 
-    ${chalk.whiteBright('init')} ${chalk.grey('<name> <path>')}            Initialize recommendation template using defaults (optional path)
+    ${chalk.whiteBright('init')}                          Initialize recommendation template in current project
     ${chalk.whiteBright('list')} ${chalk.grey('[local | remote]')}         Display list of recommendation templates (local or remote)
     ${chalk.whiteBright('archive')} ${chalk.grey('<name> <branch>')}       Remove remote recommendation template (optional branch)
         ${chalk.green('--secret-key')} ${chalk.green('<key>')}

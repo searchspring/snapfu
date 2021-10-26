@@ -16,6 +16,7 @@ export class ${name} extends Component {
 	}
 	render() {
 		const controller = this.props.controller;
+		const parameters = controller.store?.profile?.display?.templateParameters;
 
 		return (
 			<Recommendation controller={controller}/>

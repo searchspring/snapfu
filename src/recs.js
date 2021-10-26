@@ -1,4 +1,5 @@
 import chalk from 'chalk';
+import inquirer from 'inquirer';
 import path from 'path';
 import fs, { promises as fsp } from 'fs';
 import { help } from './help';
@@ -15,36 +16,65 @@ function showTemplateHelp() {
 export async function initTemplate(options) {
 	const { context } = options;
 	const { searchspring } = context;
-	const [command, name, dir] = options.args;
-
-	console.log(`Initializing template...`);
-
-	if (name && !name.match(/^[a-zA-Z0-9_]*$/)) {
-		console.log(chalk.red(`Error: Template name must be an alphanumeric string.`));
-		return;
-	}
-
-	const componentName = capitalizeFirstLetter(name);
+	const [command, ...nameArgs] = options.args;
+	const nameArg = nameArgs.join(' ');
 
 	if (!searchspring || !context.project.path) {
 		console.log(chalk.red(`Error: No Snap project found in ${process.cwd()}.`));
 		return;
 	}
 
-	if (!dir) {
-		if (!searchspring.framework || !frameworks[searchspring.framework]) {
-			console.log(chalk.red(`Error: No path specified and unknown Snap framework.`));
-			return;
-		} else {
-			console.log(chalk.grey(`No path specified. Using defaults for ${searchspring.framework}.`));
-		}
+	if (!searchspring.framework || !frameworks[searchspring.framework]) {
+		console.log(chalk.red(`Error: No path specified and unknown Snap framework.`));
+		return;
+	}
+
+	console.log('name stuff', nameArgs, nameArg);
+	if (nameArg && nameArg.length < 3) {
+		console.log(chalk.red(`Error: Template name must be greater than two characters in length.`));
+		return;
 	}
 
 	const framework = frameworks[searchspring.framework];
-	const templateDir = dir || path.resolve(context.project.path, framework.template.dir);
+	const templateDefaultDir = path.resolve(context.project.path, framework.template.dir);
+	let answers;
+
+	if (!nameArg) {
+		answers = await inquirer.prompt([
+			{
+				type: 'input',
+				name: 'name',
+				message: 'Please enter the name of the template:',
+				validate: (input) => {
+					return input && input.length > 2;
+				},
+			},
+			{
+				type: 'input',
+				name: 'description',
+				message: 'Please enter a description for the template:',
+			},
+			{
+				type: 'input',
+				name: 'directory',
+				message: 'Please specify the path to initialize the template files (relative to project directory):',
+				validate: (input) => {
+					return input && input.length > 0;
+				},
+				default: framework.template.dir,
+			},
+		]);
+	}
+
+	console.log(`Initializing template...`);
+
+	const name = nameArg || answers.name;
+	const description = answers && answers.description;
+	const templateDir = (answers && answers.directory) || templateDefaultDir;
+	const componentName = pascalCase(name);
 
 	try {
-		await writeTemplateSettings(path.resolve(process.cwd(), templateDir, `${componentName}.json`), generateTemplateSettings(name));
+		await writeTemplateSettings(path.resolve(process.cwd(), templateDir, `${componentName}.json`), generateTemplateSettings({ name, description }));
 		if (framework) {
 			await writeTemplateSettings(path.resolve(process.cwd(), templateDir, `${componentName}.jsx`), framework.template.component(componentName));
 		}
@@ -174,7 +204,7 @@ export async function syncTemplate(options) {
 	});
 
 	if (!syncTemplates.length) {
-		console.log(chalk.red(`Error: Templates not found.`));
+		console.log(chalk.red(`Error: Template(s) not found.`));
 		return;
 	}
 
@@ -183,6 +213,11 @@ export async function syncTemplate(options) {
 	for (let i = 0; i < syncTemplates.length; i++) {
 		const template = syncTemplates[i];
 		const payload = buildTemplatePayload(template.details, { branch: branchName, framework: searchspring.framework });
+
+		if (payload.name && !payload.name.match(/^[a-zA-Z0-9_]*$/)) {
+			console.log(chalk.red(`Error: Template name must be an alphanumeric string.`));
+			return;
+		}
 
 		try {
 			process.stdout.write('synchronizing...   ');
@@ -198,13 +233,13 @@ export async function syncTemplate(options) {
 	}
 }
 
-export function generateTemplateSettings(name) {
+export function generateTemplateSettings({ name, description }) {
 	const settings = {
 		type: TEMPLATE_TYPE_RECS,
-		name: name.toLowerCase(),
-		label: `${name}`,
-		description: `${name} custom template.`,
-		component: `${capitalizeFirstLetter(name)}`,
+		name: handleize(name),
+		label: name,
+		description: description || `${name} custom template`,
+		component: `${pascalCase(name)}`,
 		orientation: 'horizontal',
 		parameters: [
 			{
@@ -347,8 +382,23 @@ export function buildTemplatePayload(template, vars) {
 	};
 }
 
-export function capitalizeFirstLetter(string) {
-	return string.charAt(0).toUpperCase() + string.slice(1);
+function pascalCase(string) {
+	return `${string}`
+		.replace(new RegExp(/[-_]+/, 'g'), ' ')
+		.replace(new RegExp(/[^\w\s]/, 'g'), '')
+		.replace(new RegExp(/\s+(.)(\w*)/, 'g'), ($1, $2, $3) => `${$2.toUpperCase() + $3.toLowerCase()}`)
+		.replace(new RegExp(/\w/), (s) => s.toUpperCase());
+}
+
+export function handleize(input) {
+	if (typeof input != 'string') {
+		return input;
+	}
+
+	let handleized = input.toLowerCase();
+	handleized = handleized.replace(/[^\w\s]/g, '').trim();
+	handleized = handleized.replace(/\s/g, '-');
+	return handleized;
 }
 
 export async function timeout(microSeconds) {

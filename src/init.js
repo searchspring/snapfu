@@ -63,27 +63,27 @@ export const init = async (options) => {
 				validate: (input) => {
 					return input && input.length > 0;
 				},
-				message: 'Please choose the name of this repository',
+				message: 'Please choose the name of this repository:',
 				default: path.basename(dir),
 			},
 			{
 				type: 'list',
 				name: 'framework',
-				message: "Please choose the framework you'd like to use",
+				message: "Please choose the framework you'd like to use:",
 				choices: ['preact'],
 				default: 'preact',
 			},
 			{
 				type: 'list',
 				name: 'organization',
-				message: 'Please choose which github organization to create this repository in',
+				message: 'Please choose which github organization to create this repository in:',
 				choices: orgs,
 				default: 'searchspring-implementations',
 			},
 			{
 				type: 'input',
 				name: 'siteId',
-				message: 'Please enter the siteId as found in the SMC console (a1b2c3)',
+				message: 'Please enter the siteId as found in the SMC console (a1b2c3):',
 				validate: (input) => {
 					return input && input.length > 0 && /^[0-9a-z]{6}$/.test(input);
 				},
@@ -91,7 +91,7 @@ export const init = async (options) => {
 			{
 				type: 'input',
 				name: 'secretKey',
-				message: 'Please enter the secretKey as found in the SMC console (32 characters)',
+				message: 'Please enter the secretKey as found in the SMC console (32 characters):',
 				validate: (input) => {
 					return input && input.length > 0 && /^[0-9a-zA-Z]{32}$/.test(input);
 				},

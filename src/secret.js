@@ -14,7 +14,7 @@ export const setSecretKey = async (options) => {
 	const answers = await inquirer.prompt({
 		type: 'input',
 		name: 'secretKey',
-		message: 'Please enter the secretKey as found in the SMC console (32 characters)',
+		message: 'Please enter the secretKey as found in the SMC console (32 characters):',
 		validate: (input) => {
 			return input && input.length > 0 && /^[0-9a-zA-Z]{32}$/.test(input);
 		},

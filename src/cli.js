@@ -66,13 +66,7 @@ export async function cli(args) {
 				switch (command) {
 					case 'init':
 						const [command, name, dir] = options.args;
-
-						if (!name) {
-							showTemplateHelp();
-						} else {
-							await initTemplate(options);
-						}
-
+						await initTemplate(options);
 						break;
 
 					case 'list':
