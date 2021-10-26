@@ -12,33 +12,36 @@ import os from 'os';
 export const login = async (options, opener, port) => {
 	let uri = github.createOauthUrl({ isDev: options.dev });
 	let receivedUrl = auth.listenForCallback(port | 3827);
+
 	if (!opener) {
 		open(uri, { wait: true });
 	} else {
 		opener(uri);
 	}
-	await receivedUrl.then(async (val) => {
-		try {
-			let creds = await auth.saveCredsFromUrl(val);
-			console.log(`Authenticated ${chalk.green(creds.login)}`);
-			exit(0);
-		} catch (err) {
-			console.log(err);
-			exit(1);
-		}
-	});
+
+	try {
+		const value = await receivedUrl;
+		let creds = await auth.saveCredsFromUrl(value);
+		console.log(`Authenticated ${chalk.green(creds.login)}`);
+	} catch (err) {
+		console.log(err);
+		exit(1);
+	}
 };
 
 export const orgAccess = async (options, opener) => {
 	let uri = github.createOrgAccessUrl({ isDev: options.dev });
+
 	if (!opener) {
 		open(uri);
 	} else {
 		opener(uri);
 	}
 };
+
 export const whoami = async (options) => {
-	return auth.loadCreds();
+	const user = await auth.loadCreds();
+	return { login: user.login, name: user.name };
 };
 
 export const github = {
@@ -72,10 +75,42 @@ export const auth = {
 		if (query && query.user) {
 			try {
 				let user = JSON.parse(query.user);
-				await fsp.writeFile(path.join(dir, '/creds.json'), query.user);
+				try {
+					const creds = await this.auth.loadCreds();
+					user.keys = creds.keys || {}; // preserve any exisiting keys
+				} catch (e) {
+					// do nothing when login is invoked for the first time and creds.json doesn't exist
+					if (e != 'creds not found') {
+						console.log(chalk.red(e));
+					}
+				}
+				await fsp.writeFile(path.join(dir, '/creds.json'), JSON.stringify(user));
 				return user;
 			} catch (e) {
 				console.log(chalk.red(e.message, query.user));
+			}
+		}
+	},
+	saveSecretKey: async (secretKey, siteId, location) => {
+		let dir = path.join(auth.home(), '/.searchspring');
+		if (location) {
+			dir = location;
+		}
+		if (!fs.existsSync(dir)) {
+			fs.mkdirSync(dir);
+		}
+		const creds = await this.auth.loadCreds();
+		if (creds && secretKey && siteId) {
+			creds.keys = creds.keys || {};
+			creds.keys[siteId] = secretKey;
+			try {
+				await fsp.writeFile(path.join(dir, '/creds.json'), JSON.stringify(creds));
+				return {
+					siteId,
+					secretKey,
+				};
+			} catch (e) {
+				console.log(chalk.red(e.message));
 			}
 		}
 	},
@@ -90,7 +125,7 @@ export const auth = {
 				reject('creds not found');
 			}
 			let user = JSON.parse(creds);
-			resolve({ login: user.login, name: user.name });
+			resolve(user);
 		});
 	},
 	listenForCallback: (port) => {

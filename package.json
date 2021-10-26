@@ -1,49 +1,65 @@
 {
 	"name": "snapfu",
-	"version": "1.0.5",
-	"description": "",
+	"version": "1.0.6",
+	"author": "searchspring",
+	"license": "MIT",
+	"description": "Command line interface for Snap!",
 	"main": "src/index.js",
 	"prettier": "@searchspring/prettier",
 	"bin": {
 		"snapfu": "bin/snapfu"
 	},
 	"scripts": {
+		"commit": "cz",
 		"test": "jest",
+		"test:watch": "jest --watch",
 		"format": "prettier --write src *.json",
-		"format-check": "prettier --check src *.json"
+		"format-check": "prettier --check src *.json",
+		"prepare": "husky install",
+		"preversion": "npm test",
+		"version": "standard-version",
+		"postversion": "git push && git push --tags"
 	},
-	"jest": {
-		"testEnvironment": "node"
-	},
-	"author": "",
-	"license": "MIT",
-	"husky": {
-		"hooks": {
-			"pre-commit": "pretty-quick --staged"
-		}
+	"lint-staged": {
+		"./package.json": [
+			"prettier --write"
+		],
+		"./src/**/*.{js}": [
+			"prettier --write"
+		]
 	},
 	"dependencies": {
-		"@octokit/rest": "^18.5.3",
-		"arg": "^5.0.0",
-		"chalk": "^4.1.1",
+		"@octokit/rest": "^18.10.0",
+		"arg": "^5.0.1",
+		"chalk": "^4.1.2",
 		"esm": "^3.2.25",
 		"git-clone": "^0.1.0",
-		"inquirer": "^8.0.0",
+		"inquirer": "^8.1.2",
 		"ncp": "^2.0.0",
-		"open": "^8.0.7"
+		"node-fetch": "^2.6.1",
+		"open": "^8.2.1",
+		"semver-compare": "^1.0.0",
+		"tweetsodium": "^0.0.5"
 	},
 	"devDependencies": {
-		"@babel/plugin-transform-runtime": "^7.13.15",
-		"@babel/preset-env": "^7.14.1",
+		"@babel/plugin-transform-runtime": "^7.15.0",
+		"@babel/preset-env": "^7.15.0",
 		"@searchspring/prettier": "^1.0.2",
+		"cz-conventional-changelog": "^3.3.0",
 		"find-free-port": "^2.0.0",
 		"fs-extra": "^10.0.0",
-		"husky": "^4.3.8",
-		"jest": "^26.6.3",
+		"husky": "^7.0.2",
+		"jest": "^27.1.0",
+		"lint-staged": "^11.1.2",
 		"memorystream": "^0.3.1",
-		"prettier": "^2.2.1",
-		"pretty-quick": "^3.1.0",
+		"prettier": "^2.3.2",
 		"request-promise": "^4.2.6",
+		"standard-version": "^9.3.1",
 		"temp-dir": "^2.0.0"
+	},
+	"config": {
+		"commitizen": {
+			"path": "./node_modules/cz-conventional-changelog"
+		}
 	}
 }

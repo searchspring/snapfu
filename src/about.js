@@ -1,7 +1,11 @@
 import chalk from 'chalk';
-import packageJSON from '../package.json';
 
 export const about = (options) => {
-	console.log(`${chalk.blue('snap · fu - "the way of snap"')} ${chalk.red(`(v${packageJSON.version})`)}
-${chalk.cyan('https://github.com/searchspring/snapfu')}`);
+	console.log(
+		`${chalk.greenBright('snap · fu')} ${chalk.grey(' ~ ')} ${chalk.green.italic('"the way of snap"')}  ${chalk.red(
+			`(v${options.context.version})`
+		)}\n`
+	);
+	console.log(`${chalk.grey('─────────────────────────────────────────────')}\n`);
+	console.log(`${chalk.bold.grey('https://github.com/searchspring/snap')}`);
 };

@@ -1,73 +1,179 @@
 import arg from 'arg';
-import inquirer from 'inquirer';
+import { exit } from 'process';
+import chalk from 'chalk';
+import cmp from 'semver-compare';
+
 import { login, orgAccess, whoami } from './login';
+import { initTemplate, listTemplates, removeTemplate, syncTemplate } from './recs';
 import { init } from './init';
 import { about } from './about';
-import chalk from 'chalk';
+import { help } from './help';
+import { commandOutput, getContext } from './context';
+import { setSecretKey, checkSecretKey } from './secret';
 
-function parseArgumentsIntoOptions(rawArgs) {
+async function parseArgumentsIntoOptions(rawArgs) {
 	const args = arg(
 		{
 			'--dev': Boolean,
+			'--secret-key': String,
 		},
 		{
 			argv: rawArgs.slice(2),
 		}
 	);
+	const context = await getContext();
+	let secretKey;
+	try {
+		secretKey = args['--secret-key'] || context.user.keys[context.searchspring.siteId];
+	} catch (e) {
+		// do nothing - when running init context may not exist
+	}
+
 	return {
 		dev: args['--dev'] || false,
 		command: args._[0],
 		args: args._.slice(1),
+		options: {
+			secretKey,
+		},
+		context,
 	};
 }
 
 export async function cli(args) {
-	let options = parseArgumentsIntoOptions(args);
-	if (!options.command || options.command === 'help') {
-		displayHelp();
-		return;
-	}
-	debug(options, options);
-	if (options.command === 'login') {
-		login(options);
-	}
-	if (options.command === 'org-access') {
-		orgAccess(options);
-	}
-	if (options.command === 'init') {
-		init(options);
-	}
-	if (options.command === 'whoami') {
-		await whoami()
-			.then((user) => {
+	const options = await parseArgumentsIntoOptions(args);
+
+	switch (options.command) {
+		case 'init':
+			await init(options);
+			break;
+
+		case 'recs':
+		case 'recommendation':
+		case 'recommendations':
+			{
+				function showTemplateHelp() {
+					help({ command: 'help', args: ['recommendation'] });
+				}
+
+				if (!options.args.length) {
+					showTemplateHelp();
+					return;
+				}
+
+				const [command] = options.args;
+
+				switch (command) {
+					case 'init':
+						const [command, name, dir] = options.args;
+						await initTemplate(options);
+						break;
+
+					case 'list':
+						await listTemplates(options);
+						break;
+
+					case 'archive':
+						await removeTemplate(options);
+						break;
+
+					case 'sync':
+						await syncTemplate(options);
+						break;
+
+					default:
+						showTemplateHelp();
+						break;
+				}
+			}
+
+			break;
+
+		case 'secret':
+		case 'secrets':
+			{
+				function showSecretHelp() {
+					help({ command: 'help', args: ['secret'] });
+				}
+
+				if (!options.args.length) {
+					showSecretHelp();
+					return;
+				}
+
+				const [command] = options.args;
+
+				switch (command) {
+					case 'add':
+					case 'update':
+						await setSecretKey(options);
+						break;
+
+					case 'verify':
+						await checkSecretKey(options);
+						break;
+
+					default:
+						showSecretHelp();
+						break;
+				}
+			}
+
+			break;
+
+		case 'login':
+			await login(options);
+			break;
+
+		case 'org-access':
+			orgAccess(options);
+			break;
+
+		case 'whoami':
+			try {
+				const user = await whoami();
 				console.log(`${chalk.blue(user.name)} (${chalk.green(user.login)})`);
-			})
-			.catch((err) => {
+			} catch (err) {
 				if (err === 'creds not found') {
 					console.log('not logged in');
 				} else {
 					console.log(chalk.red(err));
 				}
-			});
+			}
+			break;
+
+		case 'about':
+			about(options);
+			break;
+
+		default:
+			help(options);
+			break;
 	}
-	if (options.command === 'about') {
-		about(options);
-	}
+
+	await checkForLatestVersion(options);
+
+	exit();
 }
+
 function debug(options, message) {
 	if (options.dev) {
 		console.log(message);
 	}
 }
 
-function displayHelp() {
-	console.log(`usage: snapfu <command>
+async function checkForLatestVersion(options) {
+	// using Promise.race to wait a maximum of 1.2 seconds
+	const latest = await Promise.race([commandOutput('npm view snapfu version'), wait(1200)]);
 
-These are the snapfu commands used in various situations
+	if (latest && cmp(latest, options.context.version) == 1) {
+		console.log(`\n\n${chalk.bold.white(`Version ${chalk.bold.red(`${latest}`)} of snapfu available.\nUpdate with:`)}`);
+		console.log(chalk.grey(`\n\tnpm install -g snapfu\n`));
+	}
+}
 
-    login           Oauths with github
-    whoami          Shows the current user
-    org-access      Review and change organization access for the tool
-    init            Creates a new snap project
-    about           Shows versioning`);
+function wait(us) {
+	return new Promise((resolve) => {
+		setTimeout(resolve, us);
+	});
 }
