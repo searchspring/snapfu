@@ -382,7 +382,7 @@ export function buildTemplatePayload(template, vars) {
 	};
 }
 
-function pascalCase(string) {
+export function pascalCase(string) {
 	return `${string}`
 		.replace(new RegExp(/[-_]+/, 'g'), ' ')
 		.replace(new RegExp(/[^\w\s]/, 'g'), '')

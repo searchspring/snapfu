@@ -1,6 +1,6 @@
 import {
 	timeout,
-	capitalizeFirstLetter,
+	pascalCase,
 	buildTemplatePayload,
 	findJsonFiles,
 	readTemplateSettings,
@@ -92,14 +92,14 @@ afterAll(() => {
 describe('generateTemplateSettings function', () => {
 	it('returns a stringified object with template settings', async () => {
 		const name = 'Newness';
-		const settingsString = generateTemplateSettings(name);
+		const settingsString = generateTemplateSettings({ name });
 		expect(settingsString).toBeDefined();
 
 		const settings = JSON.parse(settingsString);
 		expect(settings).toHaveProperty('name', name.toLowerCase());
 		expect(settings).toHaveProperty('label', name);
 		expect(settings).toHaveProperty('description');
-		expect(settings).toHaveProperty('component', capitalizeFirstLetter(name));
+		expect(settings).toHaveProperty('component', pascalCase(name));
 		expect(settings).toHaveProperty('orientation');
 		expect(settings).toHaveProperty('parameters');
 	});
@@ -189,9 +189,9 @@ describe('buildTemplatePayload function', () => {
 	});
 });
 
-describe('capitalizeFirstLetter function', () => {
+describe('pascalCase function', () => {
 	it('sets the first character to uppercase', async () => {
-		const uppered = capitalizeFirstLetter('testString');
+		const uppered = pascalCase('testString');
 		expect(uppered).toBe('TestString');
 	});
 });
