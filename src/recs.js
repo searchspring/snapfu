@@ -29,7 +29,6 @@ export async function initTemplate(options) {
 		return;
 	}
 
-	console.log('name stuff', nameArgs, nameArg);
 	if (nameArg && nameArg.length < 3) {
 		console.log(chalk.red(`Error: Template name must be greater than two characters in length.`));
 		return;
@@ -115,7 +114,7 @@ export async function listTemplates(options) {
 			console.log();
 		}
 
-		console.log(`${chalk.grey('Remote Templates (SMC)')}`);
+		console.log(`${chalk.grey('Active Remote Templates (SMC)')}`);
 
 		if (!secretKey) {
 			console.log(chalk.red(`Unauthorized: Please provide secretKey.`));
@@ -214,8 +213,8 @@ export async function syncTemplate(options) {
 		const template = syncTemplates[i];
 		const payload = buildTemplatePayload(template.details, { branch: branchName, framework: searchspring.framework });
 
-		if (payload.name && !payload.name.match(/^[a-zA-Z0-9_]*$/)) {
-			console.log(chalk.red(`Error: Template name must be an alphanumeric string.`));
+		if (payload.name && !payload.name.match(/^[a-zA-Z0-9_-]*$/)) {
+			console.log(chalk.red(`Error: Template name must be an alphanumeric string (underscore and dashes also supported).`));
 			return;
 		}
 
