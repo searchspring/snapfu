@@ -178,12 +178,7 @@ export const init = async (options) => {
 		const { siteId, secretKey } = await auth.saveSecretKey(answers.secretKey, answers.siteId);
 
 		await setRepoSecret(options, { siteId: answers.siteId, secretKey: answers.secretKey, organization: answers.organization, name: answers.name });
-		await setBranchProtection(options, {
-			siteId: answers.siteId,
-			secretKey: answers.secretKey,
-			organization: answers.organization,
-			name: answers.name,
-		});
+		await setBranchProtection(options, { organization: answers.organization, name: answers.name });
 
 		if (dir != cwd()) {
 			console.log(
