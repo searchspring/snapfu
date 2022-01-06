@@ -178,7 +178,12 @@ export const init = async (options) => {
 		const { siteId, secretKey } = await auth.saveSecretKey(answers.secretKey, answers.siteId);
 
 		await setRepoSecret(options, { siteId: answers.siteId, secretKey: answers.secretKey, organization: answers.organization, name: answers.name });
-		console.log();
+		await setBranchProtection(options, {
+			siteId: answers.siteId,
+			secretKey: answers.secretKey,
+			organization: answers.organization,
+			name: answers.name,
+		});
 
 		if (dir != cwd()) {
 			console.log(
@@ -194,6 +199,47 @@ export const init = async (options) => {
 	} catch (err) {
 		console.log(chalk.red(err));
 		exit(1);
+	}
+};
+
+export const setBranchProtection = async function (options, details) {
+	const { user } = options.context;
+
+	let octokit = new Octokit({
+		auth: user.token,
+	});
+
+	const { organization, name } = details;
+
+	if (!options.dev && organization && name) {
+		// create branch protection rule for 'production' branch
+		const branchProtectionResponse = await octokit.rest.repos.updateBranchProtection({
+			owner: organization,
+			repo: name,
+			branch: 'production',
+			required_status_checks: {
+				strict: false,
+				checks: [
+					{
+						context: 'Snap Action',
+					},
+				],
+			},
+			enforce_admins: null,
+			required_pull_request_reviews: {
+				dismiss_stale_reviews: true,
+				required_approving_review_count: 0,
+			},
+			restrictions: null,
+		});
+
+		if (branchProtectionResponse && branchProtectionResponse.status === 200) {
+			console.log(chalk.green(`created branch protection for 'production'`));
+		} else {
+			console.log(chalk.red(`failed to create branch protection`));
+		}
+	} else {
+		console.log(chalk.yellow('skipping creation of branch protection'));
 	}
 };
 
