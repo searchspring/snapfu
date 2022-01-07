@@ -185,11 +185,11 @@ export const init = async (options) => {
 				`The ${chalk.blue(folderName)} directory has been created and initialized from ${chalk.blue(`snapfu-template-${answers.framework}`)}.`
 			);
 			console.log(`Get started by installing package dependencies and creating a branch:`);
-			console.log(chalk.grey(`\n\tcd ${folderName} && npm install && git checkout -b branch\n`));
+			console.log(chalk.grey(`\n\tcd ${folderName} && npm install && git checkout -b development\n`));
 		} else {
 			console.log(`Current working directory has been initialized from ${chalk.blue(`snapfu-template-${answers.framework}`)}.`);
 			console.log(`Get started by installing package dependencies and creating a branch:`);
-			console.log(chalk.grey(`\n\tnpm install && git checkout -b branch\n`));
+			console.log(chalk.grey(`\n\tnpm install && git checkout -b development\n`));
 		}
 	} catch (err) {
 		console.log(chalk.red(err));
