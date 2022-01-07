@@ -178,23 +178,66 @@ export const init = async (options) => {
 		const { siteId, secretKey } = await auth.saveSecretKey(answers.secretKey, answers.siteId);
 
 		await setRepoSecret(options, { siteId: answers.siteId, secretKey: answers.secretKey, organization: answers.organization, name: answers.name });
-		console.log();
+		await setBranchProtection(options, { organization: answers.organization, name: answers.name });
 
 		if (dir != cwd()) {
 			console.log(
 				`The ${chalk.blue(folderName)} directory has been created and initialized from ${chalk.blue(`snapfu-template-${answers.framework}`)}.`
 			);
-			console.log(`Get started by installing package dependencies:`);
-			console.log(chalk.grey(`\n\tcd ${folderName} && npm install\n`));
+			console.log(`Get started by installing package dependencies and creating a branch:`);
+			console.log(chalk.grey(`\n\tcd ${folderName} && npm install && git checkout -b development\n`));
 		} else {
 			console.log(`Current working directory has been initialized from ${chalk.blue(`snapfu-template-${answers.framework}`)}.`);
-			console.log(`Get started by installing package dependencies:`);
-			console.log(chalk.grey(`\n\tnpm install\n`));
+			console.log(`Get started by installing package dependencies and creating a branch:`);
+			console.log(chalk.grey(`\n\tnpm install && git checkout -b development\n`));
 		}
 	} catch (err) {
 		console.log(chalk.red(err));
 		exit(1);
 	}
+};
+
+export const setBranchProtection = async function (options, details) {
+	const { user } = options.context;
+
+	let octokit = new Octokit({
+		auth: user.token,
+	});
+
+	const { organization, name } = details;
+
+	if (!options.dev && organization && name) {
+		console.log(`Setting branch protection for 'production' in ${organization}/${name}...`);
+		// create branch protection rule for 'production' branch
+		const branchProtectionResponse = await octokit.rest.repos.updateBranchProtection({
+			owner: organization,
+			repo: name,
+			branch: 'production',
+			required_status_checks: {
+				strict: false,
+				checks: [
+					{
+						context: 'Snap Action',
+					},
+				],
+			},
+			enforce_admins: true,
+			required_pull_request_reviews: {
+				dismiss_stale_reviews: true,
+				required_approving_review_count: 0,
+			},
+			restrictions: null,
+		});
+
+		if (branchProtectionResponse && branchProtectionResponse.status === 200) {
+			console.log(chalk.green(`created branch protection for 'production'`));
+		} else {
+			console.log(chalk.red(`failed to create branch protection`));
+		}
+	} else {
+		console.log(chalk.yellow('skipping creation of branch protection'));
+	}
+	console.log(); // new line spacing
 };
 
 export const setRepoSecret = async function (options, details) {
@@ -249,6 +292,7 @@ export const setRepoSecret = async function (options, details) {
 	} else {
 		console.log(chalk.yellow('skipping creation of repository secret'));
 	}
+	console.log(); // new line spacing
 };
 
 export const cloneAndCopyRepo = async function (sourceRepo, destination, excludeGit, transforms) {
