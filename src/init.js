@@ -55,6 +55,11 @@ export const init = async (options) => {
 				return org.login;
 			});
 		});
+		let repos = await octokit.rest.repos.listForOrg({
+			org: 'searchspring',
+			type: 'public',
+			per_page: 500,
+		});
 
 		let questions = [
 			{
@@ -72,6 +77,13 @@ export const init = async (options) => {
 				message: "Please choose the framework you'd like to use:",
 				choices: ['preact'],
 				default: 'preact',
+			},
+			{
+				type: 'list',
+				name: 'template',
+				message: "Please choose the template you'd like to use:",
+				choices: repos.data.filter((repo) => repo.name.startsWith('snapfu-template-')),
+				default: 'snapfu-template-preact',
 			},
 			{
 				type: 'list',
@@ -141,8 +153,8 @@ export const init = async (options) => {
 		const repoUrlHTTP = `https://github.com/${answers.organization}/${answers.name}`;
 
 		// template repo URLs
-		const templateUrlSSH = `git@github.com:searchspring/snapfu-template-${answers.framework}.git`;
-		const templateUrlHTTP = `https://github.com/searchspring/snapfu-template-${answers.framework}`;
+		const templateUrlSSH = `git@github.com:searchspring/${answers.template}.git`;
+		const templateUrlHTTP = `https://github.com/searchspring/${answers.template}`;
 
 		if (!options.dev) {
 			console.log(`Cloning repository...`);
@@ -181,13 +193,11 @@ export const init = async (options) => {
 		await setBranchProtection(options, { organization: answers.organization, name: answers.name });
 
 		if (dir != cwd()) {
-			console.log(
-				`The ${chalk.blue(folderName)} directory has been created and initialized from ${chalk.blue(`snapfu-template-${answers.framework}`)}.`
-			);
+			console.log(`The ${chalk.blue(folderName)} directory has been created and initialized from ${chalk.blue(`${answers.template}`)}.`);
 			console.log(`Get started by installing package dependencies and creating a branch:`);
 			console.log(chalk.grey(`\n\tcd ${folderName} && npm install && git checkout -b development\n`));
 		} else {
-			console.log(`Current working directory has been initialized from ${chalk.blue(`snapfu-template-${answers.framework}`)}.`);
+			console.log(`Current working directory has been initialized from ${chalk.blue(`${answers.template}`)}.`);
 			console.log(`Get started by installing package dependencies and creating a branch:`);
 			console.log(chalk.grey(`\n\tnpm install && git checkout -b development\n`));
 		}
