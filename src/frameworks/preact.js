@@ -61,7 +61,9 @@ export class ${name} extends Component {
 export const preact = {
 	template: {
 		dir: './src/components/Recommendations',
-		default: preactComponent,
-		email: emailComponent,
+		components: {
+			default: preactComponent,
+			email: emailComponent,
+		},
 	},
 };

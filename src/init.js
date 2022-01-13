@@ -78,12 +78,17 @@ export const init = async (options) => {
 				choices: ['preact'],
 				default: 'preact',
 			},
+		];
+
+		const answers1 = await inquirer.prompt(questions);
+
+		let questions2 = [
 			{
 				type: 'list',
 				name: 'template',
 				message: "Please choose the template you'd like to use:",
-				choices: repos.data.filter((repo) => repo.name.startsWith('snapfu-template-')),
-				default: 'snapfu-template-preact',
+				choices: repos.data.filter((repo) => repo.name.startsWith(`snapfu-template-${answers1.framework}`)),
+				default: `snapfu-template-${answers1.framework}`,
 			},
 			{
 				type: 'list',
@@ -109,10 +114,8 @@ export const init = async (options) => {
 				},
 			},
 		];
-
-		const answers = await inquirer.prompt(questions);
-		console.log();
-
+		const answers2 = await inquirer.prompt(questions2);
+		const answers = { ...answers1, ...answers2 };
 		try {
 			await new ConfigApi(answers.secretKey, options.dev).validateSite(answers.siteId);
 		} catch (err) {

@@ -66,7 +66,7 @@ export async function initTemplate(options) {
 				type: 'list',
 				name: 'type',
 				message: 'Please select the type of recommendations:',
-				choices: ['default', 'email'],
+				choices: Object.keys(framework.template.components),
 				default: 'default',
 			},
 		]);
@@ -78,17 +78,21 @@ export async function initTemplate(options) {
 	const description = answers && answers.description;
 	const templateDir = (answers && answers.directory) || templateDefaultDir;
 	const componentName = pascalCase(name);
+
+	const settings = {
+		type: `${TEMPLATE_TYPE_RECS}/${answers.type}`,
+	};
+
 	try {
 		await writeTemplateSettings(
 			path.resolve(process.cwd(), templateDir, `${componentName}.json`),
-			generateTemplateSettings({ name, description, type: answers.type })
+			generateTemplateSettings({ name, description, type: settings.type })
 		);
 		if (framework) {
-			if (answers.type === 'email') {
-				await writeTemplateSettings(path.resolve(process.cwd(), templateDir, `${componentName}.jsx`), framework.template.email(componentName));
-			} else {
-				await writeTemplateSettings(path.resolve(process.cwd(), templateDir, `${componentName}.jsx`), framework.template.default(componentName));
-			}
+			await writeTemplateSettings(
+				path.resolve(process.cwd(), templateDir, `${componentName}.jsx`),
+				framework.template.components[answers.type](componentName)
+			);
 		}
 	} catch (err) {
 		console.log(chalk.red(`Error: Failed to initialize template.`));
@@ -247,8 +251,7 @@ export async function syncTemplate(options) {
 
 export function generateTemplateSettings({ name, description, type }) {
 	const settings = {
-		type: TEMPLATE_TYPE_RECS,
-		isEmail: Boolean(type === 'email'),
+		type,
 		name: handleize(name),
 		label: name,
 		description: description || `${name} custom template`,
@@ -372,7 +375,7 @@ export async function findJsonFiles(dir) {
 export function buildTemplatePayload(template, vars) {
 	return {
 		name: template.name,
-		isEmail: template.isEmail,
+		type: template.type,
 		component: template.component,
 		meta: {
 			searchspringTemplate: {
