@@ -55,11 +55,28 @@ export const init = async (options) => {
 				return org.login;
 			});
 		});
-		let repos = await octokit.rest.repos.listForOrg({
-			org: 'searchspring',
-			type: 'public',
-			per_page: 500,
-		});
+
+		const fetchOrgReposPage = async () => {
+			let page = 0;
+			let per_page = 100;
+			let repos = [];
+			let response;
+			do {
+				page++;
+				response = await octokit.rest.repos.listForOrg({
+					org: 'searchspring',
+					type: 'public',
+					per_page,
+					page,
+				});
+				response.data.map((repo) => {
+					repos.push(repo);
+				});
+			} while (response.data.length == per_page);
+			return repos;
+		};
+
+		let repos = await fetchOrgReposPage();
 
 		let questions = [
 			{
@@ -87,7 +104,7 @@ export const init = async (options) => {
 				type: 'list',
 				name: 'template',
 				message: "Please choose the template you'd like to use:",
-				choices: repos.data.filter((repo) => repo.name.startsWith(`snapfu-template-${answers1.framework}`)),
+				choices: repos.filter((repo) => repo.name.startsWith(`snapfu-template-${answers1.framework}`)),
 				default: `snapfu-template-${answers1.framework}`,
 			},
 			{
