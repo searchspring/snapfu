@@ -36,10 +36,9 @@ export async function initTemplate(options) {
 
 	const framework = frameworks[searchspring.framework];
 	const templateDefaultDir = path.resolve(context.project.path, framework.template.dir);
-	let answers;
-
+	let answers1;
 	if (!nameArg) {
-		answers = await inquirer.prompt([
+		answers1 = await inquirer.prompt([
 			{
 				type: 'input',
 				name: 'name',
@@ -62,17 +61,22 @@ export async function initTemplate(options) {
 				},
 				default: framework.template.dir,
 			},
-			{
-				type: 'list',
-				name: 'type',
-				message: 'Please select the type of recommendations:',
-				choices: Object.keys(framework.template.components),
-				default: 'default',
-			},
 		]);
 	}
 
+	let answers2 = await inquirer.prompt([
+		{
+			type: 'list',
+			name: 'type',
+			message: 'Please select the type of recommendations:',
+			choices: Object.keys(framework.template.components),
+			default: 'default',
+		},
+	]);
+
 	console.log(`Initializing template...`);
+
+	let answers = { ...answers1, ...answers2 };
 
 	const name = nameArg || answers.name;
 	const description = answers && answers.description;
