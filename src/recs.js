@@ -47,24 +47,24 @@ export async function initTemplate(options) {
 					return input && input.length > 2;
 				},
 			},
-			{
-				type: 'input',
-				name: 'description',
-				message: 'Please enter a description for the template:',
-			},
-			{
-				type: 'input',
-				name: 'directory',
-				message: 'Please specify the path to initialize the template files (relative to project directory):',
-				validate: (input) => {
-					return input && input.length > 0;
-				},
-				default: framework.template.dir,
-			},
 		]);
 	}
 
 	let answers2 = await inquirer.prompt([
+		{
+			type: 'input',
+			name: 'description',
+			message: 'Please enter a description for the template:',
+		},
+		{
+			type: 'input',
+			name: 'directory',
+			message: 'Please specify the path to initialize the template files (relative to project directory):',
+			validate: (input) => {
+				return input && input.length > 0;
+			},
+			default: framework.template.dir,
+		},
 		{
 			type: 'list',
 			name: 'type',
@@ -290,7 +290,8 @@ export async function getTemplates(dir) {
 			.filter((template) => {
 				if (
 					typeof template.details == 'object' &&
-					template.details.type == TEMPLATE_TYPE_RECS &&
+					template.details.type &&
+					template.details.type.startsWith(TEMPLATE_TYPE_RECS) &&
 					template.details.name &&
 					template.details.label &&
 					template.details.component
@@ -392,6 +393,7 @@ export function buildTemplatePayload(template, vars) {
 				group: template.name,
 				framework: vars.framework || 'unknown',
 				managed: 'true',
+				type: template.type.replace(TEMPLATE_TYPE_RECS, '').replace('/', '') || 'default',
 			},
 			searchspringRecommendProfile: {
 				label: template.label,
