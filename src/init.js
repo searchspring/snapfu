@@ -56,140 +56,173 @@ export const init = async (options) => {
 			});
 		});
 
-		let questions = [
-			{
-				type: 'input',
-				name: 'name',
-				validate: (input) => {
-					return input && input.length > 0;
-				},
-				message: 'Please choose the name of this repository:',
-				default: path.basename(dir),
-			},
-			{
-				type: 'list',
-				name: 'framework',
-				message: "Please choose the framework you'd like to use:",
-				choices: ['preact'],
-				default: 'preact',
-			},
-			{
-				type: 'list',
-				name: 'organization',
-				message: 'Please choose which github organization to create this repository in:',
-				choices: orgs,
-				default: 'searchspring-implementations',
-			},
-			{
-				type: 'input',
-				name: 'siteId',
-				message: 'Please enter the siteId as found in the SMC console (a1b2c3):',
-				validate: (input) => {
-					return input && input.length > 0 && /^[0-9a-z]{6}$/.test(input);
-				},
-			},
-			{
-				type: 'input',
-				name: 'secretKey',
-				message: 'Please enter the secretKey as found in the SMC console (32 characters):',
-				validate: (input) => {
-					return input && input.length > 0 && /^[0-9a-zA-Z]{32}$/.test(input);
-				},
-			},
-		];
-
-		const answers = await inquirer.prompt(questions);
-		console.log();
-
-		try {
-			await new ConfigApi(answers.secretKey, options.dev).validateSite(answers.siteId);
-		} catch (err) {
-			console.log(chalk.red('Verification of siteId and secretKey failed.'));
-			console.log(chalk.red(err));
-			exit(1);
-		}
-
-		// create local directory
-		let folderName = await createDir(dir);
-
-		if (options.dev) {
-			console.log(chalk.blueBright('Skipping new repo creation...'));
-		} else {
-			// create the remote repo
-			console.log(`Creating repository...`);
-
-			await octokit.repos
-				.createInOrg({
-					org: answers.organization,
-					name: answers.name,
-					private: true,
-					auto_init: true,
-				})
-				.then(() => console.log(`${chalk.greenBright(answers.name)}\n`))
-				.catch((err) => {
-					if (!err.message.includes('already exists')) {
-						console.log(chalk.red(err.message));
-						exit(1);
-					} else {
-						console.log(chalk.yellow('repository already exists\n'));
-					}
+		const fetchOrgReposPage = async () => {
+			let page = 0;
+			let per_page = 100;
+			let repos = [];
+			let response;
+			do {
+				page++;
+				response = await octokit.rest.repos.listForOrg({
+					org: 'searchspring',
+					type: 'public',
+					per_page,
+					page,
 				});
-		}
+				response.data.map((repo) => {
+					repos.push(repo);
+				});
+			} while (response.data.length == per_page);
+			return repos;
+		};
 
-		// newly create repo URLs
-		const repoUrlSSH = `git@github.com:${answers.organization}/${answers.name}.git`;
-		const repoUrlHTTP = `https://github.com/${answers.organization}/${answers.name}`;
-
-		// template repo URLs
-		const templateUrlSSH = `git@github.com:searchspring/snapfu-template-${answers.framework}.git`;
-		const templateUrlHTTP = `https://github.com/searchspring/snapfu-template-${answers.framework}`;
-
-		if (!options.dev) {
-			console.log(`Cloning repository...`);
-			try {
-				await cloneAndCopyRepo(repoUrlSSH, dir, false);
-				console.log(`${chalk.greenBright(repoUrlSSH)}\n`);
-			} catch (err) {
-				await cloneAndCopyRepo(repoUrlHTTP, dir, false);
-				console.log(`${chalk.greenBright(repoUrlHTTP)}\n`);
-			}
-		}
-
-		console.log(`Cloning template into ${dir}...`);
-		try {
-			await cloneAndCopyRepo(templateUrlSSH, dir, true, {
-				'snapfu.name': answers.name,
-				'snapfu.siteId': answers.siteId,
-				'snapfu.author': user.name,
-				'snapfu.framework': answers.framework,
-			});
-			console.log(`${chalk.greenBright(templateUrlSSH)}\n`);
-		} catch (err) {
-			await cloneAndCopyRepo(templateUrlHTTP, dir, true, {
-				'snapfu.name': answers.name,
-				'snapfu.siteId': answers.siteId,
-				'snapfu.author': user.name,
-				'snapfu.framework': answers.framework,
-			});
-			console.log(`${chalk.greenBright(templateUrlHTTP)}\n`);
-		}
-
-		// save secretKey mapping to creds.json
-		const { siteId, secretKey } = await auth.saveSecretKey(answers.secretKey, answers.siteId);
-
-		await setRepoSecret(options, { siteId: answers.siteId, secretKey: answers.secretKey, organization: answers.organization, name: answers.name });
-		await setBranchProtection(options, { organization: answers.organization, name: answers.name });
-
-		if (dir != cwd()) {
-			console.log(
-				`The ${chalk.blue(folderName)} directory has been created and initialized from ${chalk.blue(`snapfu-template-${answers.framework}`)}.`
-			);
-			console.log(`Get started by installing package dependencies and creating a branch:`);
-			console.log(chalk.grey(`\n\tcd ${folderName} && npm install && git checkout -b development\n`));
+		let repos = await fetchOrgReposPage();
+		if (!repos || !repos.length) {
+			console.log(chalk.red('failed to find any repos.'));
 		} else {
-			console.log(`Current working directory has been initialized from ${chalk.blue(`snapfu-template-${answers.framework}`)}.`);
-			console.log(`Get started by installing package dependencies and creating a branch:`);
-			console.log(chalk.grey(`\n\tnpm install && git checkout -b development\n`));
+			let questions = [
+				{
+					type: 'input',
+					name: 'name',
+					validate: (input) => {
+						return input && input.length > 0;
+					},
+					message: 'Please choose the name of this repository:',
+					default: path.basename(dir),
+				},
+				{
+					type: 'list',
+					name: 'framework',
+					message: "Please choose the framework you'd like to use:",
+					choices: ['preact'],
+					default: 'preact',
+				},
+			];
+
+			const answers1 = await inquirer.prompt(questions);
+
+			let questions2 = [
+				{
+					type: 'list',
+					name: 'template',
+					message: "Please choose the template you'd like to use:",
+					choices: repos.filter((repo) => repo.name.startsWith(`snapfu-template-${answers1.framework}`)),
+					default: `snapfu-template-${answers1.framework}`,
+				},
+				{
+					type: 'list',
+					name: 'organization',
+					message: 'Please choose which github organization to create this repository in:',
+					choices: orgs,
+					default: 'searchspring-implementations',
+				},
+				{
+					type: 'input',
+					name: 'siteId',
+					message: 'Please enter the siteId as found in the SMC console (a1b2c3):',
+					validate: (input) => {
+						return input && input.length > 0 && /^[0-9a-z]{6}$/.test(input);
+					},
+				},
+				{
+					type: 'input',
+					name: 'secretKey',
+					message: 'Please enter the secretKey as found in the SMC console (32 characters):',
+					validate: (input) => {
+						return input && input.length > 0 && /^[0-9a-zA-Z]{32}$/.test(input);
+					},
+				},
+			];
+			const answers2 = await inquirer.prompt(questions2);
+			const answers = { ...answers1, ...answers2 };
+			try {
+				await new ConfigApi(answers.secretKey, options.dev).validateSite(answers.siteId);
+			} catch (err) {
+				console.log(chalk.red('Verification of siteId and secretKey failed.'));
+				console.log(chalk.red(err));
+				exit(1);
+			}
+
+			// create local directory
+			let folderName = await createDir(dir);
+
+			if (options.dev) {
+				console.log(chalk.blueBright('Skipping new repo creation...'));
+			} else {
+				// create the remote repo
+				console.log(`Creating repository...`);
+
+				await octokit.repos
+					.createInOrg({
+						org: answers.organization,
+						name: answers.name,
+						private: true,
+						auto_init: true,
+					})
+					.then(() => console.log(`${chalk.greenBright(answers.name)}\n`))
+					.catch((err) => {
+						if (!err.message.includes('already exists')) {
+							console.log(chalk.red(err.message));
+							exit(1);
+						} else {
+							console.log(chalk.yellow('repository already exists\n'));
+						}
+					});
+			}
+
+			// newly create repo URLs
+			const repoUrlSSH = `git@github.com:${answers.organization}/${answers.name}.git`;
+			const repoUrlHTTP = `https://github.com/${answers.organization}/${answers.name}`;
+
+			// template repo URLs
+			const templateUrlSSH = `git@github.com:searchspring/${answers.template}.git`;
+			const templateUrlHTTP = `https://github.com/searchspring/${answers.template}`;
+
+			if (!options.dev) {
+				console.log(`Cloning repository...`);
+				try {
+					await cloneAndCopyRepo(repoUrlSSH, dir, false);
+					console.log(`${chalk.greenBright(repoUrlSSH)}\n`);
+				} catch (err) {
+					await cloneAndCopyRepo(repoUrlHTTP, dir, false);
+					console.log(`${chalk.greenBright(repoUrlHTTP)}\n`);
+				}
+			}
+
+			console.log(`Cloning template into ${dir}...`);
+			try {
+				await cloneAndCopyRepo(templateUrlSSH, dir, true, {
+					'snapfu.name': answers.name,
+					'snapfu.siteId': answers.siteId,
+					'snapfu.author': user.name,
+					'snapfu.framework': answers.framework,
+				});
+				console.log(`${chalk.greenBright(templateUrlSSH)}\n`);
+			} catch (err) {
+				await cloneAndCopyRepo(templateUrlHTTP, dir, true, {
+					'snapfu.name': answers.name,
+					'snapfu.siteId': answers.siteId,
+					'snapfu.author': user.name,
+					'snapfu.framework': answers.framework,
+				});
+				console.log(`${chalk.greenBright(templateUrlHTTP)}\n`);
+			}
+
+			// save secretKey mapping to creds.json
+			const { siteId, secretKey } = await auth.saveSecretKey(answers.secretKey, answers.siteId);
+
+			await setRepoSecret(options, { siteId: answers.siteId, secretKey: answers.secretKey, organization: answers.organization, name: answers.name });
+			await setBranchProtection(options, { organization: answers.organization, name: answers.name });
+
+			if (dir != cwd()) {
+				console.log(`The ${chalk.blue(folderName)} directory has been created and initialized from ${chalk.blue(`${answers.template}`)}.`);
+				console.log(`Get started by installing package dependencies and creating a branch:`);
+				console.log(chalk.grey(`\n\tcd ${folderName} && npm install && git checkout -b development\n`));
+			} else {
+				console.log(`Current working directory has been initialized from ${chalk.blue(`${answers.template}`)}.`);
+				console.log(`Get started by installing package dependencies and creating a branch:`);
+				console.log(chalk.grey(`\n\tnpm install && git checkout -b development\n`));
+			}
 		}
 	} catch (err) {
 		console.log(chalk.red(err));

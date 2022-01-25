@@ -36,10 +36,9 @@ export async function initTemplate(options) {
 
 	const framework = frameworks[searchspring.framework];
 	const templateDefaultDir = path.resolve(context.project.path, framework.template.dir);
-	let answers;
-
+	let answers1;
 	if (!nameArg) {
-		answers = await inquirer.prompt([
+		answers1 = await inquirer.prompt([
 			{
 				type: 'input',
 				name: 'name',
@@ -48,34 +47,56 @@ export async function initTemplate(options) {
 					return input && input.length > 2;
 				},
 			},
-			{
-				type: 'input',
-				name: 'description',
-				message: 'Please enter a description for the template:',
-			},
-			{
-				type: 'input',
-				name: 'directory',
-				message: 'Please specify the path to initialize the template files (relative to project directory):',
-				validate: (input) => {
-					return input && input.length > 0;
-				},
-				default: framework.template.dir,
-			},
 		]);
 	}
 
+	let answers2 = await inquirer.prompt([
+		{
+			type: 'input',
+			name: 'description',
+			message: 'Please enter a description for the template:',
+		},
+		{
+			type: 'input',
+			name: 'directory',
+			message: 'Please specify the path to initialize the template files (relative to project directory):',
+			validate: (input) => {
+				return input && input.length > 0;
+			},
+			default: framework.template.dir,
+		},
+		{
+			type: 'list',
+			name: 'type',
+			message: 'Please select the type of recommendations:',
+			choices: Object.keys(framework.template.components),
+			default: 'default',
+		},
+	]);
+
 	console.log(`Initializing template...`);
+
+	let answers = { ...answers1, ...answers2 };
 
 	const name = nameArg || answers.name;
 	const description = answers && answers.description;
 	const templateDir = (answers && answers.directory) || templateDefaultDir;
 	const componentName = pascalCase(name);
 
+	const settings = {
+		type: `${TEMPLATE_TYPE_RECS}/${answers.type}`,
+	};
+
 	try {
-		await writeTemplateSettings(path.resolve(process.cwd(), templateDir, `${componentName}.json`), generateTemplateSettings({ name, description }));
+		await writeTemplateSettings(
+			path.resolve(process.cwd(), templateDir, `${componentName}.json`),
+			generateTemplateSettings({ name, description, type: settings.type })
+		);
 		if (framework) {
-			await writeTemplateSettings(path.resolve(process.cwd(), templateDir, `${componentName}.jsx`), framework.template.component(componentName));
+			await writeTemplateSettings(
+				path.resolve(process.cwd(), templateDir, `${componentName}.jsx`),
+				framework.template.components[answers.type](componentName)
+			);
 		}
 	} catch (err) {
 		console.log(chalk.red(`Error: Failed to initialize template.`));
@@ -232,9 +253,9 @@ export async function syncTemplate(options) {
 	}
 }
 
-export function generateTemplateSettings({ name, description }) {
+export function generateTemplateSettings({ name, description, type }) {
 	const settings = {
-		type: TEMPLATE_TYPE_RECS,
+		type,
 		name: handleize(name),
 		label: name,
 		description: description || `${name} custom template`,
@@ -269,7 +290,8 @@ export async function getTemplates(dir) {
 			.filter((template) => {
 				if (
 					typeof template.details == 'object' &&
-					template.details.type == TEMPLATE_TYPE_RECS &&
+					template.details.type &&
+					template.details.type.startsWith(TEMPLATE_TYPE_RECS) &&
 					template.details.name &&
 					template.details.label &&
 					template.details.component
@@ -358,6 +380,7 @@ export async function findJsonFiles(dir) {
 export function buildTemplatePayload(template, vars) {
 	return {
 		name: template.name,
+		type: template.type,
 		component: template.component,
 		meta: {
 			searchspringTemplate: {
@@ -370,6 +393,7 @@ export function buildTemplatePayload(template, vars) {
 				group: template.name,
 				framework: vars.framework || 'unknown',
 				managed: 'true',
+				type: template.type.replace(TEMPLATE_TYPE_RECS, '').replace('/', '') || 'default',
 			},
 			searchspringRecommendProfile: {
 				label: template.label,
