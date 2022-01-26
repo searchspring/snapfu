@@ -92,7 +92,9 @@ afterAll(() => {
 describe('generateTemplateSettings function', () => {
 	it('returns a stringified object with template settings', async () => {
 		const name = 'Newness';
-		const settingsString = generateTemplateSettings({ name });
+		const description = 'details and stuff';
+		const type = 'snap/recommendation/default';
+		const settingsString = generateTemplateSettings({ name, description, type });
 		expect(settingsString).toBeDefined();
 
 		const settings = JSON.parse(settingsString);
@@ -102,6 +104,22 @@ describe('generateTemplateSettings function', () => {
 		expect(settings).toHaveProperty('component', pascalCase(name));
 		expect(settings).toHaveProperty('orientation');
 		expect(settings).toHaveProperty('parameters');
+	});
+
+	it('returns a correct properties if email type', async () => {
+		const name = 'Newness';
+		const description = 'details and stuff';
+		const type = 'snap/recommendation/email';
+		const settingsString = generateTemplateSettings({ name, description, type });
+		expect(settingsString).toBeDefined();
+
+		const settings = JSON.parse(settingsString);
+		expect(settings).toHaveProperty('name', name.toLowerCase());
+		expect(settings).toHaveProperty('label', name);
+		expect(settings).toHaveProperty('description');
+		expect(settings).toHaveProperty('component', pascalCase(name));
+		expect(settings).not.toHaveProperty('orientation');
+		expect(settings).not.toHaveProperty('parameters');
 	});
 });
 
