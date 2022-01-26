@@ -254,22 +254,27 @@ export async function syncTemplate(options) {
 }
 
 export function generateTemplateSettings({ name, description, type }) {
-	const settings = {
+	let settings = {
 		type,
 		name: handleize(name),
 		label: name,
 		description: description || `${name} custom template`,
 		component: `${pascalCase(name)}`,
-		orientation: 'horizontal',
-		parameters: [
-			{
-				name: 'title',
-				label: 'Title',
-				description: 'text used for the heading',
-				defaultValue: 'Recommended Products',
-			},
-		],
 	};
+	if (type.indexOf('email') == -1) {
+		settings = {
+			...settings,
+			orientation: 'horizontal',
+			parameters: [
+				{
+					name: 'title',
+					label: 'Title',
+					description: 'text used for the heading',
+					defaultValue: 'Recommended Products',
+				},
+			],
+		};
+	}
 
 	return JSON.stringify(settings, null, '\t');
 }
