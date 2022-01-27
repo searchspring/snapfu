@@ -16,7 +16,6 @@
 		"format": "prettier --write src *.json",
 		"format-check": "prettier --check src *.json",
 		"prepare": "husky install",
-		"preversion": "npm test",
 		"version": "standard-version",
 		"postversion": "git push && git push --tags"
 	},
