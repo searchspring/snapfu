@@ -335,7 +335,7 @@ export const cloneAndCopyRepo = async function (sourceRepo, destination, exclude
 	});
 
 	await clonePromise(sourceRepo, folder);
-	let options = { clobber: false };
+	let options = { clobber: true };
 
 	if (excludeGit) {
 		options.filter = (name) => {
@@ -353,7 +353,13 @@ export const cloneAndCopyRepo = async function (sourceRepo, destination, exclude
 };
 
 export const transform = async function (read, write, transforms, file) {
-	if (file.name.endsWith('.html') || file.name.endsWith('.json') || file.name.endsWith('.yml') || file.name.endsWith('index.js')) {
+	if (
+		file.name.endsWith('.md') ||
+		file.name.endsWith('.html') ||
+		file.name.endsWith('.json') ||
+		file.name.endsWith('.yml') ||
+		file.name.endsWith('index.js')
+	) {
 		let content = await streamToString(read);
 
 		Object.keys(transforms).forEach(function (key) {
