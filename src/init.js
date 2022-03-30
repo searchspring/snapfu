@@ -151,6 +151,7 @@ export const init = async (options) => {
 			} else {
 				// create the remote repo
 				console.log(`Creating repository...`);
+				let exists = false;
 
 				await octokit.repos
 					.createInOrg({
@@ -165,9 +166,42 @@ export const init = async (options) => {
 							console.log(chalk.red(err.message));
 							exit(1);
 						} else {
-							console.log(chalk.yellow('repository already exists\n'));
+							console.log(chalk.yellow('*** WARNING *** repository already exists\n'));
+							exists = true;
 						}
 					});
+
+				if (exists) {
+					let question3 = [
+						{
+							type: 'confirm',
+							name: 'continue',
+							message: 'Do you want to continue? This will overwrite the existing files in the repo.',
+							default: false,
+						},
+					];
+
+					let question4 = [
+						{
+							type: 'confirm',
+							name: 'sure',
+							message: 'Are you SURE? This will overwrite the existing files in the repo.',
+							default: false,
+						},
+					];
+
+					const answers3 = await inquirer.prompt(question3);
+					if (answers3.continue) {
+						const answers4 = await inquirer.prompt(question4);
+						if (!answers4.sure) {
+							console.log(chalk.yellow('aborting...\n'));
+							exit(1);
+						}
+					} else {
+						console.log(chalk.yellow('aborting...\n'));
+						exit(1);
+					}
+				}
 			}
 
 			// newly create repo URLs
