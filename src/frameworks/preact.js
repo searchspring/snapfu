@@ -10,7 +10,7 @@ export class ${name} extends Component {
 
 		const controller = props.controller;
 
-		if (!controller.store.profile) {
+		if (!controller.store.loaded) {
 			controller.search();
 		}
 	}
