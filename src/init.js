@@ -136,7 +136,7 @@ export const init = async (options) => {
 			const answers2 = await inquirer.prompt(questions2);
 			const answers = { ...answers1, ...answers2 };
 			try {
-				await new ConfigApi(answers.secretKey, options.dev).validateSite(answers.siteId);
+				await new ConfigApi(answers.secretKey, options.dev).validateSite(answers.name, answers.siteId);
 			} catch (err) {
 				console.log(chalk.red('Verification of siteId and secretKey failed.'));
 				console.log(chalk.red(err));
