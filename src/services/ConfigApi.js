@@ -16,16 +16,19 @@ export class ConfigApi {
 		}
 	}
 
-	async validateSite(siteId) {
-		const apiPath = `${this.host}/api/customer/${siteId}/verifyKey`;
+	async validateSite(name, siteId) {
+		const apiPath = `${this.host}/api/customer/${siteId}/verify`;
 
 		const response = await fetch(apiPath, {
-			method: 'get',
+			method: 'post',
 			headers: {
 				Accept: 'application/json',
 				Authorization: this.secretKey,
 				'User-Agent': this.userAgent,
 			},
+			body: JSON.stringify({
+				name,
+			}),
 		});
 
 		if (response.status == 200) {
@@ -99,6 +102,7 @@ export class ConfigApi {
 		} else if (response.status == 500) {
 			throw new Error(`Server encounterd a problem.`);
 		} else {
+			console.log(response);
 			throw new Error(`Unknown error has occured.`);
 		}
 	}

@@ -53,13 +53,14 @@ export const checkSecretKey = async (options) => {
 		exit(1);
 	}
 
+	const { name } = options.context.repository;
 	const { siteId } = options.context.searchspring;
 	const keys = options.context.user.keys || {};
 	const secretKey = keys[siteId];
 
 	try {
 		try {
-			await new ConfigApi(secretKey, options.dev).validateSite(siteId);
+			await new ConfigApi(secretKey, options.dev).validateSite(name, siteId);
 			console.log(chalk.green('Verification of siteId and secretKey complete.'));
 		} catch (err) {
 			console.log(chalk.red('Verification of siteId and secretKey failed.'));
