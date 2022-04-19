@@ -16,9 +16,10 @@ export class ${name} extends Component {
 	}
 	render() {
 		const controller = this.props.controller;
-		const parameters = controller.store?.profile?.display?.templateParameters;
+		const store = controller?.store;
+		const parameters = store?.profile?.display?.templateParameters;
 
-		return (
+		return store.results.length && (
 			<Recommendation controller={controller}/>
 		);
 	}
@@ -41,7 +42,7 @@ export class ${name} extends Component {
 				},
 			},
 		};
-		return (
+		return store.results.length && (
 			<div>
 				{store.results.map((result, idx) => (
 					//****** IMPORTANT  *******//
