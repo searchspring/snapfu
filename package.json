@@ -5,6 +5,7 @@
 	"license": "MIT",
 	"description": "Command line interface for Snap!",
 	"main": "src/index.js",
+	"type": "module",
 	"prettier": "@searchspring/prettier",
 	"bin": {
 		"snapfu": "bin/snapfu"
@@ -15,6 +16,7 @@
 		"test:watch": "jest --watch",
 		"format": "prettier --write src *.json",
 		"format-check": "prettier --check src *.json",
+		"generate:metrics": "node ./metrics/generate",
 		"prepare": "husky install",
 		"version": "standard-version",
 		"postversion": "git push && git push --tags"

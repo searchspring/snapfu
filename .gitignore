@@ -3,4 +3,5 @@ node_modules
 .vercel
 .env
 coverage
+metrics/data
 .DS_Store
