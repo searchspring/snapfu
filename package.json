@@ -11,12 +11,12 @@
 		"snapfu": "bin/snapfu"
 	},
 	"scripts": {
+		"build:metrics": "node ./metrics/generate",
 		"commit": "cz",
 		"test": "jest",
 		"test:watch": "jest --watch",
 		"format": "prettier --write src *.json",
 		"format-check": "prettier --check src *.json",
-		"generate:metrics": "node ./metrics/generate",
 		"prepare": "husky install",
 		"version": "standard-version",
 		"postversion": "git push && git push --tags"
