@@ -32,7 +32,7 @@ async function prepare() {
 
 async function generateCoverage(now) {
 	try {
-		fsp.stat(COVERAGE_FILE)
+		await fsp.stat(COVERAGE_FILE)
 	} catch(err) {
 		throw ('no coverage data found!');
 	}

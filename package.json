@@ -5,13 +5,12 @@
 	"license": "MIT",
 	"description": "Command line interface for Snap!",
 	"main": "src/index.js",
-	"type": "module",
 	"prettier": "@searchspring/prettier",
 	"bin": {
 		"snapfu": "bin/snapfu"
 	},
 	"scripts": {
-		"build:metrics": "node ./metrics/generate",
+		"build:metrics": "node ./metrics/generate.mjs",
 		"commit": "cz",
 		"test": "jest",
 		"test:watch": "jest --watch",
