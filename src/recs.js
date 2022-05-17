@@ -88,14 +88,18 @@ export async function initTemplate(options) {
 	};
 
 	try {
-		await writeTemplateSettings(
+		await writeTemplateFile(
 			path.resolve(process.cwd(), templateDir, `${componentName}.json`),
 			generateTemplateSettings({ name, description, type: settings.type })
 		);
 		if (framework) {
-			await writeTemplateSettings(
+			await writeTemplateFile(
 				path.resolve(process.cwd(), templateDir, `${componentName}.jsx`),
 				framework.template.components[answers.type](componentName)
+			);
+			await writeTemplateFile(
+				path.resolve(process.cwd(), templateDir, `${componentName}.scss`),
+				framework.template.styles[answers.type](componentName)
 			);
 		}
 	} catch (err) {
@@ -310,7 +314,7 @@ export async function getTemplates(dir) {
 	}
 }
 
-export async function writeTemplateSettings(filePath, contents) {
+export async function writeTemplateFile(filePath, contents) {
 	const baseDir = path.dirname(filePath);
 
 	await fsp.mkdir(baseDir, { recursive: true });

@@ -4,7 +4,7 @@ import {
 	buildTemplatePayload,
 	findJsonFiles,
 	readTemplateSettings,
-	writeTemplateSettings,
+	writeTemplateFile,
 	getTemplates,
 	generateTemplateSettings,
 } from './recs';
@@ -143,7 +143,7 @@ describe('getTemplates function', () => {
 	});
 });
 
-describe('writeTemplateSettings function', () => {
+describe('writeTemplateFile function', () => {
 	it('will not write to existing file', async () => {
 		const newSettings = {
 			name: 'not allowed',
@@ -151,7 +151,7 @@ describe('writeTemplateSettings function', () => {
 
 		const contents = await readTemplateSettings(recsSettings1Path);
 		expect(contents).toStrictEqual(mockTemplateSettings);
-		await writeTemplateSettings(recsSettings1Path, JSON.stringify(newSettings));
+		await writeTemplateFile(recsSettings1Path, JSON.stringify(newSettings));
 		const overwrittenContents = await readTemplateSettings(recsSettings1Path);
 		expect(overwrittenContents).not.toStrictEqual(newSettings);
 		expect(overwrittenContents).toStrictEqual(mockTemplateSettings);
@@ -163,7 +163,7 @@ describe('writeTemplateSettings function', () => {
 		};
 
 		const newSettingsPath = path.join(projectDirRecs, 'newSettings.json');
-		await writeTemplateSettings(newSettingsPath, JSON.stringify(newSettings));
+		await writeTemplateFile(newSettingsPath, JSON.stringify(newSettings));
 		const contents = await readTemplateSettings(newSettingsPath);
 		expect(contents).toStrictEqual(newSettings);
 	});
