@@ -41,7 +41,7 @@ async function generateCoverage(now) {
 	const coverageData = JSON.parse(coverageContents);
 
 	const coverage = coverageData && coverageData.total && coverageData.total.lines;
-	const filename = `SnapCoverage[snapfu]-${now.getFullYear()}_${now.getMonth() + 1}_${now.getDate()}_${now.getHours()}${now.getMinutes()}.json`;
+	const filename = `SnapCoverage-snapfu-${now.getFullYear()}_${now.getMonth() + 1}_${now.getDate()}_${now.getHours()}${now.getMinutes()}.json`;
 
 	const obj = {
 		timestamp: now,
