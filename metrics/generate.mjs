@@ -2,6 +2,7 @@ import { promises as fsp } from 'fs';
 import { exit } from 'process';
 
 const COVERAGE_FILE = './coverage/coverage-summary.json';
+const VERSION_FILE = './package.json';
 const METRICS_DIR = './metrics/data';
 
 (async function() {
@@ -37,6 +38,14 @@ async function generateCoverage(now) {
 		throw ('no coverage data found!');
 	}
 
+	const packageContents = await fsp.readFile(VERSION_FILE, 'utf8');
+	const packageData = JSON.parse(packageContents);
+	const version = packageData.version;
+
+	if (!version) {
+		throw 'no version found!';
+	}
+
 	const coverageContents = await fsp.readFile(COVERAGE_FILE, 'utf8');
 	const coverageData = JSON.parse(coverageContents);
 
@@ -46,12 +55,13 @@ async function generateCoverage(now) {
 	const obj = {
 		timestamp: now,
 		type: "snap-coverage",
-		data: { package: 'snapfu', total: coverage.total, covered: coverage.covered, percentage: coverage.pct }
+		data: { package: 'snapfu', version, total: coverage.total, covered: coverage.covered, percentage: coverage.pct }
 	};
 
-	const contents = JSON.stringify(obj);
+	const contents = JSON.stringify(obj, null, '  ');
 
 	await fsp.writeFile(`${METRICS_DIR}/${filename}`, contents);
 
-	console.log("Creating", filename, "with contents", contents);
+	console.log(filename);
+	console.log(`${contents}\n`);
 }
