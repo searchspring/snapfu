@@ -29,6 +29,59 @@ async function parseArgumentsIntoOptions(rawArgs) {
 		// do nothing - when running init context may not exist
 	}
 
+	let multipleSites = [];
+
+	if (typeof context.searchspring.siteId === 'object' && args['--secret-key']) {
+		console.log(
+			chalk.blue('Found multiple siteIds in package.json searchspring.siteId, however skipping multi site actions due to --secret-key flag')
+		);
+	} else if (typeof context.searchspring.siteId === 'object') {
+		// searchsoring.siteId contains multiple sites
+
+		const siteIds = Object.keys(context.searchspring.siteId);
+		if (!siteIds) {
+			console.log(chalk.red('searchspring.siteId object in package.json is empty'));
+			exit();
+		}
+
+		multipleSites = siteIds
+			.map((siteId) => {
+				try {
+					const { name } = context.searchspring.siteId[siteId];
+					const secretKey = context.user.keys[siteId];
+
+					if (!secretKey) {
+						console.log(chalk.red(`Cannot find the secretKey for siteId '${siteId}'. Syncing to this site will be skipped.`));
+						console.log(chalk.bold.white(`Please run the following command:`));
+						console.log(chalk.gray(`snapfu secrets add`));
+						console.log();
+					}
+
+					return {
+						siteId,
+						name,
+						secretKey,
+					};
+				} catch (e) {
+					console.log(chalk.red('The searchspring.siteId object in package.json is invalid. Expected format:'));
+					console.log(
+						chalk.red(`"searchspring": {
+					"siteId": {
+						"xxxxx1": {
+							"name": "site1.com.au"
+						},
+						"xxxxx2": {
+							"name": "site2.hk"
+						}
+					},
+				}`)
+					);
+					exit();
+				}
+			})
+			.filter((site) => site.secretKey);
+	}
+
 	return {
 		dev: args['--dev'] || false,
 		command: args._[0],
@@ -37,6 +90,7 @@ async function parseArgumentsIntoOptions(rawArgs) {
 			secretKey,
 		},
 		context,
+		multipleSites,
 	};
 }
 

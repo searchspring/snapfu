@@ -326,7 +326,11 @@ export const setRepoSecret = async function (options, details) {
 		if (keyResponse && keyResponse.status === 200 && keyResponse.data) {
 			const { key, key_id } = keyResponse.data;
 			const value = secretKey;
-			const secret_name = 'WEBSITE_SECRET_KEY';
+			let secret_name = 'WEBSITE_SECRET_KEY';
+
+			if (typeof options.context.searchspring.siteId === 'object') {
+				secret_name = `${siteId}_SECRET_KEY`;
+			}
 
 			// Convert the message and key to Uint8Array's (Buffer implements that interface)
 			const messageBytes = Buffer.from(value);
