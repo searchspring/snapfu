@@ -102,6 +102,7 @@ jobs:
 						secretKey,
 					};
 				} catch (e) {
+					console.log(e);
 					console.log(chalk.red('The searchspring.siteId object in package.json is invalid. Expected format:'));
 					console.log(
 						chalk.red(`"searchspring": {
