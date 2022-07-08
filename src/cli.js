@@ -16,6 +16,7 @@ async function parseArgumentsIntoOptions(rawArgs) {
 		{
 			'--dev': Boolean,
 			'--secret-key': String,
+			'--secrets-ci': String,
 		},
 		{
 			argv: rawArgs.slice(2),
@@ -31,11 +32,25 @@ async function parseArgumentsIntoOptions(rawArgs) {
 
 	let multipleSites = [];
 
-	if (typeof context.searchspring.siteId === 'object' && args['--secret-key']) {
-		console.log(
-			chalk.blue('Found multiple siteIds in package.json searchspring.siteId, however skipping multi site actions due to --secret-key flag')
-		);
-	} else if (typeof context.searchspring.siteId === 'object') {
+	const getSecretKeyFromCLI = (siteId) => {
+		const secrets = args['--secrets-ci'];
+		try {
+			if (secrets) {
+				const jsonSerializingCharacter = secrets.slice(1, 2);
+				const secretsUnserialized = secrets.split(`${jsonSerializingCharacter} "`).join('"').split(`"${jsonSerializingCharacter}}`).join('"}');
+				const secretsData = JSON.parse(secretsUnserialized);
+				const secretKey =
+					secretsData[`WEBSITE_SECRET_KEY_${siteId.toUpperCase()}`] ||
+					secretsData[`WEBSITE_SECRET_KEY_${siteId}`] ||
+					secretsData[`WEBSITE_SECRET_KEY_${siteId.toLowerCase()}`];
+				return secretKey;
+			}
+		} catch (e) {
+			console.log('Could not parse secrets-ci');
+		}
+	};
+
+	if (typeof context.searchspring.siteId === 'object') {
 		// searchsoring.siteId contains multiple sites
 
 		const siteIds = Object.keys(context.searchspring.siteId);
@@ -48,13 +63,37 @@ async function parseArgumentsIntoOptions(rawArgs) {
 			.map((siteId) => {
 				try {
 					const { name } = context.searchspring.siteId[siteId];
-					const secretKey = context.user.keys[siteId];
+					const secretKey = context.user.keys[siteId] || getSecretKeyFromCLI(siteId);
 
 					if (!secretKey) {
 						console.log(chalk.red(`Cannot find the secretKey for siteId '${siteId}'. Syncing to this site will be skipped.`));
 						console.log(chalk.bold.white(`Please run the following command:`));
 						console.log(chalk.gray(`snapfu secrets add`));
-						console.log();
+					}
+					if (!secretKey && args['--secrets-ci']) {
+						console.log(
+							chalk.red(`Could not find Github secret 'WEBSITE_SECRET_KEY_${siteId.toUpperCase()}' in 'secrets' input
+It can be added by running 'snapfu secrets add' in the project's directory locally, 
+or added manual in the project's repository secrets. 
+The value can be obtained in the Searchspring Management Console.
+Then ensure that you are providing 'secrets' when running the action. ie:
+
+jobs:
+  Publish:
+    runs-on: ubuntu-latest
+    name: Snap Action
+    steps:
+      - name: Checkout action
+        uses: actions/checkout@v2
+        with:
+          repository: searchspring/snap-action
+      - name: Run @searchspring/snap-action
+        uses: ./
+        with:
+          secrets: \${{ toJSON(secrets) }}
+          ...
+`)
+						);
 					}
 
 					return {
