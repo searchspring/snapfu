@@ -63,7 +63,7 @@ async function parseArgumentsIntoOptions(rawArgs) {
 			.map((siteId) => {
 				try {
 					const { name } = context.searchspring.siteId[siteId];
-					const secretKey = context.user.keys[siteId] || getSecretKeyFromCLI(siteId);
+					const secretKey = getSecretKeyFromCLI(siteId) || context.user.keys[siteId];
 
 					if (!secretKey) {
 						console.log(chalk.red(`Cannot find the secretKey for siteId '${siteId}'. Syncing to this site will be skipped.`));
@@ -102,19 +102,19 @@ jobs:
 						secretKey,
 					};
 				} catch (e) {
-					console.log(e);
 					console.log(chalk.red('The searchspring.siteId object in package.json is invalid. Expected format:'));
 					console.log(
-						chalk.red(`"searchspring": {
-					"siteId": {
-						"xxxxx1": {
-							"name": "site1.com.au"
-						},
-						"xxxxx2": {
-							"name": "site2.hk"
-						}
-					},
-				}`)
+						chalk.red(`
+"searchspring": {
+	"siteId": {
+		"xxxxx1": {
+			"name": "site1.com.au"
+		},
+		"xxxxx2": {
+			"name": "site2.hk"
+		}
+	},
+}`)
 					);
 					exit();
 				}
