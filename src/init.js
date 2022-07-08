@@ -329,7 +329,7 @@ export const setRepoSecret = async function (options, details) {
 			let secret_name = 'WEBSITE_SECRET_KEY';
 
 			if (typeof options.context.searchspring.siteId === 'object') {
-				secret_name = `${siteId}_SECRET_KEY`;
+				secret_name = `WEBSITE_SECRET_KEY_${siteId}`;
 			}
 
 			// Convert the message and key to Uint8Array's (Buffer implements that interface)
