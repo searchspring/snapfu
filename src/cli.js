@@ -33,18 +33,13 @@ async function parseArgumentsIntoOptions(rawArgs) {
 	let multipleSites = [];
 
 	const getSecretKeyFromCLI = (siteId) => {
-		const secrets = args['--secrets-ci'];
 		try {
-			if (secrets) {
-				const jsonSerializingCharacter = secrets.slice(1, 2);
-				const secretsUnserialized = secrets.split(`${jsonSerializingCharacter} "`).join('"').split(`"${jsonSerializingCharacter}}`).join('"}');
-				const secretsData = JSON.parse(secretsUnserialized);
-				const secretKey =
-					secretsData[`WEBSITE_SECRET_KEY_${siteId.toUpperCase()}`] ||
-					secretsData[`WEBSITE_SECRET_KEY_${siteId}`] ||
-					secretsData[`WEBSITE_SECRET_KEY_${siteId.toLowerCase()}`];
-				return secretKey;
-			}
+			const secrets = JSON.parse(args['--secrets-ci']);
+			const secretKey =
+				secrets[`WEBSITE_SECRET_KEY_${siteId.toUpperCase()}`] ||
+				secrets[`WEBSITE_SECRET_KEY_${siteId}`] ||
+				secrets[`WEBSITE_SECRET_KEY_${siteId.toLowerCase()}`];
+			return secretKey;
 		} catch (e) {
 			console.log('Could not parse secrets-ci');
 		}
