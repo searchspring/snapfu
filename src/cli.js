@@ -45,7 +45,7 @@ async function parseArgumentsIntoOptions(rawArgs) {
 		}
 	};
 
-	if (typeof context.searchspring.siteId === 'object') {
+	if (context.searchspring && typeof context.searchspring.siteId === 'object') {
 		// searchsoring.siteId contains multiple sites
 
 		const siteIds = Object.keys(context.searchspring.siteId);
