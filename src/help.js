@@ -13,6 +13,7 @@ These are the snapfu commands used in various situations
     ${chalk.whiteBright('login')}                         Oauths with github
     ${chalk.whiteBright('org-access')}                    Review and change organization access for the tool
     ${chalk.whiteBright('whoami')}                        Shows the current user
+    ${chalk.whiteBright('logout')}                        Removes login credentials
     ${chalk.whiteBright('about')}                         Shows versioning
     ${chalk.whiteBright('help')} ${chalk.grey('<command>')}                Display help text (optional command)`;
 

@@ -32,11 +32,6 @@ export const init = async (options) => {
 	try {
 		const { user } = options.context;
 
-		if (!user) {
-			console.log(chalk.red(`No creds file found, please use snapfu login`));
-			exit(1);
-		}
-
 		let dir;
 		if (options.args.length === 1) {
 			// init was provided a folder name arg
