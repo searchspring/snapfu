@@ -35,10 +35,7 @@ async function parseArgumentsIntoOptions(rawArgs) {
 	const getSecretKeyFromCLI = (siteId) => {
 		try {
 			const secrets = JSON.parse(args['--secrets-ci']);
-			const secretKey =
-				secrets[`WEBSITE_SECRET_KEY_${siteId.toUpperCase()}`] ||
-				secrets[`WEBSITE_SECRET_KEY_${siteId}`] ||
-				secrets[`WEBSITE_SECRET_KEY_${siteId.toLowerCase()}`];
+			const secretKey = secrets[`WEBSITE_SECRET_KEY_${siteId.toUpperCase()}`];
 			return secretKey;
 		} catch (e) {
 			console.log('Could not parse secrets-ci');

@@ -333,7 +333,7 @@ export const setRepoSecret = async function (options, details, multiSite = false
 			let secret_name = 'WEBSITE_SECRET_KEY';
 
 			if (typeof options.context.searchspring.siteId === 'object' || multiSite) {
-				secret_name = `WEBSITE_SECRET_KEY_${siteId}`.toUpperCase(); // github converts to uppercase, setting explicitly for the logging
+				secret_name = `WEBSITE_SECRET_KEY_${siteId.toUpperCase()}`; // github converts to uppercase, setting explicitly for the logging
 			}
 
 			// Convert the message and key to Uint8Array's (Buffer implements that interface)
