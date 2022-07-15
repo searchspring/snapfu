@@ -141,49 +141,47 @@ export async function listTemplates(options) {
 
 		console.log(`${chalk.white('Active Remote Templates (SMC)')}`);
 
+		let smcManaged;
+
+		const list = async (secretKey, siteId = '', name = '') => {
+			const remoteTemplates = await new ConfigApi(secretKey, options.dev).getTemplates();
+
+			if (!remoteTemplates || !remoteTemplates.recommendTemplates || !remoteTemplates.recommendTemplates.length) {
+				if (siteId && name) {
+					console.log(chalk.italic(`no templates found for siteId ${siteId} (${name})`));
+				} else {
+					console.log(chalk.italic('no templates found...'));
+				}
+			}
+
+			if (siteId && name) {
+				console.log(`${chalk.white(`   siteId: ${siteId} (${name})`)}`);
+			}
+
+			remoteTemplates.recommendTemplates.forEach((template) => {
+				if (!template.managed) {
+					smcManaged = true;
+				}
+
+				const [name, branch] = template.name.split('__');
+
+				console.log(
+					`      ${template.managed ? '' : `${chalk.yellow('*')} `}${chalk.green(name)} ${branch ? `[${branch}]` : ''} ${chalk.blueBright(
+						`(https://manage.searchspring.net/management/product-recs-templates/template-version-edit?template_name=${template.name})`
+					)}`
+				);
+			});
+		};
+
 		try {
-			let smcManaged;
 			if (options.multipleSites.length) {
 				for (let i = 0; i < options.multipleSites.length; i++) {
 					const { secretKey, siteId, name } = options.multipleSites[i];
-					const response = await new ConfigApi(secretKey, options.dev).getTemplates();
-
-					if (!response || !response.recommendTemplates || !response.recommendTemplates.length) {
-						console.log(chalk.italic(`no templates found for siteId ${siteId} (${name})`));
-					}
-					console.log(`${chalk.white(`   siteId: ${siteId} (${name})`)}`);
-
-					response.recommendTemplates.forEach((template, index) => {
-						if (!template.managed) smcManaged = true;
-
-						const [name, branch] = template.name.split('__');
-
-						console.log(
-							`      ${template.managed ? '' : `${chalk.yellow('*')} `}${chalk.green(name)} ${branch ? `[${branch}]` : ''} ${chalk.blueBright(
-								`(https://manage.searchspring.net/management/product-recs-templates/template-version-edit?template_name=${template.name})`
-							)}`
-						);
-					});
+					list(secretKey, siteId, name);
 				}
 			} else {
 				const { secretKey } = options.options;
-				const remoteTemplates = await new ConfigApi(secretKey, options.dev).getTemplates();
-
-				if (!remoteTemplates || !remoteTemplates.recommendTemplates || !remoteTemplates.recommendTemplates.length) {
-					console.log(chalk.italic('no templates found...'));
-				}
-
-				remoteTemplates.recommendTemplates.forEach((template, index) => {
-					if (!template.managed) smcManaged = true;
-
-					const [name, branch] = template.name.split('__');
-
-					console.log(
-						`      ${template.managed ? '' : `${chalk.yellow('*')} `}${chalk.green(name)} ${branch ? `[${branch}]` : ''} ${chalk.blueBright(
-							`(https://manage.searchspring.net/management/product-recs-templates/template-version-edit?template_name=${template.name})`
-						)}`
-					);
-				});
+				list(secretKey);
 			}
 
 			if (smcManaged) {
@@ -214,23 +212,8 @@ export async function removeTemplate(options) {
 
 	const payload = { name: templateName, branch: branchName };
 
-	if (options.multipleSites.length) {
-		for (let i = 0; i < options.multipleSites.length; i++) {
-			const { secretKey, siteId, name } = options.multipleSites[i];
-			try {
-				process.stdout.write(`archiving ${templateName} for siteId ${siteId} (${name})   `);
-				await new ConfigApi(secretKey, options.dev).archiveTemplate(payload);
-				console.log(chalk.green(`${templateName}`), chalk.white(`[${branchName}]`));
-				console.log(chalk.green('Template archived in remote.'));
-			} catch (err) {
-				console.log(chalk.red(`${templateName}`), chalk.white(`[${branchName}]`));
-				console.log(chalk.red(err));
-			}
-		}
-	} else {
+	const remove = async (secretKey) => {
 		try {
-			const { secretKey } = options.options;
-			process.stdout.write('archiving...   ');
 			await new ConfigApi(secretKey, options.dev).archiveTemplate(payload);
 			console.log(chalk.green(`${templateName}`), chalk.white(`[${branchName}]`));
 			console.log(chalk.green('Template archived in remote.'));
@@ -238,6 +221,21 @@ export async function removeTemplate(options) {
 			console.log(chalk.red(`${templateName}`), chalk.white(`[${branchName}]`));
 			console.log(chalk.red(err));
 		}
+
+		await wait(1111);
+	};
+
+	if (options.multipleSites.length) {
+		for (let i = 0; i < options.multipleSites.length; i++) {
+			const { secretKey, siteId, name } = options.multipleSites[i];
+
+			process.stdout.write(`archiving ${templateName} for siteId ${siteId} (${name})   `);
+			remove(secretKey);
+		}
+	} else {
+		const { secretKey } = options.options;
+		process.stdout.write('archiving...   ');
+		remove(secretKey);
 	}
 }
 
@@ -268,53 +266,41 @@ export async function syncTemplate(options) {
 
 	const branchName = branch || repository.branch || 'production';
 
+	const sync = async (template, secretKey) => {
+		const payload = buildTemplatePayload(template.details, { branch: branchName, framework: searchspring.framework });
+
+		if (payload.name && !payload.name.match(/^[a-zA-Z0-9_-]*$/)) {
+			console.log(chalk.red(`Error: Template name must be an alphanumeric string (underscore and dashes also supported).`));
+			return;
+		}
+
+		try {
+			await new ConfigApi(secretKey, options.dev).putTemplate(payload);
+			console.log(chalk.green(`${template.details.name}`), chalk.white(`[${branchName}]`));
+		} catch (err) {
+			console.log(chalk.red(`${template.details.name}`), chalk.white(`[${branchName}]`));
+			console.log(chalk.red(err));
+		}
+
+		// prevent rate limiting
+		await wait(1111);
+	};
+
 	if (options.multipleSites.length) {
 		for (let x = 0; x < options.multipleSites.length; x++) {
-			const { siteId, name, secretKey } = options.multipleSites[x];
+			const { secretKey, siteId, name } = options.multipleSites[x];
 
 			for (let i = 0; i < syncTemplates.length; i++) {
 				const template = syncTemplates[i];
-				const payload = buildTemplatePayload(template.details, { branch: branchName, framework: searchspring.framework });
-
-				if (payload.name && !payload.name.match(/^[a-zA-Z0-9_-]*$/)) {
-					console.log(chalk.red(`Error: Template name must be an alphanumeric string (underscore and dashes also supported).`));
-					return;
-				}
-
-				try {
-					process.stdout.write(`synchronizing template ${i + 1} of ${syncTemplates.length} for siteId ${siteId} (${name})   `);
-					await new ConfigApi(secretKey, options.dev).putTemplate(payload);
-					console.log(chalk.green(`${template.details.name}`), chalk.white(`[${branchName}]`));
-				} catch (err) {
-					console.log(chalk.red(`${template.details.name}`), chalk.white(`[${branchName}]`));
-					console.log(chalk.red(err));
-				}
-
-				// prevent rate limiting
-				await wait(1111);
+				process.stdout.write(`synchronizing template ${i + 1} of ${syncTemplates.length} for siteId ${siteId} (${name})   `);
+				sync(template, secretKey);
 			}
 		}
 	} else {
 		for (let i = 0; i < syncTemplates.length; i++) {
 			const template = syncTemplates[i];
-			const payload = buildTemplatePayload(template.details, { branch: branchName, framework: searchspring.framework });
-
-			if (payload.name && !payload.name.match(/^[a-zA-Z0-9_-]*$/)) {
-				console.log(chalk.red(`Error: Template name must be an alphanumeric string (underscore and dashes also supported).`));
-				return;
-			}
-
-			try {
-				process.stdout.write(`synchronizing template ${i + 1} of ${syncTemplates.length}   `);
-				await new ConfigApi(secretKey, options.dev).putTemplate(payload);
-				console.log(chalk.green(`${template.details.name}`), chalk.white(`[${branchName}]`));
-			} catch (err) {
-				console.log(chalk.red(`${template.details.name}`), chalk.white(`[${branchName}]`));
-				console.log(chalk.red(err));
-			}
-
-			// prevent rate limiting
-			await wait(1111);
+			process.stdout.write(`synchronizing template ${i + 1} of ${syncTemplates.length}   `);
+			sync(template, secretKey);
 		}
 	}
 }

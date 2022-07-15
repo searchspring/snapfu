@@ -12,7 +12,20 @@ export const setSecretKey = async (options) => {
 		exit(1);
 	}
 
+	let siteIds;
+	if (typeof options.context.searchspring.siteId === 'object') {
+		siteIds = Object.keys(options.context.searchspring.siteId);
+	}
 	const questions = [
+		{
+			type: 'list',
+			name: 'siteId',
+			message: 'Please select which siteId to add/update the secretKey for:',
+			choices: siteIds,
+			when: () => {
+				return siteIds && siteIds.length > 0;
+			},
+		},
 		{
 			type: 'input',
 			name: 'secretKey',
@@ -22,19 +35,6 @@ export const setSecretKey = async (options) => {
 			},
 		},
 	];
-
-	if (typeof options.context.searchspring.siteId === 'object') {
-		const choices = Object.keys(options.context.searchspring.siteId);
-		if (choices.length) {
-			questions.unshift({
-				type: 'list',
-				name: 'siteId',
-				message: 'Please select which siteId to add/update the secretKey for:',
-				choices,
-				default: choices[0],
-			});
-		}
-	}
 
 	const answers = await inquirer.prompt(questions);
 	console.log();
@@ -75,32 +75,28 @@ export const checkSecretKey = async (options) => {
 	let siteId = options.context.searchspring.siteId;
 	let name = options.context.repository.name;
 
+	const verify = async (secretKey, siteId, name) => {
+		try {
+			await new ConfigApi(secretKey, options.dev).validateSite(name, siteId);
+			console.log(chalk.green(`Verification of siteId and secretKey complete for ${name}`));
+		} catch (err) {
+			console.log(chalk.red(`Verification of siteId and secretKey failed for ${name}`));
+			console.log(chalk.red(err));
+			exit(1);
+		}
+
+		await wait(1111);
+	};
+
 	try {
 		if (options.multipleSites.length) {
 			for (let i = 0; i < options.multipleSites.length; i++) {
-				const { siteId, name, secretKey } = options.multipleSites[i];
-				try {
-					await new ConfigApi(secretKey, options.dev).validateSite(name, siteId);
-					console.log(chalk.green(`Verification of siteId and secretKey complete for ${name}`));
-				} catch (err) {
-					console.log(chalk.red(`Verification of siteId and secretKey failed for ${name}`));
-					console.log(chalk.red(err));
-					exit(1);
-				}
-
-				// prevent rate limiting
-				await wait(1111);
+				const { secretKey, siteId, name } = options.multipleSites[i];
+				verify(secretKey, siteId, name);
 			}
 		} else {
 			let secretKey = keys[siteId];
-			try {
-				await new ConfigApi(secretKey, options.dev).validateSite(name, siteId);
-				console.log(chalk.green('Verification of siteId and secretKey complete.'));
-			} catch (err) {
-				console.log(chalk.red('Verification of siteId and secretKey failed.'));
-				console.log(chalk.red(err));
-				exit(1);
-			}
+			verify(secretKey, siteId, name);
 		}
 	} catch (err) {
 		console.log(chalk.red(err));
