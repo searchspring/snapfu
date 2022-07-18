@@ -177,11 +177,11 @@ export async function listTemplates(options) {
 			if (options.multipleSites.length) {
 				for (let i = 0; i < options.multipleSites.length; i++) {
 					const { secretKey, siteId, name } = options.multipleSites[i];
-					list(secretKey, siteId, name);
+					await list(secretKey, siteId, name);
 				}
 			} else {
 				const { secretKey } = options.options;
-				list(secretKey);
+				await list(secretKey);
 			}
 
 			if (smcManaged) {
@@ -222,7 +222,7 @@ export async function removeTemplate(options) {
 			console.log(chalk.red(err));
 		}
 
-		await wait(1111);
+		await wait(100);
 	};
 
 	if (options.multipleSites.length) {
@@ -230,12 +230,12 @@ export async function removeTemplate(options) {
 			const { secretKey, siteId, name } = options.multipleSites[i];
 
 			process.stdout.write(`archiving ${templateName} for siteId ${siteId} (${name})   `);
-			remove(secretKey);
+			await remove(secretKey);
 		}
 	} else {
 		const { secretKey } = options.options;
 		process.stdout.write('archiving...   ');
-		remove(secretKey);
+		await remove(secretKey);
 	}
 }
 
@@ -283,7 +283,7 @@ export async function syncTemplate(options) {
 		}
 
 		// prevent rate limiting
-		await wait(1111);
+		await wait(100);
 	};
 
 	if (options.multipleSites.length) {
@@ -293,14 +293,14 @@ export async function syncTemplate(options) {
 			for (let i = 0; i < syncTemplates.length; i++) {
 				const template = syncTemplates[i];
 				process.stdout.write(`synchronizing template ${i + 1} of ${syncTemplates.length} for siteId ${siteId} (${name})   `);
-				sync(template, secretKey);
+				await sync(template, secretKey);
 			}
 		}
 	} else {
 		for (let i = 0; i < syncTemplates.length; i++) {
 			const template = syncTemplates[i];
 			process.stdout.write(`synchronizing template ${i + 1} of ${syncTemplates.length}   `);
-			sync(template, secretKey);
+			await sync(template, secretKey);
 		}
 	}
 }

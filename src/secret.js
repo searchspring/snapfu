@@ -85,18 +85,18 @@ export const checkSecretKey = async (options) => {
 			exit(1);
 		}
 
-		await wait(1111);
+		await wait(100);
 	};
 
 	try {
 		if (options.multipleSites.length) {
 			for (let i = 0; i < options.multipleSites.length; i++) {
 				const { secretKey, siteId, name } = options.multipleSites[i];
-				verify(secretKey, siteId, name);
+				await verify(secretKey, siteId, name);
 			}
 		} else {
 			let secretKey = keys[siteId];
-			verify(secretKey, siteId, name);
+			await verify(secretKey, siteId, name);
 		}
 	} catch (err) {
 		console.log(chalk.red(err));
