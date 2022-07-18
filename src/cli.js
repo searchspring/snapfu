@@ -38,7 +38,7 @@ async function parseArgumentsIntoOptions(rawArgs) {
 			const secretKey = secrets[`WEBSITE_SECRET_KEY_${siteId.toUpperCase()}`];
 			return secretKey;
 		} catch (e) {
-			console.log('Could not parse secrets-ci');
+			return;
 		}
 	};
 
@@ -48,7 +48,7 @@ async function parseArgumentsIntoOptions(rawArgs) {
 		const siteIds = Object.keys(context.searchspring.siteId);
 		if (!siteIds) {
 			console.log(chalk.red('searchspring.siteId object in package.json is empty'));
-			exit();
+			exit(1);
 		}
 
 		multipleSites = siteIds
@@ -108,7 +108,7 @@ jobs:
 	},
 }`)
 					);
-					exit();
+					exit(1);
 				}
 			})
 			.filter((site) => site.secretKey);
@@ -120,6 +120,7 @@ jobs:
 		args: args._.slice(1),
 		options: {
 			secretKey,
+			'secrets-ci': args['--secrets-ci'],
 		},
 		context,
 		multipleSites,
@@ -131,10 +132,12 @@ export async function cli(args) {
 
 	// drop out if not logged in for certain commands
 	const userCommands = ['init', 'recs', 'recommendation', 'recommendations', 'secret', 'secrets', 'logout', 'whoami', 'org-access'];
-	if (userCommands.includes(options.command) && (!options.context.user || !options.context.user.token)) {
+	if (options.command === 'recs' && args.includes('sync') && (options.options['secrets-ci'] || options.options.secretKey)) {
+		// allow recs sync to run without a logged in user
+	} else if (userCommands.includes(options.command) && (!options.context.user || !options.context.user.token)) {
 		console.log(chalk.yellow(`Login is required. Please login.`));
 		console.log(chalk.grey(`\n\tsnapfu login\n`));
-		exit();
+		exit(1);
 	}
 
 	switch (options.command) {
