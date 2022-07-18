@@ -1,4 +1,4 @@
-import { github, auth, whoami } from './login';
+import { github, auth } from './login';
 import tempDirectory from 'temp-dir';
 import fs from 'fs-extra';
 import path from 'path';
@@ -29,27 +29,6 @@ describe('listen for callback', () => {
 		await request(`http://localhost:${port}?user={"name":"bob"}`);
 		await receivedUrl.then((resolvedUrl) => {
 			expect(resolvedUrl).toEqual('/?user=%7B%22name%22:%22bob%22%7D');
-		});
-	});
-});
-
-describe('whoami', () => {
-	it('with creds', async () => {
-		auth.home = () => {
-			return tempDir;
-		};
-		await fsp.writeFile(path.join(tempDir, '/.searchspring/creds.json'), '{ "login": "mylogin", "name": "myname", "token": "xyz" }');
-		let user = await whoami();
-		expect(user).toStrictEqual({ login: 'mylogin', name: 'myname' });
-	});
-
-	it('without creds', async () => {
-		expect.assertions(1);
-		auth.home = () => {
-			return tempDir;
-		};
-		await whoami().catch((err) => {
-			expect(err).toEqual('creds not found');
 		});
 	});
 });

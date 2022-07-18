@@ -2,7 +2,6 @@ import { escape } from 'querystring';
 import open from 'open';
 import http from 'http';
 import { parse } from 'url';
-import { exit } from 'process';
 import { promises as fsp } from 'fs';
 import path from 'path';
 import fs from 'fs';
@@ -19,14 +18,12 @@ export const login = async (options, opener, port) => {
 		opener(uri);
 	}
 
-	try {
-		const value = await receivedUrl;
-		let creds = await auth.saveCredsFromUrl(value);
-		console.log(`Authenticated ${chalk.green(creds.login)}`);
-	} catch (err) {
-		console.log(err);
-		exit(1);
-	}
+	const value = await receivedUrl;
+	return auth.saveCredsFromUrl(value);
+};
+
+export const logout = async (options) => {
+	return auth.removeCreds();
 };
 
 export const orgAccess = async (options, opener) => {
@@ -37,11 +34,6 @@ export const orgAccess = async (options, opener) => {
 	} else {
 		opener(uri);
 	}
-};
-
-export const whoami = async (options) => {
-	const user = await auth.loadCreds();
-	return { login: user.login, name: user.name };
 };
 
 export const github = {
@@ -112,6 +104,14 @@ export const auth = {
 			} catch (e) {
 				console.log(chalk.red(e.message));
 			}
+		}
+	},
+	removeCreds: async () => {
+		const creds = await this.auth.loadCreds();
+		if (creds) {
+			const credsLocation = path.join(auth.home(), '/.searchspring/creds.json');
+			const newCreds = { keys: creds.keys };
+			await fsp.writeFile(credsLocation, JSON.stringify(newCreds));
 		}
 	},
 	loadCreds: async () => {

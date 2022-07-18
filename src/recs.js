@@ -371,7 +371,7 @@ export async function writeTemplateFile(filePath, contents) {
 		const exists = await fsp.stat(filePath);
 		console.log(chalk.yellow(`File already exists: ${filePath}`));
 	} catch (err) {
-		console.log(chalk.greenBright(`Creating file: ${filePath}`));
+		console.log(chalk.green(`Creating file: ${filePath}`));
 		await fsp.writeFile(filePath, contents, 'utf8');
 	}
 }

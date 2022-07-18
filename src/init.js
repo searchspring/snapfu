@@ -32,11 +32,6 @@ export const init = async (options) => {
 	try {
 		const { user } = options.context;
 
-		if (!user) {
-			console.log(chalk.red(`No creds file found, please use snapfu login`));
-			exit(1);
-		}
-
 		let dir;
 		if (options.args.length === 1) {
 			// init was provided a folder name arg
@@ -56,7 +51,7 @@ export const init = async (options) => {
 			});
 		});
 
-		const fetchOrgReposPage = async () => {
+		const fetchTemplateRepos = async () => {
 			let page = 0;
 			let per_page = 100;
 			let repos = [];
@@ -73,12 +68,13 @@ export const init = async (options) => {
 					repos.push(repo);
 				});
 			} while (response.data.length == per_page);
-			return repos;
+			return repos.filter((repo) => repo.name.startsWith(`snapfu-template-`));
 		};
 
-		let repos = await fetchOrgReposPage();
+		let repos = await fetchTemplateRepos();
+
 		if (!repos || !repos.length) {
-			console.log(chalk.red('failed to find any repos.'));
+			console.log(chalk.red('failed to fetch templates...'));
 		} else {
 			let questions = [
 				{
@@ -113,8 +109,11 @@ export const init = async (options) => {
 					type: 'list',
 					name: 'organization',
 					message: 'Please choose which github organization to create this repository in:',
-					choices: orgs,
+					choices: orgs.concat(user.login),
 					default: 'searchspring-implementations',
+					when: () => {
+						return orgs && orgs.length > 0;
+					},
 				},
 				{
 					type: 'input',
@@ -138,7 +137,7 @@ export const init = async (options) => {
 			try {
 				await new ConfigApi(answers.secretKey, options.dev).validateSite(answers.name, answers.siteId);
 			} catch (err) {
-				console.log(chalk.red('Verification of siteId and secretKey failed.'));
+				console.log(chalk.red('\nSite verification failed.'));
 				console.log(chalk.red(err));
 				exit(1);
 			}
@@ -146,21 +145,23 @@ export const init = async (options) => {
 			// create local directory
 			let folderName = await createDir(dir);
 
+			// determine if using org or userspace
+			let creationMethod = answers.organization == user.login ? 'createForAuthenticatedUser' : 'createInOrg';
+
 			if (options.dev) {
-				console.log(chalk.blueBright('Skipping new repo creation...'));
+				console.log(chalk.blueBright('\nSkipping new repo creation...'));
 			} else {
 				// create the remote repo
-				console.log(`Creating repository...`);
+				console.log(`\nCreating repository...`);
 				let exists = false;
 
-				await octokit.repos
-					.createInOrg({
-						org: answers.organization,
-						name: answers.name,
-						private: true,
-						auto_init: true,
-					})
-					.then(() => console.log(`${chalk.greenBright(answers.name)}\n`))
+				await octokit.repos[creationMethod]({
+					org: answers.organization,
+					name: answers.name,
+					private: true,
+					auto_init: true,
+				})
+					.then(() => console.log(chalk.cyan(`${answers.organization}/${answers.name}\n`)))
 					.catch((err) => {
 						if (!err.message.includes('already exists')) {
 							console.log(chalk.red(err.message));
@@ -176,7 +177,7 @@ export const init = async (options) => {
 						{
 							type: 'confirm',
 							name: 'continue',
-							message: 'Do you want to continue? This will overwrite the existing files in the repo.',
+							message: 'Do you want to continue? This may overwrite existing files in the repo.',
 							default: false,
 						},
 					];
@@ -185,7 +186,7 @@ export const init = async (options) => {
 						{
 							type: 'confirm',
 							name: 'sure',
-							message: 'Are you SURE? This will overwrite the existing files in the repo.',
+							message: 'Are you SURE? This may overwrite existing files in the repo.',
 							default: false,
 						},
 					];
@@ -201,49 +202,54 @@ export const init = async (options) => {
 						console.log(chalk.yellow('aborting...\n'));
 						exit(1);
 					}
+
+					// new line
+					console.log();
 				}
 			}
 
 			// newly create repo URLs
-			const repoUrlSSH = `git@github.com:${answers.organization}/${answers.name}.git`;
-			const repoUrlHTTP = `https://github.com/${answers.organization}/${answers.name}`;
+			const repoUrlSSH = `git@github.com:${creationMethod == 'createInOrg' ? answers.organization : user.login}/${answers.name}.git`;
+			const repoUrlHTTP = `https://${user.login}@github.com/${creationMethod == 'createInOrg' ? answers.organization : user.login}/${answers.name}`;
 
 			// template repo URLs
 			const templateUrlSSH = `git@github.com:searchspring/${answers.template}.git`;
 			const templateUrlHTTP = `https://github.com/searchspring/${answers.template}`;
 
 			if (!options.dev) {
-				console.log(`Cloning repository...`);
 				try {
+					console.log(`Cloning repository via SSH...`);
 					await cloneAndCopyRepo(repoUrlSSH, dir, false);
-					console.log(`${chalk.greenBright(repoUrlSSH)}\n`);
+					console.log(`${chalk.cyan(repoUrlSSH)}\n`);
 				} catch (err) {
+					console.log(`SSH authentication failed. Cloning repository via HTTPS...`);
 					await cloneAndCopyRepo(repoUrlHTTP, dir, false);
-					console.log(`${chalk.greenBright(repoUrlHTTP)}\n`);
+					console.log(`${chalk.cyan(repoUrlHTTP)}\n`);
 				}
 			}
 
-			console.log(`Cloning template into ${dir}...`);
 			try {
+				console.log(`Cloning template into ${dir} via SSH...`);
 				await cloneAndCopyRepo(templateUrlSSH, dir, true, {
 					'snapfu.name': answers.name,
 					'snapfu.siteId': answers.siteId,
 					'snapfu.author': user.name,
 					'snapfu.framework': answers.framework,
 				});
-				console.log(`${chalk.greenBright(templateUrlSSH)}\n`);
+				console.log(`${chalk.cyan(templateUrlSSH)}\n`);
 			} catch (err) {
+				console.log(`SSH authentication failed. Cloning template into ${dir} via HTTPS...`);
 				await cloneAndCopyRepo(templateUrlHTTP, dir, true, {
 					'snapfu.name': answers.name,
 					'snapfu.siteId': answers.siteId,
 					'snapfu.author': user.name,
 					'snapfu.framework': answers.framework,
 				});
-				console.log(`${chalk.greenBright(templateUrlHTTP)}\n`);
+				console.log(`${chalk.cyan(templateUrlHTTP)}\n`);
 			}
 
 			// save secretKey mapping to creds.json
-			const { siteId, secretKey } = await auth.saveSecretKey(answers.secretKey, answers.siteId);
+			await auth.saveSecretKey(answers.secretKey, answers.siteId);
 
 			await setRepoSecret(
 				options,
@@ -279,31 +285,37 @@ export const setBranchProtection = async function (options, details) {
 
 	if (!options.dev && organization && name) {
 		console.log(`Setting branch protection for 'production' in ${organization}/${name}...`);
-		// create branch protection rule for 'production' branch
-		const branchProtectionResponse = await octokit.rest.repos.updateBranchProtection({
-			owner: organization,
-			repo: name,
-			branch: 'production',
-			required_status_checks: {
-				strict: false,
-				checks: [
-					{
-						context: 'Snap Action',
-					},
-				],
-			},
-			enforce_admins: true,
-			required_pull_request_reviews: {
-				dismiss_stale_reviews: true,
-				required_approving_review_count: 0,
-			},
-			restrictions: null,
-		});
 
-		if (branchProtectionResponse && branchProtectionResponse.status === 200) {
-			console.log(chalk.green(`created branch protection for 'production'`));
-		} else {
-			console.log(chalk.red(`failed to create branch protection`));
+		try {
+			// create branch protection rule for 'production' branch
+			const branchProtectionResponse = await octokit.rest.repos.updateBranchProtection({
+				owner: organization,
+				repo: name,
+				branch: 'production',
+				required_status_checks: {
+					strict: false,
+					checks: [
+						{
+							context: 'Snap Action',
+						},
+					],
+				},
+				enforce_admins: true,
+				required_pull_request_reviews: {
+					dismiss_stale_reviews: true,
+					required_approving_review_count: 0,
+				},
+				restrictions: null,
+			});
+
+			if (branchProtectionResponse && branchProtectionResponse.status === 200) {
+				console.log(chalk.green(`created branch protection for 'production'`));
+			} else {
+				console.log(chalk.red(`failed to create branch protection rule`));
+			}
+		} catch (err) {
+			console.log(chalk.red(`failed to create branch protection rule`));
+			console.log(chalk.red(err));
 		}
 	} else {
 		console.log(chalk.yellow('skipping creation of branch protection'));
