@@ -245,7 +245,11 @@ export const init = async (options) => {
 			// save secretKey mapping to creds.json
 			const { siteId, secretKey } = await auth.saveSecretKey(answers.secretKey, answers.siteId);
 
-			await setRepoSecret(options, { siteId: answers.siteId, secretKey: answers.secretKey, organization: answers.organization, name: answers.name });
+			await setRepoSecret(
+				options,
+				{ siteId: answers.siteId, secretKey: answers.secretKey, organization: answers.organization, name: answers.name },
+				true
+			);
 			await setBranchProtection(options, { organization: answers.organization, name: answers.name });
 
 			if (dir != cwd()) {
@@ -307,7 +311,7 @@ export const setBranchProtection = async function (options, details) {
 	console.log(); // new line spacing
 };
 
-export const setRepoSecret = async function (options, details) {
+export const setRepoSecret = async function (options, details, multiSite = false) {
 	const { user } = options.context;
 
 	let octokit = new Octokit({
@@ -326,7 +330,11 @@ export const setRepoSecret = async function (options, details) {
 		if (keyResponse && keyResponse.status === 200 && keyResponse.data) {
 			const { key, key_id } = keyResponse.data;
 			const value = secretKey;
-			const secret_name = 'WEBSITE_SECRET_KEY';
+			let secret_name = 'WEBSITE_SECRET_KEY';
+
+			if (typeof options.context.searchspring.siteId === 'object' || multiSite) {
+				secret_name = `WEBSITE_SECRET_KEY_${siteId.toUpperCase()}`; // github converts to uppercase, setting explicitly for the logging
+			}
 
 			// Convert the message and key to Uint8Array's (Buffer implements that interface)
 			const messageBytes = Buffer.from(value);

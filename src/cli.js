@@ -16,6 +16,7 @@ async function parseArgumentsIntoOptions(rawArgs) {
 		{
 			'--dev': Boolean,
 			'--secret-key': String,
+			'--secrets-ci': String,
 		},
 		{
 			argv: rawArgs.slice(2),
@@ -29,6 +30,90 @@ async function parseArgumentsIntoOptions(rawArgs) {
 		// do nothing - when running init context may not exist
 	}
 
+	let multipleSites = [];
+
+	const getSecretKeyFromCLI = (siteId) => {
+		try {
+			const secrets = JSON.parse(args['--secrets-ci']);
+			const secretKey = secrets[`WEBSITE_SECRET_KEY_${siteId.toUpperCase()}`];
+			return secretKey;
+		} catch (e) {
+			console.log('Could not parse secrets-ci');
+		}
+	};
+
+	if (context.searchspring && typeof context.searchspring.siteId === 'object') {
+		// searchsoring.siteId contains multiple sites
+
+		const siteIds = Object.keys(context.searchspring.siteId);
+		if (!siteIds) {
+			console.log(chalk.red('searchspring.siteId object in package.json is empty'));
+			exit();
+		}
+
+		multipleSites = siteIds
+			.map((siteId) => {
+				try {
+					const { name } = context.searchspring.siteId[siteId];
+					const secretKey = getSecretKeyFromCLI(siteId) || context.user.keys[siteId];
+
+					if (!secretKey) {
+						console.log(chalk.red(`Cannot find the secretKey for siteId '${siteId}'. Syncing to this site will be skipped.`));
+						console.log(chalk.bold.white(`Please run the following command:`));
+						console.log(chalk.gray(`snapfu secrets add`));
+					}
+					if (!secretKey && args['--secrets-ci']) {
+						console.log(
+							chalk.red(`Could not find Github secret 'WEBSITE_SECRET_KEY_${siteId.toUpperCase()}' in 'secrets' input
+It can be added by running 'snapfu secrets add' in the project's directory locally, 
+or added manual in the project's repository secrets. 
+The value can be obtained in the Searchspring Management Console.
+Then ensure that you are providing 'secrets' when running the action. ie:
+
+jobs:
+  Publish:
+    runs-on: ubuntu-latest
+    name: Snap Action
+    steps:
+      - name: Checkout action
+        uses: actions/checkout@v2
+        with:
+          repository: searchspring/snap-action
+      - name: Run @searchspring/snap-action
+        uses: ./
+        with:
+          secrets: \${{ toJSON(secrets) }}
+          ...
+`)
+						);
+					}
+
+					return {
+						siteId,
+						name,
+						secretKey,
+					};
+				} catch (e) {
+					console.log(chalk.red('The searchspring.siteId object in package.json is invalid. Expected format:'));
+					console.log(
+						chalk.red(`
+"searchspring": {
+	"siteId": {
+		"xxxxx1": {
+			"name": "site1.com.au"
+		},
+		"xxxxx2": {
+			"name": "site2.hk"
+		}
+	},
+}`)
+					);
+					exit();
+				}
+			})
+			.filter((site) => site.secretKey);
+	}
+
 	return {
 		dev: args['--dev'] || false,
 		command: args._[0],
@@ -37,6 +122,7 @@ async function parseArgumentsIntoOptions(rawArgs) {
 			secretKey,
 		},
 		context,
+		multipleSites,
 	};
 }
 

@@ -4,6 +4,7 @@ import inquirer from 'inquirer';
 import { setRepoSecret } from './init';
 import { ConfigApi } from './services/ConfigApi';
 import { auth } from './login';
+import { wait } from './wait';
 
 export const setSecretKey = async (options) => {
 	if (!options.context || !options.context.searchspring || !options.context.project || !options.context.project.path) {
@@ -11,18 +12,35 @@ export const setSecretKey = async (options) => {
 		exit(1);
 	}
 
-	const answers = await inquirer.prompt({
-		type: 'input',
-		name: 'secretKey',
-		message: 'Please enter the secretKey as found in the SMC console (32 characters):',
-		validate: (input) => {
-			return input && input.length > 0 && /^[0-9a-zA-Z]{32}$/.test(input);
+	let siteIds;
+	if (typeof options.context.searchspring.siteId === 'object') {
+		siteIds = Object.keys(options.context.searchspring.siteId);
+	}
+	const questions = [
+		{
+			type: 'list',
+			name: 'siteId',
+			message: 'Please select which siteId to add/update the secretKey for:',
+			choices: siteIds,
+			when: () => {
+				return siteIds && siteIds.length > 0;
+			},
 		},
-	});
+		{
+			type: 'input',
+			name: 'secretKey',
+			message: 'Please enter the secretKey as found in the SMC console (32 characters):',
+			validate: (input) => {
+				return input && input.length > 0 && /^[0-9a-zA-Z]{32}$/.test(input);
+			},
+		},
+	];
+
+	const answers = await inquirer.prompt(questions);
 	console.log();
 
 	const { secretKey } = answers;
-	const { siteId } = options.context.searchspring;
+	const siteId = answers.siteId || options.context.searchspring.siteId;
 	const { organization, name } = options.context.repository;
 
 	if (!siteId || !organization || !name) {
@@ -32,7 +50,7 @@ export const setSecretKey = async (options) => {
 
 	try {
 		try {
-			await new ConfigApi(secretKey, options.dev).validateSite(siteId);
+			await new ConfigApi(secretKey, options.dev).validateSite(name, siteId);
 		} catch (err) {
 			console.log(chalk.red('Verification of siteId and secretKey failed.'));
 			console.log(chalk.red(err));
@@ -53,19 +71,32 @@ export const checkSecretKey = async (options) => {
 		exit(1);
 	}
 
-	const { name } = options.context.repository;
-	const { siteId } = options.context.searchspring;
 	const keys = options.context.user.keys || {};
-	const secretKey = keys[siteId];
+	let siteId = options.context.searchspring.siteId;
+	let name = options.context.repository.name;
 
-	try {
+	const verify = async (secretKey, siteId, name) => {
 		try {
 			await new ConfigApi(secretKey, options.dev).validateSite(name, siteId);
-			console.log(chalk.green('Verification of siteId and secretKey complete.'));
+			console.log(chalk.green(`Verification of siteId and secretKey complete for ${name}`));
 		} catch (err) {
-			console.log(chalk.red('Verification of siteId and secretKey failed.'));
+			console.log(chalk.red(`Verification of siteId and secretKey failed for ${name}`));
 			console.log(chalk.red(err));
 			exit(1);
+		}
+
+		await wait(100);
+	};
+
+	try {
+		if (options.multipleSites.length) {
+			for (let i = 0; i < options.multipleSites.length; i++) {
+				const { secretKey, siteId, name } = options.multipleSites[i];
+				await verify(secretKey, siteId, name);
+			}
+		} else {
+			let secretKey = keys[siteId];
+			await verify(secretKey, siteId, name);
 		}
 	} catch (err) {
 		console.log(chalk.red(err));
