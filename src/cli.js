@@ -7,22 +7,34 @@ import { login, logout, orgAccess } from './login';
 import { initTemplate, listTemplates, removeTemplate, syncTemplate } from './recs';
 import { init } from './init';
 import { about } from './about';
+import { wait } from './wait';
 import { help } from './help';
 import { commandOutput, getContext } from './context';
 import { setSecretKey, checkSecretKey } from './secret';
 
 async function parseArgumentsIntoOptions(rawArgs) {
-	const args = arg(
-		{
-			'--dev': Boolean,
-			'--secret-key': String,
-			'--secrets-ci': String,
-		},
-		{
-			argv: rawArgs.slice(2),
-		}
-	);
+	let args;
+
+	try {
+		args = arg(
+			{
+				'--dev': Boolean,
+				'--secret-key': String,
+				'--secrets-ci': String,
+			},
+			{
+				argv: rawArgs.slice(2),
+			}
+		);
+	} catch (e) {
+		console.log(`Unexpected argument provided.`);
+		exit(1);
+	}
+
+	const command = args._[0];
+
 	const context = await getContext();
+
 	let secretKey;
 	try {
 		secretKey = args['--secret-key'] || context.user.keys[context.searchspring.siteId];
@@ -32,95 +44,108 @@ async function parseArgumentsIntoOptions(rawArgs) {
 
 	let multipleSites = [];
 
-	const getSecretKeyFromCLI = (siteId) => {
-		try {
-			const secrets = JSON.parse(args['--secrets-ci']);
-			const secretKey = secrets[`WEBSITE_SECRET_KEY_${siteId.toUpperCase()}`];
-			return secretKey;
-		} catch (e) {
-			return;
-		}
-	};
+	// drop out if not logged in for certain commands
+	const userCommands = ['init', 'recs', 'recommendation', 'recommendations', 'secret', 'secrets', 'logout', 'whoami', 'org-access'];
+	const secretCommands = ['recs', 'recommendation', 'recommendations', 'secret', 'secrets'];
 
-	if (context.searchspring && typeof context.searchspring.siteId === 'object') {
-		// searchsoring.siteId contains multiple sites
+	const loggedIn = context.user && context.user.token;
+	const secretOptions = args['--secrets-ci'] || secretKey;
 
-		const siteIds = Object.keys(context.searchspring.siteId);
-		if (!siteIds) {
-			console.log(chalk.red('searchspring.siteId object in package.json is empty'));
-			exit(1);
-		}
+	if (userCommands.includes(command) && !(loggedIn || secretOptions)) {
+		console.log(chalk.yellow(`Login is required. Please login.`));
+		console.log(chalk.grey(`\n\tsnapfu login\n`));
+		exit(1);
+	} else if (secretCommands.includes(command) && (loggedIn || secretOptions)) {
+		const getSecretKeyFromCLI = (siteId) => {
+			try {
+				const secrets = JSON.parse(args['--secrets-ci']);
+				const secretKey = secrets[`WEBSITE_SECRET_KEY_${siteId.toUpperCase()}`];
+				return secretKey;
+			} catch (e) {
+				return;
+			}
+		};
 
-		multipleSites = siteIds
-			.map((siteId) => {
-				try {
-					const { name } = context.searchspring.siteId[siteId];
-					const secretKey = getSecretKeyFromCLI(siteId) || context.user.keys[siteId];
+		if (context.searchspring && typeof context.searchspring.siteId === 'object') {
+			// searchsoring.siteId contains multiple sites
 
-					if (!secretKey) {
-						console.log(chalk.red(`Cannot find the secretKey for siteId '${siteId}'. Syncing to this site will be skipped.`));
-						console.log(chalk.bold.white(`Please run the following command:`));
-						console.log(chalk.gray(`snapfu secrets add`));
-					}
-					if (!secretKey && args['--secrets-ci']) {
+			const siteIds = Object.keys(context.searchspring.siteId);
+			if (!siteIds || !siteIds.length) {
+				console.log(chalk.red('searchspring.siteId object in package.json is empty'));
+				exit(1);
+			}
+
+			multipleSites = siteIds
+				.map((siteId) => {
+					try {
+						const { name } = context.searchspring.siteId[siteId];
+						const secretKey = getSecretKeyFromCLI(siteId) || context.user.keys[siteId];
+
+						if (!secretKey) {
+							console.log(chalk.red(`Cannot find the secretKey for siteId '${siteId}'.`));
+							console.log(chalk.bold.white(`Please run the following command:`));
+							console.log(chalk.gray(`\tsnapfu secrets add\n`));
+						}
+						if (!secretKey && args['--secrets-ci']) {
+							console.log(
+								chalk.red(`Could not find Github secret 'WEBSITE_SECRET_KEY_${siteId.toUpperCase()}' in 'secrets' input
+	It can be added by running 'snapfu secrets add' in the project's directory locally, 
+	or added manual in the project's repository secrets. 
+	The value can be obtained in the Searchspring Management Console.
+	Then ensure that you are providing 'secrets' when running the action. ie:
+	
+	jobs:
+	  Publish:
+		runs-on: ubuntu-latest
+		name: Snap Action
+		steps:
+		  - name: Checkout action
+			uses: actions/checkout@v2
+			with:
+			  repository: searchspring/snap-action
+		  - name: Run @searchspring/snap-action
+			uses: ./
+			with:
+			  secrets: \${{ toJSON(secrets) }}
+			  ...
+	`)
+							);
+						}
+
+						return {
+							siteId,
+							name,
+							secretKey,
+						};
+					} catch (e) {
+						console.log(chalk.red('The searchspring.siteId object in package.json is invalid. Expected format:'));
 						console.log(
-							chalk.red(`Could not find Github secret 'WEBSITE_SECRET_KEY_${siteId.toUpperCase()}' in 'secrets' input
-It can be added by running 'snapfu secrets add' in the project's directory locally, 
-or added manual in the project's repository secrets. 
-The value can be obtained in the Searchspring Management Console.
-Then ensure that you are providing 'secrets' when running the action. ie:
-
-jobs:
-  Publish:
-    runs-on: ubuntu-latest
-    name: Snap Action
-    steps:
-      - name: Checkout action
-        uses: actions/checkout@v2
-        with:
-          repository: searchspring/snap-action
-      - name: Run @searchspring/snap-action
-        uses: ./
-        with:
-          secrets: \${{ toJSON(secrets) }}
-          ...
-`)
-						);
-					}
-
-					return {
-						siteId,
-						name,
-						secretKey,
-					};
-				} catch (e) {
-					console.log(chalk.red('The searchspring.siteId object in package.json is invalid. Expected format:'));
-					console.log(
-						chalk.red(`
-"searchspring": {
-	"siteId": {
-		"xxxxx1": {
-			"name": "site1.com.au"
+							chalk.red(`
+	"searchspring": {
+		"siteId": {
+			"xxxxx1": {
+				"name": "site1.com.au"
+			},
+			"xxxxx2": {
+				"name": "site2.hk"
+			}
 		},
-		"xxxxx2": {
-			"name": "site2.hk"
+	}`)
+						);
+						exit(1);
+					}
+				})
+				.filter((site) => site.secretKey);
 		}
-	},
-}`)
-					);
-					exit(1);
-				}
-			})
-			.filter((site) => site.secretKey);
 	}
 
 	return {
 		dev: args['--dev'] || false,
-		command: args._[0],
+		command,
 		args: args._.slice(1),
 		options: {
 			secretKey,
-			'secrets-ci': args['--secrets-ci'],
+			secrets: args['--secrets-ci'],
 		},
 		context,
 		multipleSites,
@@ -129,16 +154,6 @@ jobs:
 
 export async function cli(args) {
 	const options = await parseArgumentsIntoOptions(args);
-
-	// drop out if not logged in for certain commands
-	const userCommands = ['init', 'recs', 'recommendation', 'recommendations', 'secret', 'secrets', 'logout', 'whoami', 'org-access'];
-	if (options.command === 'recs' && args.includes('sync') && (options.options['secrets-ci'] || options.options.secretKey)) {
-		// allow recs sync to run without a logged in user
-	} else if (userCommands.includes(options.command) && (!options.context.user || !options.context.user.token)) {
-		console.log(chalk.yellow(`Login is required. Please login.`));
-		console.log(chalk.grey(`\n\tsnapfu login\n`));
-		exit(1);
-	}
 
 	switch (options.command) {
 		// cases requiring user login
@@ -285,10 +300,4 @@ async function checkForLatestVersion(options) {
 		console.log(`\n\n${chalk.bold.white(`Version ${chalk.bold.red(`${latest}`)} of snapfu available.\nUpdate with:`)}`);
 		console.log(chalk.grey(`\n\tnpm install -g snapfu\n`));
 	}
-}
-
-function wait(us) {
-	return new Promise((resolve) => {
-		setTimeout(resolve, us);
-	});
 }

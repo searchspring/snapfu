@@ -125,6 +125,7 @@ export const auth = {
 				reject('creds not found');
 			}
 			let user = JSON.parse(creds);
+			user.keys = user.keys || {};
 			resolve(user);
 		});
 	},

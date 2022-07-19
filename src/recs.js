@@ -4,6 +4,7 @@ import path from 'path';
 import fs, { promises as fsp } from 'fs';
 import { help } from './help';
 import { wait } from './wait';
+import { DEFAULT_BRANCH } from './init';
 import { frameworks } from './frameworks';
 import { ConfigApi } from './services/ConfigApi';
 
@@ -155,7 +156,7 @@ export async function listTemplates(options) {
 			}
 
 			if (siteId && name) {
-				console.log(`${chalk.white(`   siteId: ${siteId} (${name})`)}`);
+				console.log(`${chalk.white(`   ${name} (${siteId})`)}`);
 			}
 
 			remoteTemplates.recommendTemplates.forEach((template) => {
@@ -208,7 +209,7 @@ export async function removeTemplate(options) {
 		return;
 	}
 
-	const branchName = branch || repository.branch || 'production';
+	const branchName = branch || repository.branch || DEFAULT_BRANCH;
 
 	const payload = { name: templateName, branch: branchName };
 
@@ -264,7 +265,7 @@ export async function syncTemplate(options) {
 		return;
 	}
 
-	const branchName = branch || repository.branch || 'production';
+	const branchName = branch || repository.branch || DEFAULT_BRANCH;
 
 	const sync = async (template, secretKey) => {
 		const payload = buildTemplatePayload(template.details, { branch: branchName, framework: searchspring.framework });

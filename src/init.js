@@ -9,7 +9,11 @@ import clone from 'git-clone';
 import sodium from 'tweetsodium';
 import { ncp } from 'ncp';
 import { auth } from './login';
+import { getContext } from './context';
+import { wait } from './wait';
 import { ConfigApi } from './services/ConfigApi';
+
+export const DEFAULT_BRANCH = 'production';
 
 export const createDir = (dir) => {
 	return new Promise((resolutionFunc, rejectionFunc) => {
@@ -162,6 +166,28 @@ export const init = async (options) => {
 					auto_init: true,
 				})
 					.then(() => console.log(chalk.cyan(`${answers.organization}/${answers.name}\n`)))
+					.then(async () => {
+						// giving github some time
+						await wait(1000);
+
+						// getting default branch name
+						const response = await octokit.repos.get({
+							owner: answers.organization,
+							repo: answers.name,
+						});
+
+						const { default_branch } = response.data;
+
+						if (default_branch !== DEFAULT_BRANCH) {
+							console.log(`Renaming default branch ${chalk.cyan(default_branch)} to ${chalk.cyan(DEFAULT_BRANCH)}\n`);
+							const response2 = await octokit.repos.renameBranch({
+								owner: answers.organization,
+								repo: answers.name,
+								branch: default_branch,
+								new_name: DEFAULT_BRANCH,
+							});
+						}
+					})
 					.catch((err) => {
 						if (!err.message.includes('already exists')) {
 							console.log(chalk.red(err.message));
@@ -248,16 +274,21 @@ export const init = async (options) => {
 				console.log(`${chalk.cyan(templateUrlHTTP)}\n`);
 			}
 
+			// waiting here due to copyPromise function resolving before template is actually copied
+			// TODO: look into why ncp does not like our filtering (does not resolve promise in callback)
+			// wait...
+			await wait(1000);
+
 			// save secretKey mapping to creds.json
 			await auth.saveSecretKey(answers.secretKey, answers.siteId);
-
-			await setRepoSecret(
-				options,
-				{ siteId: answers.siteId, secretKey: answers.secretKey, organization: answers.organization, name: answers.name },
-				true
-			);
+			await setRepoSecret(options, {
+				siteId: answers.siteId,
+				secretKey: answers.secretKey,
+				organization: answers.organization,
+				name: answers.name,
+				dir,
+			});
 			await setBranchProtection(options, { organization: answers.organization, name: answers.name });
-
 			if (dir != cwd()) {
 				console.log(`The ${chalk.blue(folderName)} directory has been created and initialized from ${chalk.blue(`${answers.template}`)}.`);
 				console.log(`Get started by installing package dependencies and creating a branch:`);
@@ -284,14 +315,14 @@ export const setBranchProtection = async function (options, details) {
 	const { organization, name } = details;
 
 	if (!options.dev && organization && name) {
-		console.log(`Setting branch protection for 'production' in ${organization}/${name}...`);
+		console.log(`Setting branch protection for ${DEFAULT_BRANCH} in ${organization}/${name}...`);
 
 		try {
 			// create branch protection rule for 'production' branch
 			const branchProtectionResponse = await octokit.rest.repos.updateBranchProtection({
 				owner: organization,
 				repo: name,
-				branch: 'production',
+				branch: DEFAULT_BRANCH,
 				required_status_checks: {
 					strict: false,
 					checks: [
@@ -309,7 +340,7 @@ export const setBranchProtection = async function (options, details) {
 			});
 
 			if (branchProtectionResponse && branchProtectionResponse.status === 200) {
-				console.log(chalk.green(`created branch protection for 'production'`));
+				console.log(chalk.green(`created branch protection for ${DEFAULT_BRANCH}`));
 			} else {
 				console.log(chalk.red(`failed to create branch protection rule`));
 			}
@@ -323,7 +354,8 @@ export const setBranchProtection = async function (options, details) {
 	console.log(); // new line spacing
 };
 
-export const setRepoSecret = async function (options, details, multiSite = false) {
+export const setRepoSecret = async function (options, details) {
+	const initContext = await getContext(details.dir);
 	const { user } = options.context;
 
 	let octokit = new Octokit({
@@ -344,7 +376,7 @@ export const setRepoSecret = async function (options, details, multiSite = false
 			const value = secretKey;
 			let secret_name = 'WEBSITE_SECRET_KEY';
 
-			if (typeof options.context.searchspring.siteId === 'object' || multiSite) {
+			if (typeof initContext.searchspring.siteId === 'object') {
 				secret_name = `WEBSITE_SECRET_KEY_${siteId.toUpperCase()}`; // github converts to uppercase, setting explicitly for the logging
 			}
 
@@ -399,7 +431,7 @@ export const cloneAndCopyRepo = async function (sourceRepo, destination, exclude
 
 	if (transforms) {
 		options.transform = async (read, write, file) => {
-			transform(read, write, transforms, file);
+			await transform(read, write, transforms, file);
 		};
 	}
 
@@ -444,7 +476,7 @@ async function streamToByte(stream) {
 }
 
 function clonePromise(repoUrl, destination) {
-	return new Promise(async (resolutionFunc, rejectionFunc) => {
+	return new Promise((resolutionFunc, rejectionFunc) => {
 		clone(repoUrl, destination, (err) => {
 			if (err) {
 				rejectionFunc(err);
@@ -455,7 +487,7 @@ function clonePromise(repoUrl, destination) {
 }
 
 function copyPromise(source, destination, options) {
-	return new Promise(async (resolutionFunc, rejectionFunc) => {
+	return new Promise((resolutionFunc, rejectionFunc) => {
 		// ncp can be used to modify the files while copying - see https://www.npmjs.com/package/ncp
 		ncp(source, destination, options, function (err) {
 			if (err) {
