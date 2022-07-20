@@ -112,8 +112,7 @@ export async function initTemplate(options) {
 
 export async function listTemplates(options) {
 	const { context } = options;
-	const { searchspring } = context;
-	const { branch } = context.repository;
+	const { searchspring, repository } = context;
 	const [command, location] = options.args;
 
 	if (!searchspring || !context.project || !context.project.path) {
@@ -124,13 +123,19 @@ export async function listTemplates(options) {
 	if (!location || location == 'local') {
 		console.log(`${chalk.white('Local Templates')}`);
 
+		console.log(`${chalk.white.bold(`    ${repository.name}`)}`);
+
 		const templates = await getTemplates(context.project.path);
 
 		if (!templates || !templates.length) {
-			console.log(chalk.italic('no templates found...'));
+			console.log(chalk.italic('        no templates found...'));
 		} else {
 			templates.forEach((template, index) => {
-				console.log(`${chalk.green(template.details.name)} ${branch ? `[${branch}]` : ''} ${chalk.blueBright(`(${template.path})`)}`);
+				console.log(
+					`        ${chalk.green(template.details.name)} ${repository.branch ? chalk.blue(`[${repository.branch}]`) : ''} ${chalk.gray.italic(
+						`(${template.path})`
+					)}`
+				);
 			});
 		}
 	}
@@ -147,31 +152,29 @@ export async function listTemplates(options) {
 		const list = async (secretKey, siteId = '', name = '') => {
 			const remoteTemplates = await new ConfigApi(secretKey, options.dev).getTemplates();
 
-			if (!remoteTemplates || !remoteTemplates.recommendTemplates || !remoteTemplates.recommendTemplates.length) {
-				if (siteId && name) {
-					console.log(chalk.italic(`no templates found for siteId ${siteId} (${name})`));
-				} else {
-					console.log(chalk.italic('no templates found...'));
-				}
-			}
-
 			if (siteId && name) {
-				console.log(`${chalk.white(`   ${name} (${siteId})`)}`);
+				console.log(`${chalk.white.bold(`    ${name} ${chalk.cyan(`(${siteId})`)}`)}`);
 			}
 
-			remoteTemplates.recommendTemplates.forEach((template) => {
-				if (!template.managed) {
-					smcManaged = true;
-				}
+			if (!remoteTemplates || !remoteTemplates.recommendTemplates || !remoteTemplates.recommendTemplates.length) {
+				console.log(chalk.italic('        no templates found...'));
+			} else {
+				remoteTemplates.recommendTemplates.forEach((template) => {
+					if (!template.managed) {
+						smcManaged = true;
+					}
 
-				const [name, branch] = template.name.split('__');
+					const [name, branch] = template.name.split('__');
 
-				console.log(
-					`      ${template.managed ? '' : `${chalk.yellow('*')} `}${chalk.green(name)} ${branch ? `[${branch}]` : ''} ${chalk.blueBright(
-						`(https://manage.searchspring.net/management/product-recs-templates/template-version-edit?template_name=${template.name})`
-					)}`
-				);
-			});
+					console.log(
+						`        ${template.managed ? '' : `${chalk.yellow('*')} `}${chalk.green(name)} ${
+							branch ? chalk.blue(`[${branch}]`) : ''
+						} ${chalk.gray.italic(
+							`(https://manage.searchspring.net/management/product-recs-templates/template-version-edit?template_name=${template.name})`
+						)}`
+					);
+				});
+			}
 		};
 
 		try {
@@ -179,10 +182,11 @@ export async function listTemplates(options) {
 				for (let i = 0; i < options.multipleSites.length; i++) {
 					const { secretKey, siteId, name } = options.multipleSites[i];
 					await list(secretKey, siteId, name);
+					if (i < options.multipleSites.length - 1) console.log();
 				}
 			} else {
 				const { secretKey } = options.options;
-				await list(secretKey);
+				await list(secretKey, options.context.searchspring.siteId, options.context.repository.name);
 			}
 
 			if (smcManaged) {
@@ -277,10 +281,16 @@ export async function syncTemplate(options) {
 
 		try {
 			await new ConfigApi(secretKey, options.dev).putTemplate(payload);
-			console.log(chalk.green(`${template.details.name}`), chalk.white(`[${branchName}]`));
+			console.log(
+				chalk.green(`        ${template.details.name}`),
+				chalk.blue(`[${branchName}]`),
+				chalk.gray.italic(
+					`(https://manage.searchspring.net/management/product-recs-templates/template-version-edit?template_name=${payload.name}__${branchName})`
+				)
+			);
 		} catch (err) {
-			console.log(chalk.red(`${template.details.name}`), chalk.white(`[${branchName}]`));
-			console.log(chalk.red(err));
+			console.log(chalk.red(`        ${template.details.name}`), chalk.blue(`[${branchName}]`));
+			console.log('        ', chalk.red(err));
 		}
 
 		// prevent rate limiting
@@ -291,16 +301,21 @@ export async function syncTemplate(options) {
 		for (let x = 0; x < options.multipleSites.length; x++) {
 			const { secretKey, siteId, name } = options.multipleSites[x];
 
+			console.log(`${chalk.white.bold(`${name} ${chalk.cyan(`(${siteId})`)}`)}`);
 			for (let i = 0; i < syncTemplates.length; i++) {
 				const template = syncTemplates[i];
-				process.stdout.write(`synchronizing template ${i + 1} of ${syncTemplates.length} for siteId ${siteId} (${name})   `);
+				console.log(`    synchronizing template ${i + 1} of ${syncTemplates.length}`);
+
 				await sync(template, secretKey);
 			}
+
+			if (x < options.multipleSites.length - 1) console.log();
 		}
 	} else {
+		console.log(`${chalk.white.bold(`${repository.name}`)}`);
 		for (let i = 0; i < syncTemplates.length; i++) {
 			const template = syncTemplates[i];
-			process.stdout.write(`synchronizing template ${i + 1} of ${syncTemplates.length}   `);
+			console.log(`    synchronizing template ${i + 1} of ${syncTemplates.length}`);
 			await sync(template, secretKey);
 		}
 	}
