@@ -3,6 +3,8 @@ import inquirer from 'inquirer';
 import path from 'path';
 import fs, { promises as fsp } from 'fs';
 import { help } from './help';
+import { wait } from './wait';
+import { DEFAULT_BRANCH } from './init';
 import { frameworks } from './frameworks';
 import { ConfigApi } from './services/ConfigApi';
 
@@ -113,7 +115,6 @@ export async function listTemplates(options) {
 	const { searchspring } = context;
 	const { branch } = context.repository;
 	const [command, location] = options.args;
-	const { secretKey } = options.options;
 
 	if (!searchspring || !context.project || !context.project.path) {
 		console.log(chalk.red(`Error: No Snap project found in ${process.cwd()}.`));
@@ -121,7 +122,7 @@ export async function listTemplates(options) {
 	}
 
 	if (!location || location == 'local') {
-		console.log(`${chalk.grey('Local Templates')}`);
+		console.log(`${chalk.white('Local Templates')}`);
 
 		const templates = await getTemplates(context.project.path);
 
@@ -139,36 +140,53 @@ export async function listTemplates(options) {
 			console.log();
 		}
 
-		console.log(`${chalk.grey('Active Remote Templates (SMC)')}`);
+		console.log(`${chalk.white('Active Remote Templates (SMC)')}`);
 
-		if (!secretKey) {
-			console.log(chalk.red(`Unauthorized: Please provide secretKey.`));
-			return;
-		}
+		let smcManaged;
 
-		try {
+		const list = async (secretKey, siteId = '', name = '') => {
 			const remoteTemplates = await new ConfigApi(secretKey, options.dev).getTemplates();
 
 			if (!remoteTemplates || !remoteTemplates.recommendTemplates || !remoteTemplates.recommendTemplates.length) {
-				console.log(chalk.italic('no templates found...'));
-			} else {
-				let smcManaged;
-
-				remoteTemplates.recommendTemplates.forEach((template, index) => {
-					if (!template.managed) smcManaged = true;
-
-					const [name, branch] = template.name.split('__');
-
-					console.log(
-						`${template.managed ? '' : `${chalk.yellow('*')} `}${chalk.green(name)} ${branch ? `[${branch}]` : ''} ${chalk.blueBright(
-							`(https://manage.searchspring.net/management/product-recs-templates/template-version-edit?template_name=${template.name})`
-						)}`
-					);
-				});
-
-				if (smcManaged) {
-					console.log(`\n${chalk.yellow('* manually managed in the SMC')}`);
+				if (siteId && name) {
+					console.log(chalk.italic(`no templates found for siteId ${siteId} (${name})`));
+				} else {
+					console.log(chalk.italic('no templates found...'));
 				}
+			}
+
+			if (siteId && name) {
+				console.log(`${chalk.white(`   ${name} (${siteId})`)}`);
+			}
+
+			remoteTemplates.recommendTemplates.forEach((template) => {
+				if (!template.managed) {
+					smcManaged = true;
+				}
+
+				const [name, branch] = template.name.split('__');
+
+				console.log(
+					`      ${template.managed ? '' : `${chalk.yellow('*')} `}${chalk.green(name)} ${branch ? `[${branch}]` : ''} ${chalk.blueBright(
+						`(https://manage.searchspring.net/management/product-recs-templates/template-version-edit?template_name=${template.name})`
+					)}`
+				);
+			});
+		};
+
+		try {
+			if (options.multipleSites.length) {
+				for (let i = 0; i < options.multipleSites.length; i++) {
+					const { secretKey, siteId, name } = options.multipleSites[i];
+					await list(secretKey, siteId, name);
+				}
+			} else {
+				const { secretKey } = options.options;
+				await list(secretKey);
+			}
+
+			if (smcManaged) {
+				console.log(`\n${chalk.yellow('* manually managed in the SMC')}`);
 			}
 		} catch (err) {
 			console.log(chalk.red(err));
@@ -180,7 +198,6 @@ export async function removeTemplate(options) {
 	const { context } = options;
 	const { searchspring, repository } = context;
 	const [command, templateName, branch] = options.args;
-	const { secretKey } = options.options;
 
 	if (!searchspring || !context.project || !context.project.path) {
 		console.log(chalk.red(`Error: No Snap project found in ${process.cwd()}.`));
@@ -192,18 +209,34 @@ export async function removeTemplate(options) {
 		return;
 	}
 
-	const branchName = branch || repository.branch || 'production';
+	const branchName = branch || repository.branch || DEFAULT_BRANCH;
 
 	const payload = { name: templateName, branch: branchName };
 
-	try {
+	const remove = async (secretKey) => {
+		try {
+			await new ConfigApi(secretKey, options.dev).archiveTemplate(payload);
+			console.log(chalk.green(`${templateName}`), chalk.white(`[${branchName}]`));
+			console.log(chalk.green('Template archived in remote.'));
+		} catch (err) {
+			console.log(chalk.red(`${templateName}`), chalk.white(`[${branchName}]`));
+			console.log(chalk.red(err));
+		}
+
+		await wait(100);
+	};
+
+	if (options.multipleSites.length) {
+		for (let i = 0; i < options.multipleSites.length; i++) {
+			const { secretKey, siteId, name } = options.multipleSites[i];
+
+			process.stdout.write(`archiving ${templateName} for siteId ${siteId} (${name})   `);
+			await remove(secretKey);
+		}
+	} else {
+		const { secretKey } = options.options;
 		process.stdout.write('archiving...   ');
-		await new ConfigApi(secretKey, options.dev).archiveTemplate(payload);
-		console.log(chalk.green(`${templateName}`), chalk.white(`[${branchName}]`));
-		console.log(chalk.green('Template archived in remote.'));
-	} catch (err) {
-		console.log(chalk.red(`${templateName}`), chalk.white(`[${branchName}]`));
-		console.log(chalk.red(err));
+		await remove(secretKey);
 	}
 }
 
@@ -232,10 +265,9 @@ export async function syncTemplate(options) {
 		return;
 	}
 
-	const branchName = branch || repository.branch || 'production';
+	const branchName = branch || repository.branch || DEFAULT_BRANCH;
 
-	for (let i = 0; i < syncTemplates.length; i++) {
-		const template = syncTemplates[i];
+	const sync = async (template, secretKey) => {
 		const payload = buildTemplatePayload(template.details, { branch: branchName, framework: searchspring.framework });
 
 		if (payload.name && !payload.name.match(/^[a-zA-Z0-9_-]*$/)) {
@@ -244,7 +276,6 @@ export async function syncTemplate(options) {
 		}
 
 		try {
-			process.stdout.write('synchronizing...   ');
 			await new ConfigApi(secretKey, options.dev).putTemplate(payload);
 			console.log(chalk.green(`${template.details.name}`), chalk.white(`[${branchName}]`));
 		} catch (err) {
@@ -253,7 +284,25 @@ export async function syncTemplate(options) {
 		}
 
 		// prevent rate limiting
-		await wait(1111);
+		await wait(100);
+	};
+
+	if (options.multipleSites.length) {
+		for (let x = 0; x < options.multipleSites.length; x++) {
+			const { secretKey, siteId, name } = options.multipleSites[x];
+
+			for (let i = 0; i < syncTemplates.length; i++) {
+				const template = syncTemplates[i];
+				process.stdout.write(`synchronizing template ${i + 1} of ${syncTemplates.length} for siteId ${siteId} (${name})   `);
+				await sync(template, secretKey);
+			}
+		}
+	} else {
+		for (let i = 0; i < syncTemplates.length; i++) {
+			const template = syncTemplates[i];
+			process.stdout.write(`synchronizing template ${i + 1} of ${syncTemplates.length}   `);
+			await sync(template, secretKey);
+		}
 	}
 }
 
@@ -323,7 +372,7 @@ export async function writeTemplateFile(filePath, contents) {
 		const exists = await fsp.stat(filePath);
 		console.log(chalk.yellow(`File already exists: ${filePath}`));
 	} catch (err) {
-		console.log(chalk.greenBright(`Creating file: ${filePath}`));
+		console.log(chalk.green(`Creating file: ${filePath}`));
 		await fsp.writeFile(filePath, contents, 'utf8');
 	}
 }
@@ -436,11 +485,5 @@ export function handleize(input) {
 export async function timeout(microSeconds) {
 	return new Promise((resolve, reject) => {
 		setTimeout(resolve, microSeconds);
-	});
-}
-
-function wait(us) {
-	return new Promise((resolve) => {
-		setTimeout(resolve, us);
 	});
 }

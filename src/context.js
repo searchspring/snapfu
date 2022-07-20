@@ -10,9 +10,9 @@ import packageJSON from '../package.json';
 
 const exec = promisify(child_process.exec);
 
-export async function commandOutput(cmd) {
+export async function commandOutput(cmd, dir) {
 	try {
-		const { err, stdout, stderr } = await exec(cmd);
+		const { err, stdout, stderr } = await exec(cmd, { cwd: dir });
 		if (err) throw 'error';
 
 		return stdout.trim();
@@ -21,17 +21,18 @@ export async function commandOutput(cmd) {
 	}
 }
 
-export async function getContext() {
+export async function getContext(dir) {
 	let user, project, searchspring, branch, remote, organization, name;
 
 	try {
 		user = await auth.loadCreds();
 	} catch (err) {
-		// do nothing
+		// set empty keys
+		user = { keys: {} };
 	}
 
 	try {
-		const packageContext = await getPackageJSON();
+		const packageContext = await getPackageJSON(dir);
 
 		project = packageContext.project;
 		searchspring = packageContext.searchspring;
@@ -40,8 +41,8 @@ export async function getContext() {
 	}
 
 	try {
-		branch = await commandOutput('git branch --show-current');
-		remote = await commandOutput('git config --get remote.origin.url');
+		branch = await commandOutput('git branch --show-current', dir);
+		remote = await commandOutput('git config --get remote.origin.url', dir);
 	} catch (err) {
 		// do nothing
 	}
@@ -69,9 +70,9 @@ export async function getContext() {
 	};
 }
 
-export async function getPackageJSON() {
+export async function getPackageJSON(dir) {
 	try {
-		const [packageFile] = await getClosest(process.cwd(), 'package.json');
+		const [packageFile] = await getClosest(dir || process.cwd(), 'package.json');
 
 		if (packageFile) {
 			const contents = await fsp.readFile(packageFile, 'utf8');
@@ -92,7 +93,7 @@ export async function getPackageJSON() {
 }
 
 export async function getClosest(dir, fileName) {
-	const rootDir = path.parse(process.cwd()).root;
+	const rootDir = path.parse(dir).root;
 	let results = [];
 
 	try {
