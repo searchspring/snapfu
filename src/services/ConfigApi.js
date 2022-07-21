@@ -36,7 +36,7 @@ export class ConfigApi {
 		} else if (response.status == 401) {
 			throw new Error(`Invalid secretKey.`);
 		} else if (response.status == 404) {
-			throw new Error(`Inalid siteid and/or secretKey.`);
+			throw new Error(`Invalid siteid and/or secretKey.`);
 		} else if (response.status == 405) {
 			throw new Error(`Server method not allowed.`);
 		} else if (response.status == 429) {
