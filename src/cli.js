@@ -6,6 +6,7 @@ import cmp from 'semver-compare';
 import { login, logout, orgAccess } from './login';
 import { initTemplate, listTemplates, removeTemplate, syncTemplate } from './recs';
 import { init } from './init';
+import { listPatches, applyPatch } from './patch';
 import { about } from './about';
 import { wait } from './wait';
 import { help } from './help';
@@ -256,6 +257,35 @@ export async function cli(args) {
 			break;
 		}
 
+		case 'patch': {
+			function showPatchHelp() {
+				help({ command: 'help', args: ['patch'] });
+				// TODO: add patch to help
+			}
+
+			if (!options.args.length) {
+				showPatchHelp();
+				return;
+			}
+
+			const [command] = options.args;
+
+			switch (command) {
+				case 'apply':
+					await applyPatch(options);
+					break;
+
+				case 'list':
+					await listPatches(options);
+					break;
+
+				default:
+					showPatchHelp();
+					break;
+			}
+			break;
+		}
+
 		// cases not requiring user
 		// -------------------------
 
@@ -293,11 +323,15 @@ function debug(options, message) {
 }
 
 async function checkForLatestVersion(options) {
-	// using Promise.race to wait a maximum of 1.2 seconds
-	const latest = await Promise.race([commandOutput('npm view snapfu version'), wait(1200)]);
+	try {
+		// using Promise.race to wait a maximum of 1.2 seconds
+		const latest = await Promise.race([(await commandOutput('npm view snapfu version')).stdout.trim(), wait(1200)]);
 
-	if (latest && cmp(latest, options.context.version) == 1) {
-		console.log(`\n\n${chalk.bold.white(`Version ${chalk.bold.red(`${latest}`)} of snapfu available.\nUpdate with:`)}`);
-		console.log(chalk.grey(`\n\tnpm install -g snapfu\n`));
+		if (latest && cmp(latest, options.context.version) == 1) {
+			console.log(`\n\n${chalk.bold.white(`Version ${chalk.bold.red(`${latest}`)} of snapfu available.\nUpdate with:`)}`);
+			console.log(chalk.grey(`\n\tnpm install -g snapfu\n`));
+		}
+	} catch (e) {
+		// do nothing
 	}
 }

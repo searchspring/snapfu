@@ -11,14 +11,10 @@ import packageJSON from '../package.json';
 const exec = promisify(child_process.exec);
 
 export async function commandOutput(cmd, dir) {
-	try {
-		const { err, stdout, stderr } = await exec(cmd, { cwd: dir });
-		if (err) throw 'error';
+	const output = await exec(cmd, { cwd: dir });
+	if (output.err) throw err;
 
-		return stdout.trim();
-	} catch (err) {
-		// cannot get branch details
-	}
+	return output;
 }
 
 export async function getContext(dir) {
@@ -41,8 +37,8 @@ export async function getContext(dir) {
 	}
 
 	try {
-		branch = await commandOutput('git branch --show-current', dir);
-		remote = await commandOutput('git config --get remote.origin.url', dir);
+		branch = await (await commandOutput('git branch --show-current', dir)).stdout.trim();
+		remote = await commandOutput('git config --get remote.origin.url', dir).stdout.trim();
 	} catch (err) {
 		// do nothing
 	}

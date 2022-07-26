@@ -45,6 +45,17 @@ These are the snapfu secrets commands
     ${chalk.whiteBright('verify')}                        Verify secrets in snap project
     ${chalk.whiteBright('help')} ${chalk.grey('<command>')}                Display help text (optional command)`;
 
+// secrets help text
+const patchText = `Usage: snapfu patch ${chalk.white('<' + chalk.underline('command') + '>')} ${chalk.grey(
+	'<' + chalk.underline('args') + '>'
+)} ${chalk.green('[' + chalk.underline('--options') + ']')}
+
+These are the snapfu secrets commands
+
+    ${chalk.whiteBright('apply')}                         Apply patch version (version or latest)
+    ${chalk.whiteBright('list')}                          List available versions for project
+    ${chalk.whiteBright('help')} ${chalk.grey('<command>')}                Display help text (optional command)`;
+
 // help text mapping
 const helpMap = {
 	root: rootText,
@@ -53,6 +64,7 @@ const helpMap = {
 	recommendations: recommendationText,
 	secret: secretText,
 	secrets: secretText,
+	patch: patchText,
 };
 
 export const help = (options) => {
