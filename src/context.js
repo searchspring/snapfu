@@ -18,7 +18,7 @@ export async function commandOutput(cmd, dir) {
 }
 
 export async function getContext(dir) {
-	let user, project, searchspring, branch, remote, organization, name;
+	let user, project, searchspring, branch, remote, organization, name, projectVersion;
 
 	try {
 		user = await auth.loadCreds();
@@ -32,6 +32,7 @@ export async function getContext(dir) {
 
 		project = packageContext.project;
 		searchspring = packageContext.searchspring;
+		projectVersion = packageContext.version;
 	} catch (err) {
 		// do nothing
 	}
@@ -62,6 +63,7 @@ export async function getContext(dir) {
 			branch,
 		},
 		searchspring,
+		projectVersion,
 		version: packageJSON.version,
 	};
 }

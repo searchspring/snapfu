@@ -4,7 +4,7 @@ import inquirer from 'inquirer';
 import { setRepoSecret } from './init';
 import { ConfigApi } from './services/ConfigApi';
 import { auth } from './login';
-import { wait } from './wait';
+import { wait } from './utils';
 
 export const setSecretKey = async (options) => {
 	if (!options.context || !options.context.searchspring || !options.context.project || !options.context.project.path) {

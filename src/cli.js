@@ -1,14 +1,13 @@
 import arg from 'arg';
 import { exit } from 'process';
 import chalk from 'chalk';
-import cmp from 'semver-compare';
 
 import { login, logout, orgAccess } from './login';
 import { initTemplate, listTemplates, removeTemplate, syncTemplate } from './recs';
 import { init } from './init';
 import { listPatches, applyPatch } from './patch';
 import { about } from './about';
-import { wait } from './wait';
+import { wait, cmp } from './utils';
 import { help } from './help';
 import { commandOutput, getContext } from './context';
 import { setSecretKey, checkSecretKey } from './secret';

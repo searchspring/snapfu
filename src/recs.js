@@ -3,7 +3,7 @@ import inquirer from 'inquirer';
 import path from 'path';
 import fs, { promises as fsp } from 'fs';
 import { help } from './help';
-import { wait } from './wait';
+import { wait } from './utils';
 import { DEFAULT_BRANCH } from './init';
 import { frameworks } from './frameworks';
 import { ConfigApi } from './services/ConfigApi';

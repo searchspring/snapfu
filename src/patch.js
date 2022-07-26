@@ -1,9 +1,10 @@
-import { existsSync, mkdirSync, promises as fsp } from 'fs';
+import { existsSync, mkdirSync, promises as fsp, statSync } from 'fs';
 import path from 'path';
 import { exit } from 'process';
 import chalk from 'chalk';
 import { auth } from './login';
 import { commandOutput } from './context';
+import { cmp } from './utils';
 /*
 
 Usage examples:
@@ -69,14 +70,27 @@ export const listPatches = async (options) => {
 	const allPatchVersions = await getVersions(options);
 
 	const { context } = options;
-	const { searchspring, version } = context;
-	const { framework } = searchspring || {};
+	const { projectVersion } = context;
 
-	// versions.forEach(version => {
-	//     console.log(chalk.white(version))
-	// });
+	if (!projectVersion) {
+		console.log(chalk.red(`Could not find project version in package.json`));
+		exit(1);
+	}
+	const availablePatches = allPatchVersions.sort(cmp).filter((version) => cmp(version, projectVersion) === 1);
+	const previousPatches = allPatchVersions.sort(cmp).filter((version) => cmp(version, projectVersion) !== 1);
 
-	// determine patch path based on version provided and project version
+	if (previousPatches.length > 1) {
+		console.log(chalk.white.bold(`Patches Already Applied:`), chalk.white(previousPatches.length - 1));
+	}
+
+	console.log(chalk.white.bold(`Current Project Version:`), chalk.bold.cyan(projectVersion));
+
+	if (availablePatches.length) {
+		console.log(chalk.white.bold('Available Patches:'));
+	}
+	availablePatches.forEach((version) => {
+		console.log(chalk.white(version));
+	});
 };
 
 const getVersions = async (options) => {
@@ -85,10 +99,12 @@ const getVersions = async (options) => {
 	const { framework } = searchspring || {};
 
 	// ~/.searchspring/snapfu-patches/{framework}/{version}
-	const patchVersions = await fsp.readdir(path(PATCH_DIR, framework));
+	const frameworkPath = path.join(PATCH_DIR, framework);
+	const patchVersions = await fsp.readdir(path.join(frameworkPath));
 	const versions = [];
 	for (const file of patchVersions) {
-		const fileStats = await fsp.statSync(file);
+		const filePath = path.resolve(frameworkPath, file);
+		const fileStats = await statSync(filePath);
 		if (fileStats.isDirectory()) {
 			versions.push(file);
 		}

@@ -10,7 +10,7 @@ import sodium from 'tweetsodium';
 import { ncp } from 'ncp';
 import { auth } from './login';
 import { getContext } from './context';
-import { wait } from './wait';
+import { wait } from './utils';
 import { ConfigApi } from './services/ConfigApi';
 
 export const DEFAULT_BRANCH = 'production';

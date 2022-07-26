@@ -38,7 +38,6 @@
 		"ncp": "^2.0.0",
 		"node-fetch": "^2.6.1",
 		"open": "^8.2.1",
-		"semver-compare": "^1.0.0",
 		"tweetsodium": "^0.0.5"
 	},
 	"devDependencies": {
