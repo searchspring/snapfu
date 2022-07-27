@@ -2,11 +2,11 @@ import chalk from 'chalk';
 import inquirer from 'inquirer';
 import path from 'path';
 import fs, { promises as fsp } from 'fs';
-import { help } from './help';
-import { wait } from './utils';
-import { DEFAULT_BRANCH } from './init';
-import { frameworks } from './frameworks';
-import { ConfigApi } from './services/ConfigApi';
+import { help } from './help.js';
+import { wait } from './utils/index.js';
+import { DEFAULT_BRANCH } from './init.js';
+import { frameworks } from './frameworks/index.js';
+import { ConfigApi } from './services/ConfigApi.js';
 
 const TEMPLATE_TYPE_RECS = 'snap/recommendation';
 const DIR_BLACK_LIST = ['node_modules', '.git'];

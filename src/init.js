@@ -7,11 +7,11 @@ import { Octokit } from '@octokit/rest';
 import inquirer from 'inquirer';
 import clone from 'git-clone';
 import sodium from 'tweetsodium';
-import { ncp } from 'ncp';
-import { auth } from './login';
-import { getContext } from './context';
-import { wait } from './utils';
-import { ConfigApi } from './services/ConfigApi';
+import ncp from 'ncp';
+import { auth } from './login.js';
+import { getContext } from './context.js';
+import { wait } from './utils/index.js';
+import { ConfigApi } from './services/ConfigApi.js';
 
 export const DEFAULT_BRANCH = 'production';
 

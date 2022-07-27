@@ -56,7 +56,6 @@ describe('cmp function', () => {
 		const shuffledVersions = shuffle(JSON.parse(JSON.stringify(sortedVersions)));
 		expect(shuffledVersions).not.toStrictEqual(sortedVersions);
 
-		console.log('sorting array: ', shuffledVersions);
 		const attemptedSort = shuffledVersions.sort(cmp);
 		expect(attemptedSort).toStrictEqual(sortedVersions);
 	});

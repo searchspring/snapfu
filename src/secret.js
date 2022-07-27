@@ -1,10 +1,10 @@
 import { exit } from 'process';
 import chalk from 'chalk';
 import inquirer from 'inquirer';
-import { setRepoSecret } from './init';
-import { ConfigApi } from './services/ConfigApi';
-import { auth } from './login';
-import { wait } from './utils';
+import { setRepoSecret } from './init.js';
+import { ConfigApi } from './services/ConfigApi.js';
+import { auth } from './login.js';
+import { wait } from './utils/index.js';
 
 export const setSecretKey = async (options) => {
 	if (!options.context || !options.context.searchspring || !options.context.project || !options.context.project.path) {

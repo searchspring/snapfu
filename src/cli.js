@@ -2,15 +2,16 @@ import arg from 'arg';
 import { exit } from 'process';
 import chalk from 'chalk';
 
-import { login, logout, orgAccess } from './login';
-import { initTemplate, listTemplates, removeTemplate, syncTemplate } from './recs';
-import { init } from './init';
-import { listPatches, applyPatch } from './patch';
-import { about } from './about';
-import { wait, cmp } from './utils';
-import { help } from './help';
-import { commandOutput, getContext } from './context';
-import { setSecretKey, checkSecretKey } from './secret';
+import { login, logout, orgAccess } from './login.js';
+import { initTemplate, listTemplates, removeTemplate, syncTemplate } from './recs.js';
+import { init } from './init.js';
+import { listPatches, applyPatches } from './patch.js';
+import { about } from './about.js';
+import { wait, cmp } from './utils/index.js';
+import { help } from './help.js';
+import { getContext } from './context.js';
+import { setSecretKey, checkSecretKey } from './secret.js';
+import { commandOutput } from './utils/index.js';
 
 async function parseArgumentsIntoOptions(rawArgs) {
 	let args;
@@ -271,7 +272,7 @@ export async function cli(args) {
 
 			switch (command) {
 				case 'apply':
-					await applyPatch(options);
+					await applyPatches(options);
 					break;
 
 				case 'list':
