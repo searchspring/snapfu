@@ -248,16 +248,13 @@ const runPatch = async (options, patchFile) => {
 						switch (action) {
 							case 'edit':
 								try {
-									if (fileName.endsWith('.json')) {
-										// parse and edit json
-										await editJSON(options, fileName, changes);
-									} else if (fileName.endsWith('.yaml')) {
-										// parse and edit yaml
-										await editYAML(options, fileName, changes);
+									const extension = fileName.split('.').pop();
+									if (['json', 'yaml', 'yml'].includes(extension)) {
+										await editYAMLorJSON(options, fileName, changes, extension);
 									} else {
 										// other file in implementation to edit
 										// TODO: support editing other file types
-										await editFile(options, fileName, changes);
+										// await editFile(options, fileName, changes);
 									}
 								} catch (err) {
 									console.log(err);
@@ -278,11 +275,12 @@ const runPatch = async (options, patchFile) => {
 	}
 };
 
-const editJSON = async (options, fileName, changes) => {
+const editYAMLorJSON = async (options, fileName, changes, fileType) => {
 	if (!changes.length) {
 		return;
 	}
 
+	const parser = fileType === 'json' ? JSON : YAML;
 	const projectDir = options.context.project.path;
 	const filePath = path.join(projectDir, fileName);
 
@@ -297,12 +295,12 @@ const editJSON = async (options, fileName, changes) => {
 		return;
 	}
 
-	let jsonFile, originaljsonFile;
+	let file, originalFile;
 	try {
-		jsonFile = JSON.parse(contents);
-		originaljsonFile = JSON.parse(contents);
+		file = parser.parse(contents);
+		originalFile = parser.parse(contents);
 	} catch (err) {
-		throw `editJSON unable to parse ${fileName}`;
+		throw `editYAMLorJSON unable to parse ${fileName}`;
 	}
 
 	// read changes and apply them to parsed JSON
@@ -316,9 +314,9 @@ const editJSON = async (options, fileName, changes) => {
 					const valueObject = change[action][keyToUpdate];
 					const valueObjectKeys = Object.keys(valueObject);
 					valueObjectKeys.forEach((key) => {
-						if (jsonFile[keyToUpdate][key]) {
+						if (file[keyToUpdate][key]) {
 							// key exists, update to new value
-							jsonFile[keyToUpdate][key] = valueObject[key];
+							file[keyToUpdate][key] = valueObject[key];
 						}
 					});
 				}
@@ -335,8 +333,8 @@ const editJSON = async (options, fileName, changes) => {
 					}
 
 					for (const property of propertiesToRemove) {
-						if (jsonFile[keyToRemove][property]) {
-							delete jsonFile[keyToRemove][property];
+						if (file[keyToRemove][property]) {
+							delete file[keyToRemove][property];
 						}
 					}
 				}
@@ -346,7 +344,7 @@ const editJSON = async (options, fileName, changes) => {
 					const valueObject = change[action][keyToSet];
 					const valueObjectKeys = Object.keys(valueObject);
 					valueObjectKeys.forEach((key) => {
-						jsonFile[keyToSet][key] = valueObject[key];
+						file[keyToSet][key] = valueObject[key];
 					});
 				}
 				break;
@@ -357,28 +355,12 @@ const editJSON = async (options, fileName, changes) => {
 	}
 
 	// write changes to file
-	if (JSON.stringify(originaljsonFile) === JSON.stringify(jsonFile)) {
+	if (parser.stringify(originalFile) === parser.stringify(file)) {
 		console.log(`No changes have been made to ${fileName}`);
 	} else {
 		console.log(`writing changes: ${fileName}`);
-		await fsp.writeFile(filePath, JSON.stringify(jsonFile, null, '\t'), 'utf8');
+		await fsp.writeFile(filePath, parser.stringify(file, null, '\t'), 'utf8');
 	}
-};
-
-const editYAML = async (options, fileName, changes) => {
-	if (!changes.length) {
-		return;
-	}
-
-	// TODO
-};
-
-const editFile = async (options, fileName, changes) => {
-	if (!changes.length) {
-		return;
-	}
-
-	// TODO
 };
 
 const copyDir = (source, destination) => {
