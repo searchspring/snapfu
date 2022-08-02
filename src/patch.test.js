@@ -1,5 +1,4 @@
-import { listPatches, getVersions, setupPatchRepo } from './patch.js';
-import { getClosest, getPackageJSON, getContext } from './context';
+import { listPatches, getVersions, setupPatchRepo, editYAMLorJSON } from './patch.js';
 import { cmp } from './utils/index.js';
 
 import tempDirectory from 'temp-dir';
@@ -52,6 +51,9 @@ beforeAll(async () => {
 	});
 
 	packagePath = path.join(projectDir, 'package.json');
+});
+
+beforeEach(async () => {
 	await fsp.writeFile(packagePath, JSON.stringify(mockPackageJSON));
 });
 
@@ -72,7 +74,7 @@ describe('setupPatchRepo function', () => {
 				patches: {
 					dir: path.join(searchspringDir, 'snapfu-patches'),
 					repoName: 'snapfu-patches',
-					repoUrl: 'git@github.com:searchspring/snapfu-patches.git',
+					repoUrl: 'https://github.com/searchspring/snapfu-patches.git',
 				},
 			},
 			context: {
@@ -131,17 +133,245 @@ describe('getVersions function', () => {
 		const sortedMockVersions = mockPatches[framework].sort(cmp);
 
 		expect(versions).toStrictEqual(sortedMockVersions);
+	});
 
-		// const directoryContents = await fs.statSync(path.join(options.config.searchspringDir, `snapfu-patches`));
-		// expect(directoryContents.isDirectory()).toBe(true);
+	it('can get a list of available versions using starting at', async () => {
+		const framework = 'preact';
 
-		// expect(consoleFn).toHaveBeenCalled();
-		// consoleFn.mockClear();
+		const options = {
+			config: {
+				searchspringDir: path.join(homeDir, '/.searchspring'),
+				patches: {
+					dir: mockPatchesDir,
+					repoName: 'snapfu-patches',
+					repoUrl: 'git@github.com:searchspring/snapfu-patches.git',
+				},
+			},
+			context: {
+				searchspring: {
+					siteId: 'abc123',
+					framework,
+				},
+				project: {
+					// version: '0.0.1',
+					path: projectDir,
+				},
+				projectVersion: '0.100.2',
+			},
+			dev: false,
+			command: 'patch',
+			args: ['list'],
+		};
+
+		const versions = await getVersions(options, options.context.projectVersion);
+		const sortedMockVersions = mockPatches[framework].sort(cmp);
+		const startVersionIndex = mockPatches[framework].indexOf(options.context.projectVersion);
+		const trimmedMockVersions = sortedMockVersions.slice(startVersionIndex + 1);
+		expect(versions).toStrictEqual(trimmedMockVersions);
+	});
+
+	it('can get a list of available versions using ending at', async () => {
+		const framework = 'preact';
+
+		const options = {
+			config: {
+				searchspringDir: path.join(homeDir, '/.searchspring'),
+				patches: {
+					dir: mockPatchesDir,
+					repoName: 'snapfu-patches',
+					repoUrl: 'git@github.com:searchspring/snapfu-patches.git',
+				},
+			},
+			context: {
+				searchspring: {
+					siteId: 'abc123',
+					framework,
+				},
+				project: {
+					// version: '0.0.1',
+					path: projectDir,
+				},
+				projectVersion: '0.100.2',
+			},
+			dev: false,
+			command: 'patch',
+			args: ['list'],
+		};
+
+		const versions = await getVersions(options, undefined, options.context.projectVersion);
+		const sortedMockVersions = mockPatches[framework].sort(cmp);
+		const endVersionIndex = mockPatches[framework].indexOf(options.context.projectVersion);
+		const trimmedMockVersions = sortedMockVersions.slice(0, endVersionIndex + 1);
+
+		expect(versions).toStrictEqual(trimmedMockVersions);
+	});
+
+	it('can get a list of available versions using both starting & ending at', async () => {
+		const framework = 'preact';
+
+		const options = {
+			config: {
+				searchspringDir: path.join(homeDir, '/.searchspring'),
+				patches: {
+					dir: mockPatchesDir,
+					repoName: 'snapfu-patches',
+					repoUrl: 'git@github.com:searchspring/snapfu-patches.git',
+				},
+			},
+			context: {
+				searchspring: {
+					siteId: 'abc123',
+					framework,
+				},
+				project: {
+					// version: '0.0.1',
+					path: projectDir,
+				},
+				projectVersion: '0.100.2',
+			},
+			dev: false,
+			command: 'patch',
+			args: ['list'],
+		};
+
+		const endVersion = '0.101.0';
+		const versions = await getVersions(options, options.context.projectVersion, endVersion);
+		const sortedMockVersions = mockPatches[framework].sort(cmp);
+		const startVersionIndex = mockPatches[framework].indexOf(options.context.projectVersion);
+		const endVersionIndex = mockPatches[framework].indexOf(endVersion);
+		const trimmedMockVersions = sortedMockVersions.slice(startVersionIndex + 1, endVersionIndex + 1);
+
+		expect(versions).toStrictEqual(trimmedMockVersions);
 	});
 });
 
-describe('edit JSON', () => {
-	it('can update key values', async () => {
-		// TODO
+describe('editYAMLorJSON function', () => {
+	it('can use update to add new key', async () => {
+		const options = {
+			context: {
+				project: {
+					path: projectDir,
+				},
+			},
+		};
+
+		const dependencies = {
+			'@searchspring/snap-preact': '0.21.0',
+			'@searchspring/snap-preact-components': '0.21.0',
+		};
+
+		const changes = [
+			{
+				update: {
+					dependencies: dependencies,
+				},
+			},
+		];
+
+		await editYAMLorJSON(options, 'package.json', changes, 'json');
+
+		const contents = await fsp.readFile(packagePath, 'utf8');
+		const parsed = JSON.parse(contents);
+
+		const expectedContents = { ...mockPackageJSON, dependencies };
+		expect(parsed).toStrictEqual(expectedContents);
+	});
+
+	it('can use update to add deep nested keys', async () => {
+		const options = {
+			context: {
+				project: {
+					path: projectDir,
+				},
+			},
+		};
+
+		const ocean = {
+			deep: {
+				fishes: ['tuna', 'swordfish'],
+			},
+		};
+
+		const changes = [
+			{
+				update: {
+					ocean: ocean,
+				},
+			},
+		];
+
+		await editYAMLorJSON(options, 'package.json', changes, 'json');
+
+		const contents = await fsp.readFile(packagePath, 'utf8');
+		const parsed = JSON.parse(contents);
+
+		const expectedContents = { ...mockPackageJSON, ocean };
+		expect(parsed).toStrictEqual(expectedContents);
+
+		const changes2 = [
+			{
+				update: {
+					ocean: {
+						deep: {
+							deeper: {
+								fishes: ['whale', 'sharks'],
+							},
+						},
+					},
+				},
+			},
+		];
+
+		await editYAMLorJSON(options, 'package.json', changes2, 'json');
+
+		const deeperContents = await fsp.readFile(packagePath, 'utf8');
+		const deeperParsed = JSON.parse(deeperContents);
+
+		const expectedDeeperContents = {
+			...mockPackageJSON,
+			ocean: {
+				deep: {
+					fishes: ['tuna', 'swordfish'],
+					deeper: {
+						fishes: ['whale', 'sharks'],
+					},
+				},
+			},
+		};
+		expect(deeperParsed).toStrictEqual(expectedDeeperContents);
+	});
+
+	it('can use update to alter existing keys', async () => {
+		const options = {
+			context: {
+				project: {
+					path: projectDir,
+				},
+			},
+		};
+
+		const version = '0.33.0';
+
+		const changes = [
+			{
+				update: {
+					version,
+				},
+			},
+		];
+
+		await editYAMLorJSON(options, 'package.json', changes, 'json');
+
+		const contents = await fsp.readFile(packagePath, 'utf8');
+		const parsed = JSON.parse(contents);
+
+		const expectedContents = { ...mockPackageJSON, version };
+		expect(parsed).toStrictEqual(expectedContents);
 	});
 });
+
+// describe('edit JSON', () => {
+// 	it('can update key values', async () => {
+// 		// TODO
+// 	});
+// });
