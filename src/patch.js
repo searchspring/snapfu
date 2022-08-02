@@ -266,7 +266,7 @@ const runPatch = async (options, patchFile) => {
 	}
 };
 
-const editYAMLorJSON = async (options, fileName, changes, fileType) => {
+export const editYAMLorJSON = async (options, fileName, changes, fileType) => {
 	if (!changes.length) {
 		return;
 	}
@@ -300,13 +300,57 @@ const editYAMLorJSON = async (options, fileName, changes, fileType) => {
 		const keysToChange = Object.keys(change[action]);
 
 		switch (action) {
+			/*
+				array actions:
+					* push (append)
+					* remove entry
+					* push if not existing
+			*/
+
+			// case 'push / append' MAYBE?
+
 			case 'update':
+				// should handle adding new keys and values, updating existing values on keys
+
+				/*
+
+					{
+						searchspring: {
+							siteId: 'thing',
+							whatever: ["stuff", "thignstuff", "stuff"]
+						}
+					}
+
+					changes:
+						- update:
+							searchspring:
+								whatever: "stuff"
+
+					{
+						searchspring: {
+							siteId: 'thing',
+						}
+					}
+
+				*/
+
 				for (const keyToUpdate of keysToChange) {
-					const valueObject = change[action][keyToUpdate];
-					const valueObjectKeys = Object.keys(valueObject || {});
-					valueObjectKeys.forEach((key) => {
-						file[keyToUpdate][key] = valueObject[key];
-					});
+					const value = change[action][keyToUpdate];
+					// TODO should this care about matching types?
+
+					if (typeof value == 'object') {
+						// TODO recursive for nested objects?
+						const valueObjectKeys = Object.keys(value || {});
+						valueObjectKeys.forEach((key) => {
+							if (!file[keyToUpdate]) {
+								file[keyToUpdate] = {};
+							}
+
+							file[keyToUpdate][key] = value[key];
+						});
+					} else if (typeof value == 'string') {
+						file[keyToUpdate] = value;
+					}
 				}
 				break;
 			case 'remove':

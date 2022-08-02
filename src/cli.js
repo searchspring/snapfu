@@ -175,7 +175,7 @@ async function parseArgumentsIntoOptions(rawArgs) {
 			patches: {
 				dir: path.join(searchspringDir, 'snapfu-patches'),
 				repoName: 'snapfu-patches',
-				repoUrl: `git@github.com:searchspring/snapfu-patches.git`,
+				repoUrl: `https://github.com/searchspring/snapfu-patches.git`,
 			},
 		},
 		user,
