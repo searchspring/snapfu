@@ -57,7 +57,7 @@ export const setSecretKey = async (options) => {
 			exit(1);
 		}
 
-		await auth.saveSecretKey(secretKey, siteId);
+		await auth.saveSecretKey(secretKey, siteId, options.config.searchspringDir);
 		await setRepoSecret(options, { siteId, secretKey, organization, name });
 	} catch (err) {
 		console.log(chalk.red(err));
@@ -71,7 +71,7 @@ export const checkSecretKey = async (options) => {
 		exit(1);
 	}
 
-	const keys = options.context.user.keys || {};
+	const keys = options.user.keys || {};
 	let siteId = options.context.searchspring.siteId;
 	let name = options.context.repository.name;
 

@@ -8,33 +8,31 @@ import YAML from 'yaml';
 import { auth } from './login.js';
 import { cmp, commandOutput } from './utils/index.js';
 
-const REPO_NAME = 'snapfu-patches';
-const PATCH_REPO = `git@github.com:searchspring/${REPO_NAME}.git`;
-const SEARCHSPRING_DIR = path.join(auth.home(), '/.searchspring');
-const PATCH_DIR = path.join(SEARCHSPRING_DIR, REPO_NAME);
-
-const setupPatchRepo = async (options) => {
+export const setupPatchRepo = async (options) => {
 	const { context } = options;
-	const { searchspring, version } = context;
+	const { searchspring, projectVersion } = context;
 	const { framework } = searchspring || {};
 
-	if (!searchspring || !context.project || !context.project.path || !framework || !version) {
-		console.log(chalk.red(`Error: No Snap project found in ${process.cwd()}.`));
+	if (!searchspring || !context.project || !context.project.path || !framework || !projectVersion) {
+		console.log(chalk.red(`Error: No Snap project found.`));
 		exit(1);
 	}
 
 	// clone or pull snapfu patches repository
 	try {
-		if (!existsSync(SEARCHSPRING_DIR)) {
-			mkdirSync(SEARCHSPRING_DIR);
+		if (!existsSync(options.config.searchspringDir)) {
+			mkdirSync(options.config.searchspringDir);
 		}
-		if (existsSync(PATCH_DIR)) {
-			console.log(`Updating ${REPO_NAME}...`);
-			const { stdout, stderr } = await commandOutput(`git pull`, PATCH_DIR);
+		if (existsSync(options.config.patches.dir)) {
+			console.log(`Updating ${options.config.patches.repoName}...`);
+			const { stdout, stderr } = await commandOutput(`git pull`, options.config.patches.dir);
 			console.log(stdout || stderr);
 		} else {
-			console.log(`Cloning ${REPO_NAME} into ${PATCH_DIR} via SSH...`);
-			const { stdout, stderr } = await commandOutput(`git clone ${PATCH_REPO} ${REPO_NAME}`, SEARCHSPRING_DIR);
+			console.log(`Cloning ${options.config.patches.repoName} into ${options.config.patches.dir} via SSH...`);
+			const { stdout, stderr } = await commandOutput(
+				`git clone ${options.config.patches.repoUrl} ${options.config.patches.repoName}`,
+				options.config.searchspringDir
+			);
 			console.log(stdout || stderr);
 		}
 	} catch (e) {
@@ -67,13 +65,13 @@ export const listPatches = async (options) => {
 	});
 };
 
-const getVersions = async (options, startingAt, endingAt) => {
+export const getVersions = async (options, startingAt, endingAt) => {
 	const { context } = options;
 	const { searchspring } = context;
 	const { framework } = searchspring || {};
 
 	// ~/.searchspring/snapfu-patches/{framework}/{version}
-	const frameworkPath = path.join(PATCH_DIR, framework);
+	const frameworkPath = path.join(options.config.patches.dir, framework);
 	const patchVersions = await fsp.readdir(path.join(frameworkPath));
 	let versions = [];
 	for (const file of patchVersions) {
@@ -98,11 +96,6 @@ const getVersions = async (options, startingAt, endingAt) => {
 
 export const applyPatches = async (options) => {
 	await setupPatchRepo(options);
-
-	// supports:
-	// snapfu patch apply vX.X.X
-	// snapfu patch apply X.X.X
-	// snapfu patch apply latest
 
 	const { context } = options;
 	const { projectVersion } = context;
@@ -174,12 +167,13 @@ export const applyPatch = async (options, patch) => {
 
 	// copy patch files into ./patch directory in project
 	await fsp.mkdir(projectPatchDir);
-	const patchDir = path.join(PATCH_DIR, framework, patch);
+	const patchDir = path.join(options.config.patches.dir, framework, patch);
 	await copyDir(patchDir, projectPatchDir);
 
 	// read the dir and log contents
 	const dirFiles = await fsp.readdir(projectPatchDir);
 
+	// execute .yaml files (maintenance first if found, followed by patch)
 	dirFiles.sort();
 	for (const file of dirFiles) {
 		const filePath = path.resolve(projectPatchDir, file);
@@ -190,13 +184,10 @@ export const applyPatch = async (options, patch) => {
 		}
 	}
 
-	// TODO: read in patch .yaml files
-	// TODO: execute .yaml files (maintenance first if found, followed by patch)
-
 	// clean up (remove ./patch)
 	await fsp.rm(projectPatchDir, { recursive: true, force: true });
 
-	// if run with --commit flag, (as would be done in the snap-action) a commit should be made
+	// TODO: if run with --commit flag, (as would be done in the snap-action) a commit should be made
 };
 
 const runPatch = async (options, patchFile) => {
@@ -212,7 +203,7 @@ const runPatch = async (options, patchFile) => {
 
 	console.log(`\n\n${path.basename(patchFile)} contents`, patchContents);
 
-	const { version, destination, steps } = patchContents;
+	const { steps } = patchContents;
 
 	// steps supported (file, run);
 	for (const step of steps) {
@@ -312,12 +303,9 @@ const editYAMLorJSON = async (options, fileName, changes, fileType) => {
 			case 'update':
 				for (const keyToUpdate of keysToChange) {
 					const valueObject = change[action][keyToUpdate];
-					const valueObjectKeys = Object.keys(valueObject);
+					const valueObjectKeys = Object.keys(valueObject || {});
 					valueObjectKeys.forEach((key) => {
-						if (file[keyToUpdate][key]) {
-							// key exists, update to new value
-							file[keyToUpdate][key] = valueObject[key];
-						}
+						file[keyToUpdate][key] = valueObject[key];
 					});
 				}
 				break;
@@ -326,10 +314,13 @@ const editYAMLorJSON = async (options, fileName, changes, fileType) => {
 					const objKeyToChange = change[action][keyToRemove];
 
 					let propertiesToRemove;
+					console.log('objKeyToChange', typeof objKeyToChange);
+
 					if (typeof objKeyToChange === 'string') {
 						propertiesToRemove = [objKeyToChange];
 					} else if (Array.isArray(objKeyToChange)) {
 						propertiesToRemove = objKeyToChange;
+					} else if (typeof objKeyToChange === 'object') {
 					}
 
 					for (const property of propertiesToRemove) {
@@ -342,7 +333,7 @@ const editYAMLorJSON = async (options, fileName, changes, fileType) => {
 			case 'set':
 				for (const keyToSet of keysToChange) {
 					const valueObject = change[action][keyToSet];
-					const valueObjectKeys = Object.keys(valueObject);
+					const valueObjectKeys = Object.keys(valueObject || {});
 					valueObjectKeys.forEach((key) => {
 						file[keyToSet][key] = valueObject[key];
 					});
@@ -353,6 +344,7 @@ const editYAMLorJSON = async (options, fileName, changes, fileType) => {
 				break;
 		}
 	}
+	console.log('file', file);
 
 	// write changes to file
 	if (parser.stringify(originalFile) === parser.stringify(file)) {

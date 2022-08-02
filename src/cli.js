@@ -1,8 +1,10 @@
 import arg from 'arg';
+import os from 'os';
+import path from 'path';
 import { exit } from 'process';
 import chalk from 'chalk';
 
-import { login, logout, orgAccess } from './login.js';
+import { login, logout, orgAccess, auth } from './login.js';
 import { initTemplate, listTemplates, removeTemplate, syncTemplate } from './recs.js';
 import { init } from './init.js';
 import { listPatches, applyPatches } from './patch.js';
@@ -36,9 +38,18 @@ async function parseArgumentsIntoOptions(rawArgs) {
 
 	const context = await getContext();
 
+	const searchspringDir = path.join(os.homedir(), '/.searchspring');
+	let user;
+	try {
+		user = await auth.loadCreds(searchspringDir);
+	} catch (err) {
+		// set empty keys
+		user = { keys: {} };
+	}
+
 	let secretKey;
 	try {
-		secretKey = args['--secret-key'] || context.user.keys[context.searchspring.siteId];
+		secretKey = args['--secret-key'] || user.keys[context.searchspring.siteId];
 	} catch (e) {
 		// do nothing - when running init context may not exist
 	}
@@ -49,7 +60,7 @@ async function parseArgumentsIntoOptions(rawArgs) {
 	const userCommands = ['init', 'recs', 'recommendation', 'recommendations', 'secret', 'secrets', 'logout', 'whoami', 'org-access'];
 	const secretCommands = ['recs', 'recommendation', 'recommendations', 'secret', 'secrets'];
 
-	const loggedIn = context.user && context.user.token;
+	const loggedIn = user && user.token;
 	const secretOptions = args['--secrets-ci'] || secretKey;
 
 	if (userCommands.includes(command) && !(loggedIn || secretOptions)) {
@@ -80,7 +91,7 @@ async function parseArgumentsIntoOptions(rawArgs) {
 				.map((siteId) => {
 					try {
 						const { name } = context.searchspring.siteId[siteId];
-						const secretKey = getSecretKeyFromCLI(siteId) || context.user.keys[siteId];
+						const secretKey = getSecretKeyFromCLI(siteId) || user.keys[siteId];
 
 						if (!secretKey) {
 							console.log(chalk.red(`Cannot find the secretKey for siteId '${siteId}'.`));
@@ -140,7 +151,34 @@ async function parseArgumentsIntoOptions(rawArgs) {
 		}
 	}
 
+	let packageJSON = {};
+	try {
+		const executionPath = process.argv[1];
+		const snapfuPath = path.dirname(executionPath);
+		let dirName;
+		try {
+			dirName = __dirname;
+		} catch (e) {
+			dirName = snapfuPath;
+		}
+		const snapfuPackageJSON = path.join(dirName, '../package.json');
+		const contents = await fsp.readFile(snapfuPackageJSON, 'utf8');
+		packageJSON = JSON.parse(contents);
+	} catch (e) {
+		console.log('Could not determine Snapfu version.', e);
+		exit(1);
+	}
+
 	return {
+		config: {
+			searchspringDir,
+			patches: {
+				dir: path.join(searchspringDir, 'snapfu-patches'),
+				repoName: 'snapfu-patches',
+				repoUrl: `git@github.com:searchspring/snapfu-patches.git`,
+			},
+		},
+		user,
 		dev: args['--dev'] || false,
 		command,
 		args: args._.slice(1),
@@ -150,6 +188,7 @@ async function parseArgumentsIntoOptions(rawArgs) {
 		},
 		context,
 		multipleSites,
+		version: packageJSON.version,
 	};
 }
 
@@ -239,7 +278,7 @@ export async function cli(args) {
 		case 'logout': {
 			try {
 				await logout(options);
-				console.log(`User ${chalk.cyan(options.context.user.login)} logged out.`);
+				console.log(`User ${chalk.cyan(options.user.login)} logged out.`);
 			} catch (err) {
 				console.log(chalk.red(err.message));
 			}
@@ -253,7 +292,7 @@ export async function cli(args) {
 		}
 
 		case 'whoami': {
-			console.log(`${chalk.blue(options.context.user.name)} (${chalk.green(options.context.user.login)})`);
+			console.log(`${chalk.blue(options.user.name)} (${chalk.green(options.user.login)})`);
 			break;
 		}
 
@@ -327,7 +366,7 @@ async function checkForLatestVersion(options) {
 		// using Promise.race to wait a maximum of 1.2 seconds
 		const latest = await Promise.race([(await commandOutput('npm view snapfu version')).stdout.trim(), wait(1200)]);
 
-		if (latest && cmp(latest, options.context.version) == 1) {
+		if (latest && cmp(latest, options.version) == 1) {
 			console.log(`\n\n${chalk.bold.white(`Version ${chalk.bold.red(`${latest}`)} of snapfu available.\nUpdate with:`)}`);
 			console.log(chalk.grey(`\n\tnpm install -g snapfu\n`));
 		}

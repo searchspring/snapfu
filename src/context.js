@@ -7,15 +7,7 @@ import { auth } from './login.js';
 import { commandOutput } from './utils/index.js';
 
 export async function getContext(dir) {
-	let user, project, searchspring, branch, remote, organization, name, projectVersion;
-
-	try {
-		user = await auth.loadCreds();
-	} catch (err) {
-		// set empty keys
-		user = { keys: {} };
-	}
-
+	let project, searchspring, branch, remote, organization, name, projectVersion;
 	try {
 		const packageContext = await getPackageJSON(dir);
 
@@ -42,26 +34,7 @@ export async function getContext(dir) {
 			.split('/');
 	}
 
-	let packageJSON = {};
-	try {
-		const executionPath = process.argv[1];
-		const snapfuPath = path.dirname(executionPath);
-		let dirName;
-		try {
-			dirName = __dirname;
-		} catch (e) {
-			dirName = snapfuPath;
-		}
-		const snapfuPackageJSON = path.join(dirName, '../package.json');
-		const contents = await fsp.readFile(snapfuPackageJSON, 'utf8');
-		packageJSON = JSON.parse(contents);
-	} catch (e) {
-		console.log('Could not determine Snapfu version.', e);
-		exit(1);
-	}
-
 	return {
-		user,
 		project,
 		repository: {
 			remote,
@@ -71,7 +44,6 @@ export async function getContext(dir) {
 		},
 		searchspring,
 		projectVersion,
-		version: packageJSON.version,
 	};
 }
 

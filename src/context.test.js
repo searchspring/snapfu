@@ -76,10 +76,9 @@ describe('getPackageJSON function', () => {
 describe('getContext function', () => {
 	it('makes available context data', async () => {
 		const context = await getContext();
-		expect(context).toHaveProperty('user');
 		expect(context).toHaveProperty('project');
 		expect(context).toHaveProperty('repository');
 		expect(context).toHaveProperty('searchspring');
-		expect(context).toHaveProperty('version');
+		expect(context).toHaveProperty('projectVersion');
 	});
 });

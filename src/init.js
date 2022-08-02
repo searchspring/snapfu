@@ -34,7 +34,7 @@ export const createDir = (dir) => {
 
 export const init = async (options) => {
 	try {
-		const { user } = options.context;
+		const { user } = options;
 
 		let dir;
 		if (options.args.length === 1) {
@@ -280,7 +280,7 @@ export const init = async (options) => {
 			await wait(1000);
 
 			// save secretKey mapping to creds.json
-			await auth.saveSecretKey(answers.secretKey, answers.siteId);
+			await auth.saveSecretKey(answers.secretKey, answers.siteId, options.config.searchspringDir);
 			await setRepoSecret(options, {
 				siteId: answers.siteId,
 				secretKey: answers.secretKey,
@@ -306,7 +306,7 @@ export const init = async (options) => {
 };
 
 export const setBranchProtection = async function (options, details) {
-	const { user } = options.context;
+	const { user } = options;
 
 	let octokit = new Octokit({
 		auth: user.token,
@@ -356,7 +356,7 @@ export const setBranchProtection = async function (options, details) {
 
 export const setRepoSecret = async function (options, details) {
 	const initContext = await getContext(details.dir);
-	const { user } = options.context;
+	const { user } = options;
 
 	let octokit = new Octokit({
 		auth: user.token,
