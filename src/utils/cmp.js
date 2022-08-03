@@ -5,40 +5,23 @@ export const cmp = (a, b) => {
 		const na = Number(pa[i]);
 		const nb = Number(pb[i]);
 
-		if (i === 2 && (isNaN(na) || isNaN(nb))) {
-			// last digit & has letter
-			const a_number = Number(pa[i].match(/(0|[1-9]\d*)/)[0]);
-			const a_letter = ((pa[i].match(/[a-zA-Z]+$/) || [])[0] || '').toLowerCase();
+		if (i === 2) {
+			// last digit & has additional versioning (eg 0.33.0-1)
+			const [fa, la] = pa[i].split('-');
+			const [fb, lb] = pb[i].split('-');
+			const nfa = Number(fa);
+			const nfb = Number(fb);
+			const nla = Number(la) || -Infinity;
+			const nlb = Number(lb) || -Infinity;
 
-			const b_number = Number(pb[i].match(/(0|[1-9]\d*)/)[0]);
-			const b_letter = ((pb[i].match(/[a-zA-Z]+$/) || [])[0] || '').toLowerCase();
+			if (nfa != nfb) {
+				return nfa - nfb;
+			}
 
-			if (a_number > b_number) {
-				return 1;
-			}
-			if (b_number > a_number) {
-				return -1;
-			}
-			if (a_number == b_number) {
-				if (!b_letter) {
-					return 1;
-				}
-				if (!a_letter) {
-					return -1;
-				}
-				if (a_letter.charCodeAt() > b_letter.charCodeAt(0)) {
-					return 1;
-				}
-				if (b_letter.charCodeAt() > a_letter.charCodeAt(0)) {
-					return -1;
-				}
-			}
+			return nla - nlb;
 		}
 
 		if (na > nb) return 1;
 		if (nb > na) return -1;
-		if (!isNaN(na) && isNaN(nb)) return 1;
-		if (isNaN(na) && !isNaN(nb)) return -1;
 	}
-	return 0;
 };
