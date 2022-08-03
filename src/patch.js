@@ -84,7 +84,7 @@ export const getVersions = async (options, startingAt, endingAt) => {
 	versions.sort(cmp);
 
 	if (startingAt) {
-		versions = versions.filter((version) => cmp(version, startingAt) === 1);
+		versions = versions.filter((version) => cmp(version, startingAt) > 0);
 	}
 
 	if (endingAt) {
@@ -312,6 +312,8 @@ export const editYAMLorJSON = async (options, fileName, changes, fileType) => {
 									//obj doesnt exist
 									obj = {};
 									obj[key] = value[key];
+								} else if (Array.isArray(obj[key])) {
+									obj[key] = obj[key].concat(value[key]);
 								} else if (typeof obj[key] == 'object') {
 									//obj is object, run it again
 									obj[key] = checkForNestedObj(obj[key], value[key]);
@@ -348,17 +350,26 @@ export const editYAMLorJSON = async (options, fileName, changes, fileType) => {
 						const checkfor = (obj) => {
 							if (Array.isArray(obj)) {
 								// found leaf node (array)
-								const initialReference = file[keyToRemove];
+								let initialReference = file[keyToRemove];
 								let currentPath = initialReference;
 
 								for (let i = 0; i < pathToRemove.length; i++) {
 									currentPath = currentPath[pathToRemove[i]];
 								}
 
-								// loop through the obj and delete keys
-								obj.forEach((key) => {
-									delete currentPath[key];
-								});
+								if (Array.isArray(currentPath)) {
+									obj.forEach((value) => {
+										const index = currentPath.indexOf(value);
+										if (index > -1) {
+											currentPath.splice(index, 1);
+										}
+									});
+								} else {
+									// loop through the obj and delete keys
+									obj.forEach((key) => {
+										delete currentPath[key];
+									});
+								}
 							} else {
 								// is an object, continue until you find an array
 								const keys = Object.keys(obj || {});

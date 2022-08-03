@@ -12,7 +12,7 @@ const mockPackageJSON = {
 		siteId: 'ga9kq2',
 		framework: 'preact',
 		platform: 'bigcommerce',
-		tags: ['finder'],
+		tags: ['finder', 'ac', 'email'],
 		nestedObject: {
 			hello: 'world',
 
@@ -25,7 +25,7 @@ const mockPackageJSON = {
 };
 
 const mockPatches = {
-	preact: ['0.100.0', '0.100.1', '0.100.2b', '0.100.2', '0.100.2a', '0.101.0', '0.102.0'],
+	preact: ['0.100.0', '0.100.1', '0.100.2-2', '0.100.2', '0.100.2-1', '0.101.0', '0.102.0'],
 	react: ['0.0.1', '0.0.2', '0.0.3', '0.0.4', '0.1.0', '0.1.1'],
 };
 
@@ -377,6 +377,35 @@ describe('editYAMLorJSON function', () => {
 		expect(parsed).toStrictEqual(expectedContents);
 	});
 
+	it('can append to an existing array', async () => {
+		const options = {
+			context: {
+				project: {
+					path: projectDir,
+				},
+			},
+		};
+
+		const changes = [
+			{
+				update: {
+					searchspring: {
+						tags: ['newItem', 'newer', 'newest'],
+					},
+				},
+			},
+		];
+
+		await editYAMLorJSON(options, 'package.json', changes, 'json');
+
+		const contents = await fsp.readFile(packagePath, 'utf8');
+		const parsed = JSON.parse(contents);
+
+		const expectedContents = JSON.parse(JSON.stringify(mockPackageJSON));
+		(expectedContents.searchspring.tags = expectedContents.searchspring.tags.concat(['newItem', 'newer', 'newest'])),
+			expect(parsed).toStrictEqual(expectedContents);
+	});
+
 	it('can use remove to remove keys', async () => {
 		const options = {
 			context: {
@@ -429,6 +458,36 @@ describe('editYAMLorJSON function', () => {
 		const expectedContents = { ...mockPackageJSON };
 		delete expectedContents.searchspring.siteId;
 		delete expectedContents.searchspring.framework;
+
+		expect(parsed).toStrictEqual(expectedContents);
+	});
+
+	it('can use remove to remove array entries', async () => {
+		const options = {
+			context: {
+				project: {
+					path: projectDir,
+				},
+			},
+		};
+
+		const changes = [
+			{
+				remove: {
+					searchspring: {
+						tags: ['finder', 'ac'],
+					},
+				},
+			},
+		];
+
+		await editYAMLorJSON(options, 'package.json', changes, 'json');
+
+		const contents = await fsp.readFile(packagePath, 'utf8');
+		const parsed = JSON.parse(contents);
+
+		const expectedContents = { ...mockPackageJSON };
+		expectedContents.searchspring.tags = ['email'];
 
 		expect(parsed).toStrictEqual(expectedContents);
 	});
@@ -545,6 +604,33 @@ describe('editYAMLorJSON function', () => {
 			...mockPackageJSON,
 		};
 		delete expectedContents.searchspring.nestedObject.deep.helloo;
+		expect(parsed).toStrictEqual(expectedContents);
+	});
+
+	it('can use remove when key does not exist', async () => {
+		const options = {
+			context: {
+				project: {
+					path: projectDir,
+				},
+			},
+		};
+
+		const changes = [
+			{
+				remove: {
+					searchspring: ['doesnotexist'],
+				},
+			},
+		];
+
+		await editYAMLorJSON(options, 'package.json', changes, 'json');
+
+		const contents = await fsp.readFile(packagePath, 'utf8');
+		const parsed = JSON.parse(contents);
+
+		const expectedContents = { ...mockPackageJSON };
+
 		expect(parsed).toStrictEqual(expectedContents);
 	});
 });
