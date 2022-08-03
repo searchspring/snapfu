@@ -13,6 +13,14 @@ const mockPackageJSON = {
 		framework: 'preact',
 		platform: 'bigcommerce',
 		tags: ['finder'],
+		nestedObject: {
+			hello: 'world',
+
+			deep: {
+				search: 'spring',
+				helloo: 'woorld',
+			},
+		},
 	},
 };
 
@@ -288,7 +296,7 @@ describe('editYAMLorJSON function', () => {
 
 		const ocean = {
 			deep: {
-				fishes: ['tuna', 'swordfish'],
+				fishes: 'tuna swordfish',
 			},
 		};
 
@@ -314,7 +322,7 @@ describe('editYAMLorJSON function', () => {
 					ocean: {
 						deep: {
 							deeper: {
-								fishes: ['whale', 'sharks'],
+								fishes: 'whale sharks',
 							},
 						},
 					},
@@ -331,9 +339,9 @@ describe('editYAMLorJSON function', () => {
 			...mockPackageJSON,
 			ocean: {
 				deep: {
-					fishes: ['tuna', 'swordfish'],
+					fishes: 'tuna swordfish',
 					deeper: {
-						fishes: ['whale', 'sharks'],
+						fishes: 'whale sharks',
 					},
 				},
 			},
@@ -368,10 +376,175 @@ describe('editYAMLorJSON function', () => {
 		const expectedContents = { ...mockPackageJSON, version };
 		expect(parsed).toStrictEqual(expectedContents);
 	});
-});
 
-// describe('edit JSON', () => {
-// 	it('can update key values', async () => {
-// 		// TODO
-// 	});
-// });
+	it('can use remove to remove keys', async () => {
+		const options = {
+			context: {
+				project: {
+					path: projectDir,
+				},
+			},
+		};
+
+		const changes = [
+			{
+				remove: {
+					searchspring: ['siteId'],
+				},
+			},
+		];
+
+		await editYAMLorJSON(options, 'package.json', changes, 'json');
+
+		const contents = await fsp.readFile(packagePath, 'utf8');
+		const parsed = JSON.parse(contents);
+
+		const expectedContents = { ...mockPackageJSON };
+		delete expectedContents.searchspring.siteId;
+		expect(parsed).toStrictEqual(expectedContents);
+	});
+
+	it('can use remove to remove multiple keys', async () => {
+		const options = {
+			context: {
+				project: {
+					path: projectDir,
+				},
+			},
+		};
+
+		const changes = [
+			{
+				remove: {
+					searchspring: ['siteId', 'framework'],
+				},
+			},
+		];
+
+		await editYAMLorJSON(options, 'package.json', changes, 'json');
+
+		const contents = await fsp.readFile(packagePath, 'utf8');
+		const parsed = JSON.parse(contents);
+
+		const expectedContents = { ...mockPackageJSON };
+		delete expectedContents.searchspring.siteId;
+		delete expectedContents.searchspring.framework;
+
+		expect(parsed).toStrictEqual(expectedContents);
+	});
+
+	it('can use remove to remove root level keys', async () => {
+		const options = {
+			context: {
+				project: {
+					path: projectDir,
+				},
+			},
+		};
+
+		const changes = [
+			{
+				remove: ['version'],
+			},
+		];
+
+		await editYAMLorJSON(options, 'package.json', changes, 'json');
+
+		const contents = await fsp.readFile(packagePath, 'utf8');
+		const parsed = JSON.parse(contents);
+
+		const expectedContents = { ...mockPackageJSON };
+		delete expectedContents.version;
+		expect(parsed).toStrictEqual(expectedContents);
+	});
+
+	it('can use remove to remove multiple root level keys', async () => {
+		const options = {
+			context: {
+				project: {
+					path: projectDir,
+				},
+			},
+		};
+
+		const changes = [
+			{
+				remove: ['version', 'searchspring'],
+			},
+		];
+
+		await editYAMLorJSON(options, 'package.json', changes, 'json');
+
+		const contents = await fsp.readFile(packagePath, 'utf8');
+		const parsed = JSON.parse(contents);
+
+		const expectedContents = { ...mockPackageJSON };
+		delete expectedContents.version;
+		delete expectedContents.searchspring;
+		expect(parsed).toStrictEqual(expectedContents);
+	});
+
+	it('can use remove to remove nested keys', async () => {
+		const options = {
+			context: {
+				project: {
+					path: projectDir,
+				},
+			},
+		};
+
+		const changes = [
+			{
+				remove: {
+					searchspring: {
+						nestedObject: ['hello'],
+					},
+				},
+			},
+		];
+
+		await editYAMLorJSON(options, 'package.json', changes, 'json');
+
+		const contents = await fsp.readFile(packagePath, 'utf8');
+		const parsed = JSON.parse(contents);
+
+		const expectedContents = {
+			...mockPackageJSON,
+		};
+		delete expectedContents.searchspring.nestedObject.hello;
+		expect(parsed).toStrictEqual(expectedContents);
+	});
+
+	it('can use remove to remove deep nested keys', async () => {
+		const options = {
+			context: {
+				project: {
+					path: projectDir,
+				},
+			},
+		};
+
+		const changes = [
+			{
+				remove: {
+					searchspring: {
+						nestedObject: {
+							deep: ['helloo'],
+						},
+					},
+				},
+			},
+		];
+
+		await editYAMLorJSON(options, 'package.json', changes, 'json');
+
+		const contents = await fsp.readFile(packagePath, 'utf8');
+		const parsed = JSON.parse(contents);
+
+		const expectedContents = {
+			...mockPackageJSON,
+		};
+		delete expectedContents.searchspring.nestedObject.deep.helloo;
+		expect(parsed).toStrictEqual(expectedContents);
+	});
+});
