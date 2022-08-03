@@ -300,95 +300,83 @@ export const editYAMLorJSON = async (options, fileName, changes, fileType) => {
 		const keysToChange = Object.keys(change[action]);
 
 		switch (action) {
-			/*
-				array actions:
-					* push (append)
-					* remove entry
-					* push if not existing
-			*/
-
-			// case 'push / append' MAYBE?
-
 			case 'update':
-				// should handle adding new keys and values, updating existing values on keys
-
-				/*
-
-					{
-						searchspring: {
-							siteId: 'thing',
-							whatever: ["stuff", "thignstuff", "stuff"]
-						}
-					}
-
-					changes:
-						- update:
-							searchspring:
-								whatever: "stuff"
-
-					{
-						searchspring: {
-							siteId: 'thing',
-						}
-					}
-
-				*/
-
 				for (const keyToUpdate of keysToChange) {
 					const value = change[action][keyToUpdate];
-					// TODO should this care about matching types?
 
-					if (typeof value == 'object') {
-						// TODO recursive for nested objects?
-						const valueObjectKeys = Object.keys(value || {});
-						valueObjectKeys.forEach((key) => {
-							if (!file[keyToUpdate]) {
-								file[keyToUpdate] = {};
-							}
+					const checkForNestedObj = (obj, value) => {
+						if (typeof value == 'object') {
+							const valueObjectKeys = Object.keys(value || {});
+							valueObjectKeys.forEach((key) => {
+								if (!obj) {
+									//obj doesnt exist
+									obj = {};
+									obj[key] = value[key];
+								} else if (typeof obj[key] == 'object') {
+									//obj is object, run it again
+									obj[key] = checkForNestedObj(obj[key], value[key]);
+								} else {
+									obj[key] = value[key];
+								}
+							});
+						} else if (typeof value == 'string') {
+							obj = value;
+						}
+						return obj;
+					};
 
-							file[keyToUpdate][key] = value[key];
-						});
-					} else if (typeof value == 'string') {
-						file[keyToUpdate] = value;
-					}
+					//init
+					file[keyToUpdate] = checkForNestedObj(file[keyToUpdate], value);
 				}
 				break;
 			case 'remove':
-				for (const keyToRemove of keysToChange) {
-					const objKeyToChange = change[action][keyToRemove];
-
-					let propertiesToRemove;
-					console.log('objKeyToChange', typeof objKeyToChange);
-
-					if (typeof objKeyToChange === 'string') {
-						propertiesToRemove = [objKeyToChange];
-					} else if (Array.isArray(objKeyToChange)) {
-						propertiesToRemove = objKeyToChange;
-					} else if (typeof objKeyToChange === 'object') {
-					}
-
-					for (const property of propertiesToRemove) {
-						if (file[keyToRemove][property]) {
-							delete file[keyToRemove][property];
-						}
-					}
-				}
-				break;
-			case 'set':
-				for (const keyToSet of keysToChange) {
-					const valueObject = change[action][keyToSet];
-					const valueObjectKeys = Object.keys(valueObject || {});
-					valueObjectKeys.forEach((key) => {
-						file[keyToSet][key] = valueObject[key];
+				if (Array.isArray(change[action])) {
+					// remove is an array of keys to delete at the top level of file
+					change[action].forEach((key) => {
+						delete file[key];
 					});
-				}
-				break;
+				} else if (typeof change[action] === 'object') {
+					// remove is an object with possible nested properties to delete
+					for (const keyToRemove of keysToChange) {
+						if (!(keyToRemove in file)) {
+							// keyToRemove is not in file
+							return;
+						}
 
+						let pathToRemove = [];
+
+						const checkfor = (obj) => {
+							if (Array.isArray(obj)) {
+								// found leaf node (array)
+								const initialReference = file[keyToRemove];
+								let currentPath = initialReference;
+
+								for (let i = 0; i < pathToRemove.length; i++) {
+									currentPath = currentPath[pathToRemove[i]];
+								}
+
+								// loop through the obj and delete keys
+								obj.forEach((key) => {
+									delete currentPath[key];
+								});
+							} else {
+								// is an object, continue until you find an array
+								const keys = Object.keys(obj || {});
+								for (let i = 0; i < keys.length; i++) {
+									pathToRemove.push(keys[i]);
+									checkfor(obj[keys[i]]);
+								}
+							}
+						};
+						checkfor(change[action][keyToRemove]);
+					}
+				}
+
+				break;
 			default:
 				break;
 		}
 	}
-	console.log('file', file);
 
 	// write changes to file
 	if (parser.stringify(originalFile) === parser.stringify(file)) {
