@@ -1,6 +1,44 @@
 import { cmp } from './cmp';
 
 describe('cmp function', () => {
+	it('can compare two versions', () => {
+		let a = '0.1.1';
+		let b = '0.1.2';
+		expect(cmp(a, b)).toBeLessThan(0);
+
+		a = '0.1.2';
+		b = '0.1.1';
+		expect(cmp(a, b)).toBeGreaterThan(0);
+
+		a = '0.1.1';
+		b = '0.1.1';
+		expect(cmp(a, b)).toBe(0);
+
+		a = '0.1.2-1';
+		b = '0.1.2-2';
+		expect(cmp(a, b)).toBeLessThan(0);
+
+		a = '0.1.2-2';
+		b = '0.1.2-1';
+		expect(cmp(a, b)).toBeGreaterThan(0);
+
+		a = '0.1.1-2';
+		b = '0.1.2-1';
+		expect(cmp(a, b)).toBeLessThan(0);
+
+		a = '0.1.2-1';
+		b = '0.1.1-2';
+		expect(cmp(a, b)).toBeGreaterThan(0);
+
+		a = '0.1.1';
+		b = '0.1.1-1';
+		expect(cmp(a, b)).toBeLessThan(0);
+
+		a = '0.1.1-1';
+		b = '0.1.1';
+		expect(cmp(a, b)).toBeGreaterThan(0);
+	});
+
 	it('can sort versions', async () => {
 		const sortedVersions = [
 			'0.0.0',

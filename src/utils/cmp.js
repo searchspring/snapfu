@@ -11,8 +11,8 @@ export const cmp = (a, b) => {
 			const [fb, lb] = pb[i].split('-');
 			const nfa = Number(fa);
 			const nfb = Number(fb);
-			const nla = Number(la) || -Infinity;
-			const nlb = Number(lb) || -Infinity;
+			const nla = Number(la) || -9999999;
+			const nlb = Number(lb) || -9999999;
 
 			if (nfa != nfb) {
 				return nfa - nfb;
