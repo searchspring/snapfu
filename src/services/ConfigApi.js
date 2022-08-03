@@ -16,8 +16,8 @@ export class ConfigApi {
 		}
 	}
 
-	async validateSite(name, siteId) {
-		const apiPath = `${this.host}/api/customer/${siteId}/verify`;
+	async validateSite(siteId) {
+		const apiPath = `${this.host}/api/customer/${siteId}/verifyKey`;
 
 		const response = await fetch(apiPath, {
 			method: 'post',
@@ -26,9 +26,6 @@ export class ConfigApi {
 				Authorization: this.secretKey,
 				'User-Agent': this.userAgent,
 			},
-			body: JSON.stringify({
-				name,
-			}),
 		});
 
 		if (response.status == 200) {
