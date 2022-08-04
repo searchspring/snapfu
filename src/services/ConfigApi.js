@@ -20,7 +20,7 @@ export class ConfigApi {
 		const apiPath = `${this.host}/api/customer/${siteId}/verifyKey`;
 
 		const response = await fetch(apiPath, {
-			method: 'post',
+			method: 'get',
 			headers: {
 				Accept: 'application/json',
 				Authorization: this.secretKey,
