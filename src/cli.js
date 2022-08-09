@@ -1,7 +1,9 @@
 import arg from 'arg';
 import os from 'os';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { exit } from 'process';
+import { promises as fsp } from 'fs';
 import chalk from 'chalk';
 
 import { login, logout, orgAccess, auth } from './login.js';
@@ -14,6 +16,10 @@ import { help } from './help.js';
 import { getContext } from './context.js';
 import { setSecretKey, checkSecretKey } from './secret.js';
 import { commandOutput } from './utils/index.js';
+
+// these node variables are not available in ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 async function parseArgumentsIntoOptions(rawArgs) {
 	let args;
@@ -153,15 +159,7 @@ async function parseArgumentsIntoOptions(rawArgs) {
 
 	let packageJSON = {};
 	try {
-		const executionPath = process.argv[1];
-		const snapfuPath = path.dirname(executionPath);
-		let dirName;
-		try {
-			dirName = __dirname;
-		} catch (e) {
-			dirName = snapfuPath;
-		}
-		const snapfuPackageJSON = path.join(dirName, '../package.json');
+		const snapfuPackageJSON = path.join(__dirname, '../package.json');
 		const contents = await fsp.readFile(snapfuPackageJSON, 'utf8');
 		packageJSON = JSON.parse(contents);
 	} catch (e) {
