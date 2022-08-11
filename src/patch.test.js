@@ -327,7 +327,6 @@ describe('listPatches', () => {
 
 		await listPatches(options, true);
 
-		console.warn('history', logHistory);
 		mockPatches.preact.forEach((version) => {
 			expect(logHistory.includes(version)).toBe(true);
 		});
