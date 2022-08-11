@@ -38,18 +38,16 @@ describe('ConfigApi Class', () => {
 			const mockResponse = '{"credentials": "verified"}';
 			fetch.mockReturnValue(Promise.resolve(new Response(mockResponse, { status: 200 })));
 
-			const siteName = 'website.com';
 			const siteId = 'abc123';
 			const secretKey = 'secret';
 
 			const api = new ConfigApi(secretKey, true);
 
-			const response = await api.validateSite(siteName, siteId);
+			const response = await api.validateSite(siteId);
 
 			expect(fetch).toHaveBeenCalledTimes(1);
-			expect(fetch).toHaveBeenCalledWith(`${DEV_API_HOST}/api/customer/${siteId}/verify`, {
-				method: 'POST',
-				body: `{\"name\":\"${siteName}\"}`,
+			expect(fetch).toHaveBeenCalledWith(`${DEV_API_HOST}/api/customer/${siteId}/verifyKey`, {
+				method: 'GET',
 				headers: {
 					Accept: 'application/json',
 					Authorization: secretKey,
