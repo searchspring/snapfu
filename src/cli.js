@@ -28,6 +28,7 @@ async function parseArgumentsIntoOptions(rawArgs) {
 		args = arg(
 			{
 				'--dev': Boolean,
+				'--ci': Boolean,
 				'--secret-key': String,
 				'--secrets-ci': String,
 			},
@@ -42,7 +43,7 @@ async function parseArgumentsIntoOptions(rawArgs) {
 
 	const command = args._[0];
 
-	const context = await getContext();
+	const context = await getContext(process.cwd());
 
 	const searchspringDir = path.join(os.homedir(), '/.searchspring');
 	let user;
@@ -183,6 +184,7 @@ async function parseArgumentsIntoOptions(rawArgs) {
 		options: {
 			secretKey,
 			secrets: args['--secrets-ci'],
+			ci: args['--ci'],
 		},
 		context,
 		multipleSites,
@@ -348,7 +350,7 @@ export async function cli(args) {
 		}
 	}
 
-	await checkForLatestVersion(options);
+	if (!options.options.ci) await checkForLatestVersion(options);
 
 	exit();
 }
