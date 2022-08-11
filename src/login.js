@@ -61,7 +61,7 @@ export const auth = {
 			try {
 				let user = JSON.parse(query.user);
 				try {
-					const creds = await this.loadCreds(dir);
+					const creds = await auth.loadCreds(dir);
 					user.keys = creds.keys || {}; // preserve any exisiting keys
 				} catch (e) {
 					// do nothing when login is invoked for the first time and creds.json doesn't exist
@@ -80,7 +80,7 @@ export const auth = {
 		if (!fs.existsSync(dir)) {
 			fs.mkdirSync(dir);
 		}
-		const creds = await this.auth.loadCreds(dir);
+		const creds = await auth.loadCreds(dir);
 		if (creds && secretKey && siteId) {
 			creds.keys = creds.keys || {};
 			creds.keys[siteId] = secretKey;
@@ -96,7 +96,7 @@ export const auth = {
 		}
 	},
 	removeCreds: async (dir) => {
-		const creds = await this.auth.loadCreds(dir);
+		const creds = await auth.loadCreds(dir);
 		if (creds) {
 			const credsLocation = path.join(dir, '/creds.json');
 			const newCreds = { keys: creds.keys };

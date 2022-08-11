@@ -19,8 +19,8 @@ export async function getContext(dir) {
 	}
 
 	try {
-		branch = await (await commandOutput('git branch --show-current', dir)).stdout.trim();
-		remote = await commandOutput('git config --get remote.origin.url', dir).stdout.trim();
+		branch = (await commandOutput('git branch --show-current', dir)).stdout.trim();
+		remote = (await commandOutput('git config --get remote.origin.url', dir)).stdout.trim();
 	} catch (err) {
 		// do nothing
 	}
