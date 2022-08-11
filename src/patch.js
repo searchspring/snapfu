@@ -2,11 +2,11 @@ import { existsSync, mkdirSync, promises as fsp, statSync } from 'fs';
 import path from 'path';
 import { exit } from 'process';
 import chalk from 'chalk';
+import inquirer from 'inquirer';
 import ncp from 'ncp';
 import YAML from 'yaml';
 
-import { auth } from './login.js';
-import { cmp, commandOutput } from './utils/index.js';
+import { cmp, commandOutput, boxify, boxifyVersions } from './utils/index.js';
 
 export const setupPatchRepo = async (options) => {
 	const { context } = options;
@@ -42,27 +42,38 @@ export const setupPatchRepo = async (options) => {
 	}
 };
 
-export const listPatches = async (options) => {
-	await setupPatchRepo(options);
+export const listPatches = async (options, test = false) => {
+	if (!test) await setupPatchRepo(options);
 
 	const { context } = options;
 	const { projectVersion } = context;
+	let startVersion = projectVersion;
 
 	if (!projectVersion) {
 		console.log(chalk.red(`Could not find project version in package.json`));
 		exit(1);
 	}
 
-	const availablePatches = await getVersions(options, projectVersion);
+	if (options.args[1] == 'all') {
+		startVersion = undefined;
+	}
 
-	console.log(chalk.white.bold(`Current Project Version:`), chalk.bold.cyan(projectVersion));
+	const availablePatches = await getVersions(options, startVersion);
+
+	console.log(`\n${chalk.white.bold(`Current Project Version:`)} ${chalk.bold.cyan(projectVersion)}`);
 
 	if (availablePatches.length) {
-		console.log(chalk.white.bold('Available Patches:'));
+		console.log(chalk.white.bold(`\n${startVersion ? 'Available ' : ''}Patches:`));
+		availablePatches.forEach((version) => {
+			if (version == projectVersion) {
+				console.log(chalk.cyan(`${chalk.bold(version)} (current)`));
+			} else {
+				console.log(`${version}`);
+			}
+		});
+	} else {
+		console.log(chalk.cyan('Project is on latest version.'));
 	}
-	availablePatches.forEach((version) => {
-		console.log(chalk.white(version));
-	});
 };
 
 export const getVersions = async (options, startingAt, endingAt) => {
@@ -94,8 +105,8 @@ export const getVersions = async (options, startingAt, endingAt) => {
 	return versions;
 };
 
-export const applyPatches = async (options) => {
-	await setupPatchRepo(options);
+export const applyPatches = async (options, test = false) => {
+	if (!test) await setupPatchRepo(options);
 
 	const { context } = options;
 	const { projectVersion } = context;
@@ -132,7 +143,8 @@ export const applyPatches = async (options) => {
 	try {
 		patches = await getVersions(options, projectVersion, filteredVersionApply);
 		if (patches.length == 0) {
-			console.log('Nothing to patch.');
+			console.log(`\n${chalk.bold('Nothing to patch.')}`);
+			if (!filteredVersionApply) console.log(chalk.cyan('Project is on latest version.'));
 			return;
 		}
 	} catch (err) {
@@ -140,11 +152,40 @@ export const applyPatches = async (options) => {
 		return;
 	}
 
+	// display transition output
+	const finalVersion = patches[patches.length - 1];
+	console.log(`\n${chalk.cyan.bold('Apply Patch')}`);
+	console.log(chalk.cyan(boxifyVersions(` ${projectVersion} `, ` ${finalVersion} `)));
+
+	if (!options?.options?.ci) {
+		const question = [
+			{
+				type: 'confirm',
+				name: 'continue',
+				message: 'Do you want to continue?',
+				default: false,
+			},
+		];
+
+		const answer = await inquirer.prompt(question);
+		if (!answer.continue) {
+			exit(0);
+		}
+	}
+
 	// apply patches one at a time
 	for (const patch of patches) {
-		console.log(`Applying patch for v${patch}...`);
+		console.log(chalk.cyan.bold(`\n${patch}`));
 		await applyPatch(options, patch);
 	}
+
+	// modify package.json with finalVersion number
+	console.log(chalk.blue(`finalizing patch...`));
+	await editYAMLorJSON(options, 'package.json', [{ update: { version: finalVersion } }]);
+
+	// patching complete
+	console.log();
+	console.log(chalk.cyan(boxify(` ${'patching complete'} `, `site updated to ${finalVersion}`)));
 };
 
 export const applyPatch = async (options, patch) => {
@@ -159,7 +200,7 @@ export const applyPatch = async (options, patch) => {
 
 	try {
 		const exists = await fsp.stat(projectPatchDir);
-		// delete existing directory
+		// delete existing patch directory
 		await fsp.rm(projectPatchDir, { recursive: true, force: true });
 	} catch (err) {
 		// directory doesn't exist - do nothing
@@ -186,8 +227,6 @@ export const applyPatch = async (options, patch) => {
 
 	// clean up (remove ./patch)
 	await fsp.rm(projectPatchDir, { recursive: true, force: true });
-
-	// TODO: if run with --commit flag, (as would be done in the snap-action) a commit should be made
 };
 
 const runPatch = async (options, patchFile) => {
@@ -197,11 +236,11 @@ const runPatch = async (options, patchFile) => {
 		const yamlFile = await fsp.readFile(patchFile, 'utf8');
 		patchContents = YAML.parse(yamlFile);
 	} catch (err) {
-		console.log(`Could not parse patch file ${patchFile}`);
+		console.log(`could not parse patch file ${patchFile}`);
 		exit(1);
 	}
 
-	console.log(`\n\n${path.basename(patchFile)} contents`, patchContents);
+	console.log(chalk.blue(`${path.basename(patchFile)}...`));
 
 	const { steps } = patchContents;
 
@@ -214,15 +253,15 @@ const runPatch = async (options, patchFile) => {
 				case 'run':
 					const run = step[action];
 					try {
-						const commands = run.split('\n');
+						const commands = run.trim().split('\n');
 						for (const cmd of commands) {
-							console.log(cmd);
+							console.log(chalk.italic(cmd));
 							const { stdout, stderr } = await commandOutput(cmd);
 							if (stdout) {
-								console.log('\n' + stdout);
+								console.log(stdout);
 							}
 							if (stderr) {
-								console.log('\n' + stderr);
+								console.log(stderr);
 							}
 						}
 					} catch (e) {
@@ -232,8 +271,8 @@ const runPatch = async (options, patchFile) => {
 					break;
 				case 'files':
 					const files = step[action];
-					console.log('files', files);
 					const fileNames = Object.keys(files);
+
 					for (const fileName of fileNames) {
 						const { action, changes } = files[fileName];
 						switch (action) {
@@ -241,10 +280,9 @@ const runPatch = async (options, patchFile) => {
 								try {
 									const extension = fileName.split('.').pop();
 									if (['json', 'yaml', 'yml'].includes(extension)) {
-										await editYAMLorJSON(options, fileName, changes, extension);
+										await editYAMLorJSON(options, fileName, changes);
 									} else {
-										// other file in implementation to edit
-										// TODO: support editing other file types
+										// FUTURE TODO: support editing other file types
 										// await editFile(options, fileName, changes);
 									}
 								} catch (err) {
@@ -266,12 +304,12 @@ const runPatch = async (options, patchFile) => {
 	}
 };
 
-export const editYAMLorJSON = async (options, fileName, changes, fileType) => {
-	if (!changes.length) {
+export const editYAMLorJSON = async (options, fileName, changes) => {
+	if (!changes.length || !fileName) {
 		return;
 	}
 
-	const parser = fileType === 'json' ? JSON : YAML;
+	const parser = fileName.split('.').pop() == 'json' ? JSON : YAML;
 	const projectDir = options.context.project.path;
 	const filePath = path.join(projectDir, fileName);
 
@@ -390,10 +428,8 @@ export const editYAMLorJSON = async (options, fileName, changes, fileType) => {
 	}
 
 	// write changes to file
-	if (parser.stringify(originalFile) === parser.stringify(file)) {
-		console.log(`No changes have been made to ${fileName}`);
-	} else {
-		console.log(`writing changes: ${fileName}`);
+	if (parser.stringify(originalFile) !== parser.stringify(file)) {
+		console.log(chalk.italic(`modified ${filePath}`));
 		await fsp.writeFile(filePath, parser.stringify(file, null, '\t'), 'utf8');
 	}
 };
