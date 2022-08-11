@@ -50,7 +50,7 @@ export const setSecretKey = async (options) => {
 
 	try {
 		try {
-			await new ConfigApi(secretKey, options.dev).validateSite(name, siteId);
+			await new ConfigApi(secretKey, options.dev).validateSite(siteId);
 		} catch (err) {
 			console.log(chalk.red('Verification of siteId and secretKey failed.'));
 			console.log(chalk.red(err));
