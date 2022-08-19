@@ -54,10 +54,6 @@ export const ${name} = observer((props) => {
 	const controller = props.controller;
 	const store = controller?.store;
 
-	if (!controller.store.loaded && !controller.store.loading) {
-		controller.search();
-	}
-
 	return ( 
 		store.results.length > 0 && (
 			<Fragment>
