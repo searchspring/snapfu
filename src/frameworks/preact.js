@@ -1,33 +1,30 @@
-const defaultComponent = (name) => `import { h, Fragment, Component } from 'preact';
+const defaultComponent = (name) => `import { h } from 'preact';
 import { observer } from 'mobx-react';
 
 import { Recommendation } from '@searchspring/snap-preact-components';
 
 import './${name}.scss';
 
-@observer
-export class ${name} extends Component {
-	constructor(props) {
-		super();
+export const ${name} = observer((props) => {
+	
+	const controller = props.controller;
+	const store = controller?.store;
 
-		const controller = props.controller;
-
-		if (!controller.store.loaded) {
-			controller.search();
-		}
+	if (!controller.store.loaded) {
+		controller.search();
 	}
-	render() {
-		const controller = this.props.controller;
-		const store = controller?.store;
-		const parameters = store?.profile?.display?.templateParameters;
 
-		return store.results.length > 0 && (
+	const parameters = store?.profile?.display?.templateParameters;
+
+	return (
+		store.results.length > 0 && (
 			<Recommendation controller={controller}/>
-		);
-	}
-}`;
+		)
+	);
+	
+});`;
 
-const emailComponent = (name) => `import { h, Fragment, Component } from 'preact';
+const emailComponent = (name) => `import { h, Fragment } from 'preact';
 import { observer } from 'mobx-react';
 import classnames from 'classnames';
 
@@ -53,13 +50,12 @@ import './${name}.scss';
  * 
  **/
 
-@observer
-export class ${name} extends Component {
-	render() {
-		const controller = this.props.controller;
-		const store = controller?.store;
+export const ${name} = observer((props) => {
+	const controller = props.controller;
+	const store = controller?.store;
 
-		return store.results.length > 0 && (
+	return ( 
+		store.results.length > 0 && (
 			<Fragment>
 				{store.results.map((result, idx) => (
 					/* THIS OUTER "ss-emailrec" WRAPPER SHOULD NOT BE REMOVED, IT IS REQUIRED */
@@ -80,9 +76,9 @@ export class ${name} extends Component {
 					</div>
 				))}
 			</Fragment>
-		);
-	}
-}
+		)
+	);
+});
 `;
 
 const defaultStyles = (name) => ``;
