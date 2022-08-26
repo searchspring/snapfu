@@ -336,7 +336,7 @@ describe('listPatches', () => {
 });
 
 describe('applyPatches', () => {
-	it('can apply a single patch', async () => {
+	it('can apply a single patch of a release', async () => {
 		const logHistory = [];
 		const consoleMock = jest.spyOn(global.console, 'log').mockImplementation((...args) => {
 			logHistory.push(args[0]);
@@ -377,6 +377,54 @@ describe('applyPatches', () => {
 		const contents = await fsp.readFile(packageJSONPath, 'utf8');
 		const parsed = JSON.parse(contents);
 		expect(parsed.searchspring.tags).toStrictEqual([...mockPackage.searchspring.tags, 'patched']);
+		expect(parsed.version).toBe(version);
+		expect(logHistory.includes('patching...\n')).toBe(true);
+
+		consoleMock.mockRestore();
+	});
+
+	it('can apply a single patch of a maintenance release', async () => {
+		const logHistory = [];
+		const consoleMock = jest.spyOn(global.console, 'log').mockImplementation((...args) => {
+			logHistory.push(args[0]);
+		});
+
+		const version = '0.100.2-1';
+
+		const options = {
+			config: {
+				searchspringDir: path.join(homeDir, '/.searchspring'),
+				patches: {
+					dir: mockPatchesDir,
+					repoName: 'snapfu-patches',
+					repoUrl: 'git@github.com:searchspring/snapfu-patches.git',
+				},
+			},
+			context: {
+				searchspring: {
+					siteId: 'abc123',
+					framework: 'preact',
+				},
+				project: {
+					// version: '0.0.1',
+					path: projectDir,
+				},
+				projectVersion: '0.0.1',
+			},
+			options: {
+				ci: true,
+			},
+			dev: false,
+			command: 'patch',
+			args: ['apply', version],
+		};
+
+		await applyPatches(options, true);
+
+		const contents = await fsp.readFile(packageJSONPath, 'utf8');
+		const versions = await getVersions(options, options.context.projectVersion, version);
+		const parsed = JSON.parse(contents);
+		expect(parsed.searchspring.tags).toStrictEqual([...mockPackage.searchspring.tags, ...versions.map((version) => 'patched')]);
 		expect(parsed.version).toBe(version);
 		expect(logHistory.includes('patching...\n')).toBe(true);
 

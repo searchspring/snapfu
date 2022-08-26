@@ -113,16 +113,18 @@ export const applyPatches = async (options, test = false) => {
 	const [_command, versionApply] = options.args;
 
 	// verify project version
-	if (!projectVersion.match(/^\d+\.\d+\.\d+\w?$/)) {
+	if (!projectVersion.match(/^\w?(\d+\.\d+\.\d+-?\d*)$/)) {
 		console.log('Project version invalid.');
-		return;
+		exit(1);
 	}
 
 	const availablePatches = await getVersions(options);
 
 	// verify requested version
-	const versionMatch = /^\w?(\d+\.\d+\.\d+\w?)$/.exec(versionApply);
+	const versionMatch = /^\w?(\d+\.\d+\.\d+-?\d*)$/.exec(versionApply);
 	let filteredVersionApply;
+
+	console.log('versioning', versionApply, versionMatch);
 
 	if (versionApply == 'latest') {
 		filteredVersionApply = undefined;
@@ -132,11 +134,11 @@ export const applyPatches = async (options, test = false) => {
 		// check if versionApply is included in available patches
 		if (!availablePatches.includes(filteredVersionApply)) {
 			console.log(`Patch version ${filteredVersionApply} does not exist.`);
-			return;
+			exit(1);
 		}
 	} else {
 		console.log('Patch version invalid.');
-		return;
+		exit(1);
 	}
 
 	let patches;
@@ -149,7 +151,7 @@ export const applyPatches = async (options, test = false) => {
 		}
 	} catch (err) {
 		console.log('Patch version not found.');
-		return;
+		exit(1);
 	}
 
 	// display transition output
