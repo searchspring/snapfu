@@ -147,7 +147,7 @@ export const applyPatches = async (options, test = false) => {
 		if (patches.length == 0) {
 			console.log(`\n${chalk.bold('Nothing to patch.')}`);
 			if (!filteredVersionApply) console.log(chalk.cyan('Project is on latest version.'));
-			return;
+			exit(1);
 		}
 	} catch (err) {
 		console.log('Patch version not found.');
