@@ -165,7 +165,7 @@ export const applyPatches = async (options, test = false) => {
 				type: 'confirm',
 				name: 'continue',
 				message: 'Do you want to continue?',
-				default: false,
+				default: true,
 			},
 		];
 
