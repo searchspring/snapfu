@@ -11,9 +11,9 @@ export async function getContext(dir) {
 	try {
 		const packageContext = await getPackageJSON(dir);
 
-		project = packageContext.project;
-		searchspring = packageContext.searchspring;
-		projectVersion = packageContext.version;
+		project = packageContext?.project;
+		searchspring = packageContext?.searchspring;
+		projectVersion = searchspring?.version || '0.0.0';
 	} catch (err) {
 		// do nothing
 	}

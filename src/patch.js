@@ -26,24 +26,24 @@ export const setupPatchRepo = async (options) => {
 		if (existsSync(options.config.patches.dir)) {
 			console.log(`Updating ${options.config.patches.repoName}...`);
 			const { stdout, stderr } = await commandOutput(`git pull`, options.config.patches.dir);
-			console.log(stdout || stderr);
+			// console.log(stdout || stderr);
 		} else {
-			console.log(`Cloning ${options.config.patches.repoName} into ${options.config.patches.dir} via SSH...`);
+			console.log(`Cloning ${options.config.patches.repoName} into ${options.config.patches.dir} ...`);
 			const { stdout, stderr } = await commandOutput(
 				`git clone ${options.config.patches.repoUrl} ${options.config.patches.repoName}`,
 				options.config.searchspringDir
 			);
-			console.log(stdout || stderr);
+			// console.log(stdout || stderr);
 		}
 	} catch (e) {
 		console.log(chalk.red(`Failed to update patch files!`));
-		console.log(chalk.red(e));
+		// console.log(chalk.red(e));
 		exit(1);
 	}
 };
 
-export const listPatches = async (options, test = false) => {
-	if (!test) await setupPatchRepo(options);
+export const listPatches = async (options, skipUpdate = false) => {
+	if (!skipUpdate) await setupPatchRepo(options);
 
 	const { context } = options;
 	const { projectVersion } = context;
@@ -105,8 +105,8 @@ export const getVersions = async (options, startingAt, endingAt) => {
 	return versions;
 };
 
-export const applyPatches = async (options, test = false) => {
-	if (!test) await setupPatchRepo(options);
+export const applyPatches = async (options, skipUpdate = false) => {
+	if (!skipUpdate) await setupPatchRepo(options);
 
 	const { context } = options;
 	const { projectVersion } = context;
@@ -124,8 +124,6 @@ export const applyPatches = async (options, test = false) => {
 	const versionMatch = /^\w?(\d+\.\d+\.\d+-?\d*)$/.exec(versionApply);
 	let filteredVersionApply;
 
-	console.log('versioning', versionApply, versionMatch);
-
 	if (versionApply == 'latest') {
 		filteredVersionApply = undefined;
 	} else if (versionApply && versionMatch && versionMatch.length == 2) {
@@ -136,8 +134,12 @@ export const applyPatches = async (options, test = false) => {
 			console.log(`Patch version ${filteredVersionApply} does not exist.`);
 			exit(1);
 		}
+	} else if (!versionApply) {
+		console.log(chalk.yellow(`\nPatch version not provided.`));
+		await listPatches(options, true);
+		exit(1);
 	} else {
-		console.log('Patch version invalid.');
+		console.log(chalk.red('Patch version invalid.'));
 		exit(1);
 	}
 
@@ -183,7 +185,7 @@ export const applyPatches = async (options, test = false) => {
 
 	// modify package.json with finalVersion number
 	console.log(chalk.blue(`finalizing patch...`));
-	await editYAMLorJSON(options, 'package.json', [{ update: { version: finalVersion } }]);
+	await editYAMLorJSON(options, 'package.json', [{ update: { searchspring: { version: finalVersion } } }]);
 
 	// patching complete
 	console.log();

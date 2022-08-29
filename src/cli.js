@@ -299,7 +299,6 @@ export async function cli(args) {
 		case 'patch': {
 			function showPatchHelp() {
 				help({ command: 'help', args: ['patch'] });
-				// TODO: add patch to help
 			}
 
 			if (!options.args.length) {

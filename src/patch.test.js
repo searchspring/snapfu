@@ -8,8 +8,9 @@ import { promises as fsp } from 'fs';
 import YAML from 'yaml';
 
 const mockPackage = {
-	version: '0.0.1',
+	version: '1.2.3',
 	searchspring: {
+		version: '0.0.1',
 		siteId: 'ga9kq2',
 		framework: 'preact',
 		platform: 'bigcommerce',
@@ -377,7 +378,7 @@ describe('applyPatches', () => {
 		const contents = await fsp.readFile(packageJSONPath, 'utf8');
 		const parsed = JSON.parse(contents);
 		expect(parsed.searchspring.tags).toStrictEqual([...mockPackage.searchspring.tags, 'patched']);
-		expect(parsed.version).toBe(version);
+		expect(parsed.searchspring.version).toBe(version);
 		expect(logHistory.includes('patching...\n')).toBe(true);
 
 		consoleMock.mockRestore();
@@ -425,7 +426,7 @@ describe('applyPatches', () => {
 		const versions = await getVersions(options, options.context.projectVersion, version);
 		const parsed = JSON.parse(contents);
 		expect(parsed.searchspring.tags).toStrictEqual([...mockPackage.searchspring.tags, ...versions.map((version) => 'patched')]);
-		expect(parsed.version).toBe(version);
+		expect(parsed.searchspring.version).toBe(version);
 		expect(logHistory.includes('patching...\n')).toBe(true);
 
 		consoleMock.mockRestore();
@@ -465,7 +466,7 @@ describe('applyPatches', () => {
 		const parsed = JSON.parse(contents);
 
 		expect(parsed.searchspring.tags).toStrictEqual([...mockPackage.searchspring.tags, ...mockPatches.preact.map((p) => 'patched')]);
-		expect(parsed.version).toBe(mockPatches.preact[mockPatches.preact.length - 1]);
+		expect(parsed.searchspring.version).toBe(mockPatches.preact[mockPatches.preact.length - 1]);
 	});
 });
 
