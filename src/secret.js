@@ -78,7 +78,7 @@ export const checkSecretKey = async (options) => {
 	const verify = async (secretKey, siteId, name) => {
 		if (secretKey) {
 			try {
-				await new ConfigApi(secretKey, options.dev).validateSite(name, siteId);
+				await new ConfigApi(secretKey, options.dev).validateSite(siteId);
 				console.log(chalk.green(`Verification of siteId and secretKey complete for ${name}`));
 			} catch (err) {
 				console.log(chalk.red(`Verification of siteId and secretKey failed for ${name}`));
