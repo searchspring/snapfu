@@ -1,16 +1,25 @@
 import arg from 'arg';
+import os from 'os';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { exit } from 'process';
+import { promises as fsp } from 'fs';
 import chalk from 'chalk';
-import cmp from 'semver-compare';
 
-import { login, logout, orgAccess } from './login';
-import { initTemplate, listTemplates, removeTemplate, syncTemplate } from './recs';
-import { init } from './init';
-import { about } from './about';
-import { wait } from './wait';
-import { help } from './help';
-import { commandOutput, getContext } from './context';
-import { setSecretKey, checkSecretKey } from './secret';
+import { login, logout, orgAccess, auth } from './login.js';
+import { initTemplate, listTemplates, removeTemplate, syncTemplate } from './recs.js';
+import { init } from './init.js';
+import { listPatches, applyPatches } from './patch.js';
+import { about } from './about.js';
+import { wait, cmp } from './utils/index.js';
+import { help } from './help.js';
+import { getContext } from './context.js';
+import { setSecretKey, checkSecretKey } from './secret.js';
+import { commandOutput } from './utils/index.js';
+
+// these node variables are not available in ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 async function parseArgumentsIntoOptions(rawArgs) {
 	let args;
@@ -19,6 +28,7 @@ async function parseArgumentsIntoOptions(rawArgs) {
 		args = arg(
 			{
 				'--dev': Boolean,
+				'--ci': Boolean,
 				'--secret-key': String,
 				'--secrets-ci': String,
 			},
@@ -33,11 +43,20 @@ async function parseArgumentsIntoOptions(rawArgs) {
 
 	const command = args._[0];
 
-	const context = await getContext();
+	const context = await getContext(process.cwd());
+
+	const searchspringDir = path.join(os.homedir(), '/.searchspring');
+	let user;
+	try {
+		user = await auth.loadCreds(searchspringDir);
+	} catch (err) {
+		// set empty keys
+		user = { keys: {} };
+	}
 
 	let secretKey;
 	try {
-		secretKey = args['--secret-key'] || context.user.keys[context.searchspring.siteId];
+		secretKey = args['--secret-key'] || user.keys[context.searchspring.siteId];
 	} catch (e) {
 		// do nothing - when running init context may not exist
 	}
@@ -48,7 +67,7 @@ async function parseArgumentsIntoOptions(rawArgs) {
 	const userCommands = ['init', 'recs', 'recommendation', 'recommendations', 'secret', 'secrets', 'logout', 'whoami', 'org-access'];
 	const secretCommands = ['recs', 'recommendation', 'recommendations', 'secret', 'secrets'];
 
-	const loggedIn = context.user && context.user.token;
+	const loggedIn = user && user.token;
 	const secretOptions = args['--secrets-ci'] || secretKey;
 
 	if (userCommands.includes(command) && !(loggedIn || secretOptions)) {
@@ -79,7 +98,7 @@ async function parseArgumentsIntoOptions(rawArgs) {
 				.map((siteId) => {
 					try {
 						const { name } = context.searchspring.siteId[siteId];
-						const secretKey = getSecretKeyFromCLI(siteId) || context.user.keys[siteId];
+						const secretKey = getSecretKeyFromCLI(siteId) || user.keys[siteId];
 
 						if (!secretKey) {
 							console.log(chalk.red(`Cannot find the secretKey for siteId '${siteId}'.`));
@@ -139,16 +158,37 @@ async function parseArgumentsIntoOptions(rawArgs) {
 		}
 	}
 
+	let packageJSON = {};
+	try {
+		const snapfuPackageJSON = path.join(__dirname, '../package.json');
+		const contents = await fsp.readFile(snapfuPackageJSON, 'utf8');
+		packageJSON = JSON.parse(contents);
+	} catch (e) {
+		console.log('Could not determine Snapfu version.', e);
+		exit(1);
+	}
+
 	return {
+		config: {
+			searchspringDir,
+			patches: {
+				dir: path.join(searchspringDir, 'snapfu-patches'),
+				repoName: 'snapfu-patches',
+				repoUrl: `https://github.com/searchspring/snapfu-patches.git`,
+			},
+		},
+		user,
 		dev: args['--dev'] || false,
 		command,
 		args: args._.slice(1),
 		options: {
 			secretKey,
 			secrets: args['--secrets-ci'],
+			ci: args['--ci'],
 		},
 		context,
 		multipleSites,
+		version: packageJSON.version,
 	};
 }
 
@@ -238,7 +278,7 @@ export async function cli(args) {
 		case 'logout': {
 			try {
 				await logout(options);
-				console.log(`User ${chalk.cyan(options.context.user.login)} logged out.`);
+				console.log(`User ${chalk.cyan(options.user.login)} logged out.`);
 			} catch (err) {
 				console.log(chalk.red(err.message));
 			}
@@ -252,7 +292,35 @@ export async function cli(args) {
 		}
 
 		case 'whoami': {
-			console.log(`${chalk.blue(options.context.user.name)} (${chalk.green(options.context.user.login)})`);
+			console.log(`${chalk.blue(options.user.name)} (${chalk.green(options.user.login)})`);
+			break;
+		}
+
+		case 'patch': {
+			function showPatchHelp() {
+				help({ command: 'help', args: ['patch'] });
+			}
+
+			if (!options.args.length) {
+				showPatchHelp();
+				return;
+			}
+
+			const [command] = options.args;
+
+			switch (command) {
+				case 'apply':
+					await applyPatches(options);
+					break;
+
+				case 'list':
+					await listPatches(options);
+					break;
+
+				default:
+					showPatchHelp();
+					break;
+			}
 			break;
 		}
 
@@ -281,7 +349,7 @@ export async function cli(args) {
 		}
 	}
 
-	await checkForLatestVersion(options);
+	if (!options.options.ci) await checkForLatestVersion(options);
 
 	exit();
 }
@@ -293,11 +361,15 @@ function debug(options, message) {
 }
 
 async function checkForLatestVersion(options) {
-	// using Promise.race to wait a maximum of 1.2 seconds
-	const latest = await Promise.race([commandOutput('npm view snapfu version'), wait(1200)]);
+	try {
+		// using Promise.race to wait a maximum of 1.2 seconds
+		const latest = await Promise.race([(await commandOutput('npm view snapfu version')).stdout.trim(), wait(1200)]);
 
-	if (latest && cmp(latest, options.context.version) == 1) {
-		console.log(`\n\n${chalk.bold.white(`Version ${chalk.bold.red(`${latest}`)} of snapfu available.\nUpdate with:`)}`);
-		console.log(chalk.grey(`\n\tnpm install -g snapfu\n`));
+		if (latest && cmp(latest, options.version) == 1) {
+			console.log(`\n\n${chalk.bold.white(`Version ${chalk.bold.red(`${latest}`)} of snapfu available.\nUpdate with:`)}`);
+			console.log(chalk.grey(`\n\tnpm install -g snapfu\n`));
+		}
+	} catch (e) {
+		// do nothing
 	}
 }

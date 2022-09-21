@@ -1,4 +1,4 @@
-import { preact } from './preact';
+import { preact } from './preact.js';
 
 export const frameworks = {
 	preact,

@@ -1,10 +1,10 @@
 import { exit } from 'process';
 import chalk from 'chalk';
 import inquirer from 'inquirer';
-import { setRepoSecret } from './init';
-import { ConfigApi } from './services/ConfigApi';
-import { auth } from './login';
-import { wait } from './wait';
+import { setRepoSecret } from './init.js';
+import { ConfigApi } from './services/ConfigApi.js';
+import { auth } from './login.js';
+import { wait } from './utils/index.js';
 
 export const setSecretKey = async (options) => {
 	if (!options.context || !options.context.searchspring || !options.context.project || !options.context.project.path) {
@@ -57,7 +57,7 @@ export const setSecretKey = async (options) => {
 			exit(1);
 		}
 
-		await auth.saveSecretKey(secretKey, siteId);
+		await auth.saveSecretKey(secretKey, siteId, options.config.searchspringDir);
 		await setRepoSecret(options, { siteId, secretKey, organization, name });
 	} catch (err) {
 		console.log(chalk.red(err));
@@ -71,21 +71,23 @@ export const checkSecretKey = async (options) => {
 		exit(1);
 	}
 
-	const keys = options.context.user.keys || {};
+	const keys = options.user.keys || {};
 	let siteId = options.context.searchspring.siteId;
 	let name = options.context.repository.name;
 
 	const verify = async (secretKey, siteId, name) => {
-		try {
-			await new ConfigApi(secretKey, options.dev).validateSite(siteId);
-			console.log(chalk.green(`Verification of siteId and secretKey complete for ${name}`));
-		} catch (err) {
-			console.log(chalk.red(`Verification of siteId and secretKey failed for ${name}`));
-			console.log(chalk.red(err));
-			exit(1);
-		}
+		if (secretKey) {
+			try {
+				await new ConfigApi(secretKey, options.dev).validateSite(siteId);
+				console.log(chalk.green(`Verification of siteId and secretKey complete for ${name}`));
+			} catch (err) {
+				console.log(chalk.red(`Verification of siteId and secretKey failed for ${name}`));
+				console.log(chalk.red(err));
+				exit(1);
+			}
 
-		await wait(100);
+			await wait(100);
+		}
 	};
 
 	try {
