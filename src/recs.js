@@ -257,10 +257,47 @@ export async function syncTemplate(options) {
 
 	const templates = await getTemplates(context.project.path);
 	const syncTemplates = templates.filter((template) => {
-		if (templateName) {
-			if (template.details.name == templateName) return template;
+		//lets validate all the details are valid before we sync
+		let invalidParam;
+		Object.keys(template.details).forEach(function (detail) {
+			if (typeof template.details[detail] !== 'string') {
+				if (detail == 'parameters') {
+					template.details[detail].map((index) => {
+						Object.keys(index).forEach(function (parameters) {
+							if (typeof index[parameters] !== 'string') {
+								invalidParam = `${detail}: { ${parameters}: ${index[parameters]} }`;
+							}
+						});
+					});
+				} else {
+					invalidParam = `${detail} ${template.details[detail]}`;
+				}
+			}
+		});
+
+		if (invalidParam) {
+			console.log(
+				chalk.red(`
+Error: Invalid Template Parameter found on template ${template.details.name}!`)
+			);
+			console.log(
+				chalk.cyanBright(`
+			
+${invalidParam}
+			
+			`)
+			);
+			console.log(
+				chalk.whiteBright(`Please ensure all Template Parameter values are stringified.
+		
+			`)
+			);
 		} else {
-			return template;
+			if (templateName) {
+				if (template.details.name == templateName) return template;
+			} else {
+				return template;
+			}
 		}
 	});
 
