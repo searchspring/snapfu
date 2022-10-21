@@ -7,6 +7,7 @@ import { wait } from './wait';
 import { DEFAULT_BRANCH } from './init';
 import { frameworks } from './frameworks';
 import { ConfigApi } from './services/ConfigApi';
+import { exit } from 'process';
 
 const TEMPLATE_TYPE_RECS = 'snap/recommendation';
 const DIR_BLACK_LIST = ['node_modules', '.git'];
@@ -278,7 +279,7 @@ export async function syncTemplate(options) {
 		if (invalidParam) {
 			console.log(
 				chalk.red(`
-Error: Invalid Template Parameter found on template ${template.details.name}!`)
+Error: Invalid template configuration found on template ${chalk.white.underline(template.details.name)}!`)
 			);
 			console.log(
 				chalk.cyanBright(`
@@ -288,10 +289,12 @@ ${invalidParam}
 			`)
 			);
 			console.log(
-				chalk.whiteBright(`Please ensure all Template Parameter values are stringified.
+				chalk.whiteBright(`Please ensure all template config values are strings.
 		
 			`)
 			);
+			//Stop everything
+			exit(1);
 		} else {
 			if (templateName) {
 				if (template.details.name == templateName) return template;
