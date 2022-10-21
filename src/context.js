@@ -1,48 +1,26 @@
-import child_process from 'child_process';
 import { exit } from 'process';
-import { promisify } from 'util';
 import path from 'path';
 import { promises as fsp } from 'fs';
 import chalk from 'chalk';
 
-import { auth } from './login';
-import packageJSON from '../package.json';
-
-const exec = promisify(child_process.exec);
-
-export async function commandOutput(cmd, dir) {
-	try {
-		const { err, stdout, stderr } = await exec(cmd, { cwd: dir });
-		if (err) throw 'error';
-
-		return stdout.trim();
-	} catch (err) {
-		// cannot get branch details
-	}
-}
+import { auth } from './login.js';
+import { commandOutput } from './utils/index.js';
 
 export async function getContext(dir) {
-	let user, project, searchspring, branch, remote, organization, name;
-
-	try {
-		user = await auth.loadCreds();
-	} catch (err) {
-		// set empty keys
-		user = { keys: {} };
-	}
-
+	let project, searchspring, branch, remote, organization, name, projectVersion;
 	try {
 		const packageContext = await getPackageJSON(dir);
 
-		project = packageContext.project;
-		searchspring = packageContext.searchspring;
+		project = packageContext?.project;
+		searchspring = packageContext?.searchspring;
+		projectVersion = searchspring?.version || '0.0.0';
 	} catch (err) {
 		// do nothing
 	}
 
 	try {
-		branch = await commandOutput('git branch --show-current', dir);
-		remote = await commandOutput('git config --get remote.origin.url', dir);
+		branch = (await commandOutput('git branch --show-current', dir)).stdout.trim();
+		remote = (await commandOutput('git config --get remote.origin.url', dir)).stdout.trim();
 	} catch (err) {
 		// do nothing
 	}
@@ -57,7 +35,6 @@ export async function getContext(dir) {
 	}
 
 	return {
-		user,
 		project,
 		repository: {
 			remote,
@@ -66,7 +43,7 @@ export async function getContext(dir) {
 			branch,
 		},
 		searchspring,
-		version: packageJSON.version,
+		projectVersion,
 	};
 }
 

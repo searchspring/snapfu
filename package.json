@@ -5,9 +5,10 @@
 	"license": "MIT",
 	"description": "Command line interface for Snap!",
 	"main": "src/index.js",
+	"type": "module",
 	"prettier": "@searchspring/prettier",
 	"bin": {
-		"snapfu": "bin/snapfu"
+		"snapfu": "bin/snapfu.js"
 	},
 	"scripts": {
 		"build:metrics": "node ./metrics/generate.mjs",
@@ -17,14 +18,14 @@
 		"format": "prettier --write src *.json",
 		"format-check": "prettier --check src *.json",
 		"prepare": "husky install",
-		"version": "standard-version",
+		"version": "standard-version -a",
 		"postversion": "git push && git push --tags"
 	},
 	"lint-staged": {
 		"./package.json": [
 			"prettier --write"
 		],
-		"./src/**/*.{js}": [
+		"./src/**/*.js": [
 			"prettier --write"
 		]
 	},
@@ -38,8 +39,8 @@
 		"ncp": "^2.0.0",
 		"node-fetch": "^2.6.1",
 		"open": "^8.2.1",
-		"semver-compare": "^1.0.0",
-		"tweetsodium": "^0.0.5"
+		"tweetsodium": "^0.0.5",
+		"yaml": "^2.1.1"
 	},
 	"devDependencies": {
 		"@babel/plugin-transform-runtime": "^7.15.0",

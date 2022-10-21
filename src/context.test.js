@@ -1,4 +1,4 @@
-import { getClosest, getPackageJSON, getContext, commandOutput } from './context';
+import { getClosest, getPackageJSON, getContext } from './context';
 import tempDirectory from 'temp-dir';
 import fs from 'fs-extra';
 import path from 'path';
@@ -76,17 +76,9 @@ describe('getPackageJSON function', () => {
 describe('getContext function', () => {
 	it('makes available context data', async () => {
 		const context = await getContext();
-		expect(context).toHaveProperty('user');
 		expect(context).toHaveProperty('project');
 		expect(context).toHaveProperty('repository');
 		expect(context).toHaveProperty('searchspring');
-		expect(context).toHaveProperty('version');
-	});
-});
-
-describe('commandOutput function', () => {
-	it('executes a command and returns the output', async () => {
-		const hola = await commandOutput('echo "hello world"');
-		expect(hola).toBe('hello world');
+		expect(context).toHaveProperty('projectVersion');
 	});
 });

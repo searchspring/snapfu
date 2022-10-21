@@ -1,7 +1,7 @@
 import fetch from 'node-fetch';
 
-const API_HOST = 'https://smc-config-api.kube.searchspring.io';
-const DEV_API_HOST = 'http://localhost:9999';
+export const API_HOST = 'https://smc-config-api.kube.searchspring.io';
+export const DEV_API_HOST = 'http://localhost:9999';
 
 export class ConfigApi {
 	host = API_HOST;
@@ -9,7 +9,7 @@ export class ConfigApi {
 	secretKey = '';
 
 	constructor(secretKey, dev) {
-		this.secretKey = secretKey;
+		this.secretKey = secretKey || '';
 
 		if (dev) {
 			this.host = DEV_API_HOST;
@@ -20,7 +20,7 @@ export class ConfigApi {
 		const apiPath = `${this.host}/api/customer/${siteId}/verifyKey`;
 
 		const response = await fetch(apiPath, {
-			method: 'get',
+			method: 'GET',
 			headers: {
 				Accept: 'application/json',
 				Authorization: this.secretKey,
@@ -50,7 +50,7 @@ export class ConfigApi {
 		const apiPath = `${this.host}/api/recsTemplates`;
 
 		const response = await fetch(apiPath, {
-			method: 'get',
+			method: 'GET',
 			headers: {
 				Accept: 'application/json',
 				Authorization: this.secretKey,
@@ -78,7 +78,7 @@ export class ConfigApi {
 		const apiPath = `${this.host}/api/recsTemplate`;
 
 		const response = await fetch(apiPath, {
-			method: 'put',
+			method: 'PUT',
 			body: JSON.stringify(payload),
 			headers: {
 				Accept: 'application/json',
@@ -107,7 +107,7 @@ export class ConfigApi {
 		const apiPath = `${this.host}/api/recsTemplate`;
 
 		const response = await fetch(apiPath, {
-			method: 'delete',
+			method: 'DELETE',
 			body: JSON.stringify(payload),
 			headers: {
 				Accept: 'application/json',
