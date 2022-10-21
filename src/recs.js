@@ -7,6 +7,7 @@ import { wait } from './wait';
 import { DEFAULT_BRANCH } from './init';
 import { frameworks } from './frameworks';
 import { ConfigApi } from './services/ConfigApi';
+import { exit } from 'process';
 
 const TEMPLATE_TYPE_RECS = 'snap/recommendation';
 const DIR_BLACK_LIST = ['node_modules', '.git'];
@@ -257,10 +258,49 @@ export async function syncTemplate(options) {
 
 	const templates = await getTemplates(context.project.path);
 	const syncTemplates = templates.filter((template) => {
-		if (templateName) {
-			if (template.details.name == templateName) return template;
+		//lets validate all the details are valid before we sync
+		let invalidParam;
+		Object.keys(template.details).forEach(function (detail) {
+			if (typeof template.details[detail] !== 'string') {
+				if (detail == 'parameters') {
+					template.details[detail].map((index) => {
+						Object.keys(index).forEach(function (parameters) {
+							if (typeof index[parameters] !== 'string') {
+								invalidParam = `${detail}: { ${parameters}: ${index[parameters]} }`;
+							}
+						});
+					});
+				} else {
+					invalidParam = `${detail} ${template.details[detail]}`;
+				}
+			}
+		});
+
+		if (invalidParam) {
+			console.log(
+				chalk.red(`
+Error: Invalid template configuration found on template ${chalk.white.underline(template.details.name)}!`)
+			);
+			console.log(
+				chalk.cyanBright(`
+			
+${invalidParam}
+			
+			`)
+			);
+			console.log(
+				chalk.whiteBright(`Please ensure all template config values are strings.
+		
+			`)
+			);
+			//Stop everything
+			exit(1);
 		} else {
-			return template;
+			if (templateName) {
+				if (template.details.name == templateName) return template;
+			} else {
+				return template;
+			}
 		}
 	});
 
