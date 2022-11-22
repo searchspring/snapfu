@@ -215,7 +215,7 @@ export async function removeTemplate(options) {
 	}
 
 	const branchName = branch || repository.branch || DEFAULT_BRANCH;
-	if (!repository.branchList.includes(branchName)) {
+	if (repository && repository.branchList && !repository.branchList.includes(branchName)) {
 		console.log(chalk.red(`Error: Branch not found. - ${branch}`));
 		return;
 	}
@@ -314,7 +314,7 @@ ${invalidParam}
 	}
 
 	const branchName = branch || repository.branch || DEFAULT_BRANCH;
-	if (!repository.branchList.includes(branchName)) {
+	if (repository && repository.branchList && !repository.branchList.includes(branchName)) {
 		console.log(chalk.red(`Error: Branch not found. - ${branch}`));
 		return;
 	}
