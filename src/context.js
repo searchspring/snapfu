@@ -22,7 +22,7 @@ export async function commandOutput(cmd, dir) {
 }
 
 export async function getContext(dir) {
-	let user, project, searchspring, branch, remote, organization, name;
+	let user, project, searchspring, branch, branchList, remote, organization, name;
 
 	try {
 		user = await auth.loadCreds();
@@ -41,6 +41,7 @@ export async function getContext(dir) {
 	}
 
 	try {
+		branchList = await commandOutput('git branch', dir);
 		branch = await commandOutput('git branch --show-current', dir);
 		remote = await commandOutput('git config --get remote.origin.url', dir);
 	} catch (err) {
@@ -64,6 +65,7 @@ export async function getContext(dir) {
 			name,
 			organization,
 			branch,
+			branchList,
 		},
 		searchspring,
 		version: packageJSON.version,

@@ -215,6 +215,10 @@ export async function removeTemplate(options) {
 	}
 
 	const branchName = branch || repository.branch || DEFAULT_BRANCH;
+	if (repository && repository.branchList && !repository.branchList.includes(branchName)) {
+		console.log(chalk.red(`Error: Branch not found. - ${branch}`));
+		return;
+	}
 
 	const payload = { name: templateName, branch: branchName };
 
@@ -310,6 +314,10 @@ ${invalidParam}
 	}
 
 	const branchName = branch || repository.branch || DEFAULT_BRANCH;
+	if (repository && repository.branchList && !repository.branchList.includes(branchName)) {
+		console.log(chalk.red(`Error: Branch not found. - ${branch}`));
+		return;
+	}
 
 	const sync = async (template, secretKey) => {
 		const payload = buildTemplatePayload(template.details, { branch: branchName, framework: searchspring.framework });
