@@ -149,7 +149,7 @@ export const applyPatches = async (options, skipUpdate = false) => {
 		if (patches.length == 0) {
 			console.log(`\n${chalk.bold('Nothing to patch.')}`);
 			if (!filteredVersionApply) console.log(chalk.cyan('Project is on latest version.'));
-			exit(1);
+			exit();
 		}
 	} catch (err) {
 		console.log('Patch version not found.');
@@ -313,7 +313,8 @@ export const editYAMLorJSON = async (options, fileName, changes) => {
 		return;
 	}
 
-	const parser = fileName.split('.').pop() == 'json' ? JSON : YAML;
+	const fileType = fileName.split('.').pop()?.toLowerCase();
+	const parser = fileType == 'json' ? JSON : YAML;
 	const projectDir = options.context.project.path;
 	const filePath = path.join(projectDir, fileName);
 
@@ -434,7 +435,15 @@ export const editYAMLorJSON = async (options, fileName, changes) => {
 	// write changes to file
 	if (parser.stringify(originalFile) !== parser.stringify(file)) {
 		console.log(chalk.italic(`modified ${filePath}`));
-		await fsp.writeFile(filePath, parser.stringify(file, null, '\t'), 'utf8');
+
+		let fileContents;
+		if (fileType == 'json') {
+			fileContents = parser.stringify(file, null, '\t');
+		} else if (fileType == 'yaml' || 'yml') {
+			fileContents = parser.stringify(file, { lineWidth: 0 });
+		}
+
+		await fsp.writeFile(filePath, fileContents, 'utf8');
 	}
 };
 
