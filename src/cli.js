@@ -9,7 +9,7 @@ import chalk from 'chalk';
 import { login, logout, orgAccess, auth } from './login.js';
 import { initTemplate, listTemplates, removeTemplate, syncTemplate } from './recs.js';
 import { init } from './init.js';
-import { listPatches, applyPatches } from './patch.js';
+import { listPatches, applyPatches, setupPatchRepo } from './patch.js';
 import { about } from './about.js';
 import { wait, cmp } from './utils/index.js';
 import { help } from './help.js';
@@ -310,11 +310,15 @@ export async function cli(args) {
 
 			switch (command) {
 				case 'apply':
-					await applyPatches(options);
+					await applyPatches(options, options.options.ci);
 					break;
 
 				case 'list':
-					await listPatches(options);
+					await listPatches(options, options.options.ci);
+					break;
+
+				case 'fetch':
+					await setupPatchRepo(options);
 					break;
 
 				default:
