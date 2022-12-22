@@ -9,15 +9,6 @@ import YAML from 'yaml';
 import { cmp, commandOutput, boxify, boxifyVersions } from './utils/index.js';
 
 export const setupPatchRepo = async (options) => {
-	const { context } = options;
-	const { searchspring, projectVersion } = context;
-	const { framework } = searchspring || {};
-
-	if (!searchspring || !context.project || !context.project.path || !framework || !projectVersion) {
-		console.log(chalk.red(`Error: No Snap project found.`));
-		exit(1);
-	}
-
 	// clone or pull snapfu patches repository
 	try {
 		if (!existsSync(options.config.searchspringDir)) {
@@ -46,8 +37,14 @@ export const listPatches = async (options, skipUpdate = false) => {
 	if (!skipUpdate) await setupPatchRepo(options);
 
 	const { context } = options;
-	const { projectVersion } = context;
+	const { searchspring, projectVersion } = context;
+	const { framework } = searchspring || {};
 	let startVersion = projectVersion;
+
+	if (!searchspring || !context.project || !context.project.path || !framework || !projectVersion) {
+		console.log(chalk.red(`Error: No Snap project found.`));
+		exit(1);
+	}
 
 	if (!projectVersion) {
 		console.log(chalk.red(`Could not find project version in package.json`));
@@ -109,8 +106,14 @@ export const applyPatches = async (options, skipUpdate = false) => {
 	if (!skipUpdate) await setupPatchRepo(options);
 
 	const { context } = options;
-	const { projectVersion } = context;
+	const { searchspring, projectVersion } = context;
+	const { framework } = searchspring || {};
 	const [_command, versionApply] = options.args;
+
+	if (!searchspring || !context.project || !context.project.path || !framework || !projectVersion) {
+		console.log(chalk.red(`Error: No Snap project found.`));
+		exit(1);
+	}
 
 	// verify project version
 	if (!projectVersion.match(/^\w?(\d+\.\d+\.\d+-?\d*)$/)) {
