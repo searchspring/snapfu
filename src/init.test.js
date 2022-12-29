@@ -26,25 +26,31 @@ describe('check empty dir', () => {
 });
 
 describe('transforms', () => {
-	it('replace tokens', async () => {
+	it('replaces variables', async () => {
 		let buf = Buffer.from('name {{ snapfu.name}} by {{ snapfu.author }}', 'utf8');
 		let write = MemoryStream.createWriteStream();
-		let transforms = {
+		let variables = {
 			'snapfu.name': 'destination name',
 			'snapfu.author': 'codeallthethingz',
 		};
-		await transform(Readable.from(buf), write, transforms, {
+		transform(Readable.from(buf), write, variables, {
 			name: 'package.json',
 		});
-		expect(write.toString()).toEqual('name destination name by codeallthethingz');
+
+		write.on('end', () => {
+			expect(write.toString()).toEqual('name destination name by codeallthethingz');
+		});
 
 		write = MemoryStream.createWriteStream();
-		await transform(Readable.from(buf), write, transforms, {
+		transform(Readable.from(buf), write, variables, {
 			name: 'package.yml',
 		});
-		expect(write.toString()).toEqual('name destination name by codeallthethingz');
+
+		write.on('end', () => {
+			expect(write.toString()).toEqual('name destination name by codeallthethingz');
+		});
 	});
-	it('edges', async () => {
+	it('will not replace for all file types', async () => {
 		let read = Readable.from(Buffer.from('{{snapfu.name}}', 'utf8'));
 		let write = MemoryStream.createWriteStream();
 		await transform(

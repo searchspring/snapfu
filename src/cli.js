@@ -46,13 +46,7 @@ async function parseArgumentsIntoOptions(rawArgs) {
 	const context = await getContext(process.cwd());
 
 	const searchspringDir = path.join(os.homedir(), '/.searchspring');
-	let user;
-	try {
-		user = await auth.loadCreds(searchspringDir);
-	} catch (err) {
-		// set empty keys
-		user = { keys: {} };
-	}
+	const user = await auth.loadUser(searchspringDir);
 
 	let secretKey;
 	try {
