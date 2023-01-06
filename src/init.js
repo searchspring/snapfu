@@ -5,13 +5,12 @@ import path from 'path';
 import chalk from 'chalk';
 import { Octokit } from '@octokit/rest';
 import inquirer from 'inquirer';
-import clone from 'git-clone';
 import sodium from 'tweetsodium';
 import ncp from 'ncp';
 import replaceStream from 'replacestream';
 import { auth } from './login.js';
 import { getContext } from './context.js';
-import { wait } from './utils/index.js';
+import { commandOutput, wait } from './utils/index.js';
 import { ConfigApi } from './services/ConfigApi.js';
 import YAML from 'yaml';
 
@@ -521,7 +520,7 @@ export const cloneAndCopyRepo = async function (sourceRepo, destination, exclude
 	});
 
 	// clone template repo into temp dir
-	await clonePromise(sourceRepo, folder);
+	await commandOutput(`git clone ${sourceRepo} ${folder}`);
 
 	let options = { clobber: true };
 
@@ -581,17 +580,6 @@ async function streamToByte(stream) {
 		stream.on('data', (chunk) => chunks.push(chunk));
 		stream.on('error', reject);
 		stream.on('end', () => resolve(Buffer.concat(chunks)));
-	});
-}
-
-function clonePromise(repoUrl, destination) {
-	return new Promise((resolutionFunc, rejectionFunc) => {
-		clone(repoUrl, destination, (err) => {
-			if (err) {
-				rejectionFunc(err);
-			}
-			resolutionFunc();
-		});
 	});
 }
 
