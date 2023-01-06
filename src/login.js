@@ -113,10 +113,52 @@ export const auth = {
 			if (!creds) {
 				reject('creds not found');
 			}
-			let user = JSON.parse(creds);
-			user.keys = user.keys || {};
-			resolve(user);
+
+			try {
+				const user = JSON.parse(creds);
+				user.keys = user.keys || {};
+				resolve(user);
+			} catch (err) {
+				reject('creds are invalid');
+			}
 		});
+	},
+	loadSettings: async (dir) => {
+		return new Promise((resolve, reject) => {
+			let settingsLocation = path.join(dir, '/snapfu.json');
+			if (!fs.existsSync(settingsLocation)) {
+				resolve({});
+			}
+			let settingsContents = fs.readFileSync(settingsLocation, 'utf8');
+			if (!settingsContents) {
+				reject('settings are invalid');
+			}
+
+			try {
+				const settings = JSON.parse(settingsContents);
+				resolve(settings);
+			} catch (err) {
+				reject('settings are invalid');
+			}
+		});
+	},
+	loadUser: async (dir) => {
+		let user;
+
+		try {
+			user = await auth.loadCreds(dir);
+		} catch (err) {
+			console.error(err);
+			user = { keys: {} };
+		}
+
+		try {
+			user.settings = await auth.loadSettings(dir);
+		} catch (err) {
+			// invalid settings - ignoring
+		}
+
+		return user;
 	},
 	listenForCallback: (port) => {
 		return new Promise((resolutionFunc, rejectionFunc) => {

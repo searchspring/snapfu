@@ -8,10 +8,12 @@ import inquirer from 'inquirer';
 import clone from 'git-clone';
 import sodium from 'tweetsodium';
 import ncp from 'ncp';
+import replaceStream from 'replacestream';
 import { auth } from './login.js';
 import { getContext } from './context.js';
 import { wait } from './utils/index.js';
 import { ConfigApi } from './services/ConfigApi.js';
+import YAML from 'yaml';
 
 export const DEFAULT_BRANCH = 'production';
 
@@ -75,9 +77,9 @@ export const init = async (options) => {
 			return repos.filter((repo) => repo.name.startsWith(`snapfu-template-`));
 		};
 
-		let repos = await fetchTemplateRepos();
+		const snapfuTemplateRepos = await fetchTemplateRepos();
 
-		if (!repos || !repos.length) {
+		if (!snapfuTemplateRepos?.length) {
 			console.log(chalk.red('failed to fetch templates...'));
 		} else {
 			let questions = [
@@ -101,14 +103,92 @@ export const init = async (options) => {
 
 			const answers1 = await inquirer.prompt(questions);
 
-			let questions2 = [
+			// filter out repos that apply to the framework
+			const templateRepos = snapfuTemplateRepos
+				.filter((repo) => repo.name.startsWith(`snapfu-template-${answers1.framework}`))
+				.map((repo) => repo.name);
+
+			const templates = {};
+			// map repos
+			templateRepos.forEach((repo) => {
+				templates[repo] = {
+					repo,
+					owner: 'searchspring',
+					ssh: `git@github.com:searchspring/${repo}.git`,
+					http: `https://github.com/searchspring/${repo}`,
+				};
+			});
+
+			if (user?.settings?.templates?.repositories?.length) {
+				// add separator for clear delimiting
+				const capitalizedFramework = answers1.framework.charAt(0).toUpperCase() + answers1.framework.slice(1);
+
+				templateRepos.unshift(new inquirer.Separator(`Snapfu ${capitalizedFramework} Templates`));
+				templateRepos.push(new inquirer.Separator('Custom Templates'));
+
+				// loop through custom repos and add to templateRepos list and templates mapping
+				user.settings.templates.repositories.forEach((url) => {
+					// supporting HTTP only list for now
+					const split = url.split('/');
+
+					if (split.length > 2) {
+						const repo = split[split.length - 1];
+						const owner = split[split.length - 2];
+
+						templateRepos.push(repo);
+
+						templates[repo] = {
+							repo,
+							owner,
+							ssh: `git@github.com:${owner}/${repo}.git`,
+							http: url,
+						};
+					}
+				});
+			}
+
+			const questions2 = [
 				{
 					type: 'list',
 					name: 'template',
 					message: "Please choose the template you'd like to use:",
-					choices: repos.filter((repo) => repo.name.startsWith(`snapfu-template-${answers1.framework}`)),
+					choices: templateRepos,
 					default: `snapfu-template-${answers1.framework}`,
 				},
+			];
+
+			const answers2 = await inquirer.prompt(questions2);
+
+			// template reference
+			const template = templates[answers2.template];
+			if (!template) {
+				console.log(chalk.red(`Failed to find the selected template ${answers2.template}...\n`));
+				exit(1);
+			}
+
+			try {
+				const contentResponse = await octokit.rest.repos.getContent({
+					owner: template.owner,
+					repo: template.repo,
+					path: 'snapfu.yml',
+				});
+
+				try {
+					const buffer = new Buffer.from(contentResponse.data.content, 'base64');
+					const fileContents = buffer.toString('ascii');
+					template.advanced = YAML.parse(fileContents);
+				} catch (err) {
+					console.log(chalk.red(`Failed to parse snapfu.yml contents...\n`));
+					exit(1);
+				}
+			} catch (err) {
+				if (err.status !== 404) {
+					console.log(chalk.red(`Failed to fetch snapfu.yml...\n`));
+					exit(1);
+				}
+			}
+
+			const questions3 = [
 				{
 					type: 'list',
 					name: 'organization',
@@ -136,8 +216,27 @@ export const init = async (options) => {
 					},
 				},
 			];
-			const answers2 = await inquirer.prompt(questions2);
-			const answers = { ...answers1, ...answers2 };
+			const answers3 = await inquirer.prompt(questions3);
+
+			// combined answers
+			const answers = { ...answers1, ...answers2, ...answers3 };
+
+			// ask additional questions (for advanced templates)
+			if (template.advanced?.variables?.length) {
+				console.log(chalk.gray(`\n${template.advanced.name ? `${template.advanced.name} ` : ''}Template Configuration`));
+				let advancedQuestions = [];
+				template.advanced.variables.forEach((variable) => {
+					if (variable.name && variable.type && variable.message) {
+						// remove the value
+						delete variable.value;
+						advancedQuestions.push(variable);
+					}
+				});
+
+				template.answers = await inquirer.prompt(advancedQuestions);
+			}
+
+			// validate siteId and secretKey
 			try {
 				await new ConfigApi(answers.secretKey, options.dev).validateSite(answers.siteId);
 			} catch (err) {
@@ -238,10 +337,6 @@ export const init = async (options) => {
 			const repoUrlSSH = `git@github.com:${creationMethod == 'createInOrg' ? answers.organization : user.login}/${answers.name}.git`;
 			const repoUrlHTTP = `https://${user.login}@github.com/${creationMethod == 'createInOrg' ? answers.organization : user.login}/${answers.name}`;
 
-			// template repo URLs
-			const templateUrlSSH = `git@github.com:searchspring/${answers.template}.git`;
-			const templateUrlHTTP = `https://github.com/searchspring/${answers.template}`;
-
 			if (!options.dev) {
 				try {
 					console.log(`Cloning repository via SSH...`);
@@ -254,24 +349,29 @@ export const init = async (options) => {
 				}
 			}
 
+			const templateVariables = {
+				'snapfu.name': answers.name,
+				'snapfu.siteId': answers.siteId,
+				'snapfu.author': user.name,
+				'snapfu.framework': answers.framework,
+			};
+
+			// add advanced template variables
+			if (template.answers) {
+				Object.keys(template.answers).forEach((key) => {
+					const value = template.answers[key];
+					templateVariables[`snapfu.variables.${key}`] = value;
+				});
+			}
+
 			try {
 				console.log(`Cloning template into ${dir} via SSH...`);
-				await cloneAndCopyRepo(templateUrlSSH, dir, true, {
-					'snapfu.name': answers.name,
-					'snapfu.siteId': answers.siteId,
-					'snapfu.author': user.name,
-					'snapfu.framework': answers.framework,
-				});
-				console.log(`${chalk.cyan(templateUrlSSH)}\n`);
+				await cloneAndCopyRepo(template.ssh, dir, true, templateVariables);
+				console.log(`${chalk.cyan(template.ssh)}\n`);
 			} catch (err) {
 				console.log(`SSH authentication failed. Cloning template into ${dir} via HTTPS...`);
-				await cloneAndCopyRepo(templateUrlHTTP, dir, true, {
-					'snapfu.name': answers.name,
-					'snapfu.siteId': answers.siteId,
-					'snapfu.author': user.name,
-					'snapfu.framework': answers.framework,
-				});
-				console.log(`${chalk.cyan(templateUrlHTTP)}\n`);
+				await cloneAndCopyRepo(template.http, dir, true, templateVariables);
+				console.log(`${chalk.cyan(template.http)}\n`);
 			}
 
 			// waiting here due to copyPromise function resolving before template is actually copied
@@ -414,13 +514,15 @@ export const setRepoSecret = async function (options, details) {
 	console.log(); // new line spacing
 };
 
-export const cloneAndCopyRepo = async function (sourceRepo, destination, excludeGit, transforms) {
+export const cloneAndCopyRepo = async function (sourceRepo, destination, excludeGit, variables) {
 	let folder = await fs.mkdtemp(path.join(os.tmpdir(), 'snapfu-temp')).then(async (folder, err) => {
 		if (err) throw err;
 		return folder;
 	});
 
+	// clone template repo into temp dir
 	await clonePromise(sourceRepo, folder);
+
 	let options = { clobber: true };
 
 	if (excludeGit) {
@@ -429,32 +531,39 @@ export const cloneAndCopyRepo = async function (sourceRepo, destination, exclude
 		};
 	}
 
-	if (transforms) {
+	if (variables) {
 		options.transform = async (read, write, file) => {
-			await transform(read, write, transforms, file);
+			await transform(read, write, variables, file);
 		};
 	}
 
+	// copy from temp dir to destination (with optional transforms)
 	await copyPromise(folder, destination, options);
 };
 
-export const transform = async function (read, write, transforms, file) {
+export const transform = function (read, write, variables, file) {
 	if (
 		file.name.endsWith('.md') ||
 		file.name.endsWith('.html') ||
 		file.name.endsWith('.json') ||
 		file.name.endsWith('.yml') ||
-		file.name.endsWith('index.js')
+		file.name.endsWith('.scss') ||
+		file.name.endsWith('.sass') ||
+		file.name.endsWith('.jsx') ||
+		file.name.endsWith('.ts') ||
+		file.name.endsWith('.tsx') ||
+		file.name.endsWith('.js')
 	) {
-		let content = await streamToString(read);
-
-		Object.keys(transforms).forEach(function (key) {
-			let t = transforms[key];
-			let r = new RegExp('{{\\s*' + key + '\\s*}}', 'gi');
-			content = content.replace(r, t);
+		// create and pipe through multiple replaceStreams
+		let pipeline = read;
+		Object.keys(variables).forEach(function (variable) {
+			let value = variables[variable];
+			let regex = new RegExp('{{\\s*' + variable + '\\s*}}', 'gi');
+			pipeline = pipeline.pipe(replaceStream(regex, value));
 		});
 
-		write.write(content);
+		pipeline.pipe(write);
+		// write.write(content);
 	} else {
 		read.pipe(write);
 	}

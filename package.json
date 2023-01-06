@@ -39,6 +39,7 @@
 		"ncp": "^2.0.0",
 		"node-fetch": "^2.6.1",
 		"open": "^8.2.1",
+		"replacestream": "^4.0.3",
 		"tweetsodium": "^0.0.5",
 		"yaml": "^2.1.1"
 	},
