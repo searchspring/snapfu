@@ -80,23 +80,27 @@ export const getVersions = async (options, startingAt, endingAt) => {
 
 	// ~/.searchspring/snapfu-patches/{framework}/{version}
 	const frameworkPath = path.join(options.config.patches.dir, framework);
-	const patchVersions = await fsp.readdir(path.join(frameworkPath));
+	const patchDirExists = existsSync(frameworkPath);
 	let versions = [];
-	for (const file of patchVersions) {
-		const filePath = path.resolve(frameworkPath, file);
-		const fileStats = await statSync(filePath);
-		if (fileStats.isDirectory()) {
-			versions.push(file);
+
+	if (patchDirExists) {
+		const patchVersions = await fsp.readdir(path.join(frameworkPath));
+		for (const file of patchVersions) {
+			const filePath = path.resolve(frameworkPath, file);
+			const fileStats = await statSync(filePath);
+			if (fileStats.isDirectory()) {
+				versions.push(file);
+			}
 		}
-	}
-	versions.sort(cmp);
+		versions.sort(cmp);
 
-	if (startingAt) {
-		versions = versions.filter((version) => cmp(version, startingAt) > 0);
-	}
+		if (startingAt) {
+			versions = versions.filter((version) => cmp(version, startingAt) > 0);
+		}
 
-	if (endingAt) {
-		versions = versions.filter((version) => cmp(version, endingAt) <= 0);
+		if (endingAt) {
+			versions = versions.filter((version) => cmp(version, endingAt) <= 0);
+		}
 	}
 
 	return versions;
