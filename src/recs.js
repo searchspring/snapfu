@@ -2,6 +2,7 @@ import chalk from 'chalk';
 import inquirer from 'inquirer';
 import path from 'path';
 import fs, { promises as fsp } from 'fs';
+import { exit } from 'process';
 import { help } from './help.js';
 import { wait } from './utils/index.js';
 import { DEFAULT_BRANCH } from './init.js';
@@ -214,6 +215,10 @@ export async function removeTemplate(options) {
 	}
 
 	const branchName = branch || repository.branch || DEFAULT_BRANCH;
+	if (repository && repository.branchList && !repository.branchList.includes(branchName)) {
+		console.log(chalk.red(`Error: Branch not found. - ${branch}`));
+		return;
+	}
 
 	const payload = { name: templateName, branch: branchName };
 
@@ -261,10 +266,49 @@ export async function syncTemplate(options) {
 
 	const templates = await getTemplates(context.project.path);
 	const syncTemplates = templates.filter((template) => {
-		if (templateName) {
-			if (template.details.name == templateName) return template;
+		//lets validate all the details are valid before we sync
+		let invalidParam;
+		Object.keys(template.details).forEach(function (detail) {
+			if (typeof template.details[detail] !== 'string') {
+				if (detail == 'parameters') {
+					template.details[detail].map((index) => {
+						Object.keys(index).forEach(function (parameters) {
+							if (typeof index[parameters] !== 'string') {
+								invalidParam = `${detail}: { ${parameters}: ${index[parameters]} }`;
+							}
+						});
+					});
+				} else {
+					invalidParam = `${detail} ${template.details[detail]}`;
+				}
+			}
+		});
+
+		if (invalidParam) {
+			console.log(
+				chalk.red(`
+Error: Invalid template configuration found on template ${chalk.white.underline(template.details.name)}!`)
+			);
+			console.log(
+				chalk.cyanBright(`
+			
+${invalidParam}
+			
+			`)
+			);
+			console.log(
+				chalk.whiteBright(`Please ensure all template config values are strings.
+		
+			`)
+			);
+			//Stop everything
+			exit(1);
 		} else {
-			return template;
+			if (templateName) {
+				if (template.details.name == templateName) return template;
+			} else {
+				return template;
+			}
 		}
 	});
 
@@ -274,6 +318,10 @@ export async function syncTemplate(options) {
 	}
 
 	const branchName = branch || repository.branch || DEFAULT_BRANCH;
+	if (repository && repository.branchList && !repository.branchList.includes(branchName)) {
+		console.log(chalk.red(`Error: Branch not found. - ${branch}`));
+		return;
+	}
 
 	const sync = async (template, secretKey) => {
 		const payload = buildTemplatePayload(template.details, { branch: branchName, framework: searchspring.framework });

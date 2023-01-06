@@ -7,7 +7,7 @@ import { auth } from './login.js';
 import { commandOutput } from './utils/index.js';
 
 export async function getContext(dir) {
-	let project, searchspring, branch, remote, organization, name, projectVersion;
+	let project, searchspring, branch, branchList, remote, organization, name, projectVersion;
 	try {
 		const packageContext = await getPackageJSON(dir);
 
@@ -19,6 +19,7 @@ export async function getContext(dir) {
 	}
 
 	try {
+		branchList = (await commandOutput('git branch', dir)).stdout.trim();
 		branch = (await commandOutput('git branch --show-current', dir)).stdout.trim();
 		remote = (await commandOutput('git config --get remote.origin.url', dir)).stdout.trim();
 	} catch (err) {
@@ -41,6 +42,7 @@ export async function getContext(dir) {
 			name,
 			organization,
 			branch,
+			branchList,
 		},
 		searchspring,
 		projectVersion,

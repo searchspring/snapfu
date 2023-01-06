@@ -99,7 +99,6 @@ export class ConfigApi {
 		} else if (response.status == 500) {
 			throw new Error(`Server encounterd a problem.`);
 		} else {
-			console.log(response);
 			throw new Error(`Unknown error has occured.`);
 		}
 	}
