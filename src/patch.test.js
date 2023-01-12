@@ -1,4 +1,4 @@
-import { listPatches, applyPatches, getVersions, setupPatchRepo, editYAMLorJSON } from './patch.js';
+import { listPatches, applyPatches, getVersions, setupPatchRepo } from './patch.js';
 import { cmp } from './utils/index.js';
 
 import tempDirectory from 'temp-dir';
@@ -36,12 +36,14 @@ const mockPatch = {
 		{
 			files: {
 				'package.json': {
-					action: 'edit',
+					action: 'edit-json',
 					changes: [
 						{
 							update: {
-								searchspring: {
-									tags: ['patched'],
+								properties: {
+									searchspring: {
+										tags: ['patched'],
+									},
 								},
 							},
 						},
@@ -62,9 +64,7 @@ let searchspringDir = '';
 let mockPatchesDir = '';
 let projectDirRoot = '';
 let projectDir = '';
-let projectDirDeep = '';
 let packageJSONPath = '';
-let packageYAMLPath = '';
 
 beforeAll(async () => {
 	// setup project
@@ -81,7 +81,6 @@ beforeAll(async () => {
 	fs.mkdirsSync(mockPatchesDir, true);
 
 	packageJSONPath = path.join(projectDir, 'package.json');
-	packageYAMLPath = path.join(projectDir, 'package.yaml');
 
 	// setup patches mocks
 	for (const framework of Object.keys(mockPatches)) {
@@ -100,7 +99,6 @@ beforeAll(async () => {
 
 beforeEach(async () => {
 	await fsp.writeFile(packageJSONPath, JSON.stringify(mockPackage));
-	await fsp.writeFile(packageYAMLPath, YAML.stringify(mockPackage));
 });
 
 afterAll(() => {
@@ -467,410 +465,5 @@ describe('applyPatches', () => {
 
 		expect(parsed.searchspring.tags).toStrictEqual([...mockPackage.searchspring.tags, ...mockPatches.preact.map((p) => 'patched')]);
 		expect(parsed.searchspring.version).toBe(mockPatches.preact[mockPatches.preact.length - 1]);
-	});
-});
-
-describe('editYAMLorJSON function', () => {
-	['json', 'yaml'].forEach((type) => {
-		describe(type, () => {
-			let packagePath;
-			let parser;
-			let packageName;
-
-			beforeAll(() => {
-				if (type == 'json') {
-					packagePath = packageJSONPath;
-					parser = JSON;
-				} else {
-					packagePath = packageYAMLPath;
-					parser = YAML;
-				}
-
-				// filename without path needed in function
-				packageName = path.basename(packagePath);
-			});
-
-			it('can use update to add new key', async () => {
-				const options = {
-					context: {
-						project: {
-							path: projectDir,
-						},
-					},
-				};
-
-				const dependencies = {
-					'@searchspring/snap-preact': '0.21.0',
-					'@searchspring/snap-preact-components': '0.21.0',
-				};
-
-				const changes = [
-					{
-						update: {
-							dependencies: dependencies,
-						},
-					},
-				];
-
-				await editYAMLorJSON(options, packageName, changes);
-
-				const contents = await fsp.readFile(packagePath, 'utf8');
-
-				const parsed = parser.parse(contents);
-
-				const expectedContents = { ...mockPackage, dependencies };
-
-				expect(parsed).toStrictEqual(expectedContents);
-			});
-
-			it('can use update to add deep nested keys', async () => {
-				const options = {
-					context: {
-						project: {
-							path: projectDir,
-						},
-					},
-				};
-
-				const ocean = {
-					deep: {
-						fishes: 'tuna swordfish',
-					},
-				};
-
-				const changes = [
-					{
-						update: {
-							ocean: ocean,
-						},
-					},
-				];
-
-				await editYAMLorJSON(options, packageName, changes);
-
-				const contents = await fsp.readFile(packagePath, 'utf8');
-				const parsed = parser.parse(contents);
-
-				const expectedContents = { ...mockPackage, ocean };
-				expect(parsed).toStrictEqual(expectedContents);
-
-				const changes2 = [
-					{
-						update: {
-							ocean: {
-								deep: {
-									deeper: {
-										fishes: 'whale sharks',
-									},
-								},
-							},
-						},
-					},
-				];
-
-				await editYAMLorJSON(options, packageName, changes2);
-
-				const deeperContents = await fsp.readFile(packagePath, 'utf8');
-				const deeperParsed = parser.parse(deeperContents);
-
-				const expectedDeeperContents = {
-					...mockPackage,
-					ocean: {
-						deep: {
-							fishes: 'tuna swordfish',
-							deeper: {
-								fishes: 'whale sharks',
-							},
-						},
-					},
-				};
-				expect(deeperParsed).toStrictEqual(expectedDeeperContents);
-			});
-
-			it('can use update to alter existing keys', async () => {
-				const options = {
-					context: {
-						project: {
-							path: projectDir,
-						},
-					},
-				};
-
-				const version = '0.33.0';
-
-				const changes = [
-					{
-						update: {
-							version,
-						},
-					},
-				];
-
-				await editYAMLorJSON(options, packageName, changes);
-
-				const contents = await fsp.readFile(packagePath, 'utf8');
-				const parsed = parser.parse(contents);
-
-				const expectedContents = { ...mockPackage, version };
-				expect(parsed).toStrictEqual(expectedContents);
-			});
-
-			it('can append to an existing array', async () => {
-				const options = {
-					context: {
-						project: {
-							path: projectDir,
-						},
-					},
-				};
-
-				const changes = [
-					{
-						update: {
-							searchspring: {
-								tags: ['newItem', 'newer', 'newest'],
-							},
-						},
-					},
-				];
-
-				await editYAMLorJSON(options, packageName, changes);
-
-				const contents = await fsp.readFile(packagePath, 'utf8');
-				const parsed = parser.parse(contents);
-
-				const expectedContents = parser.parse(JSON.stringify(mockPackage));
-				(expectedContents.searchspring.tags = expectedContents.searchspring.tags.concat(['newItem', 'newer', 'newest'])),
-					expect(parsed).toStrictEqual(expectedContents);
-			});
-
-			it('can use remove to remove keys', async () => {
-				const options = {
-					context: {
-						project: {
-							path: projectDir,
-						},
-					},
-				};
-
-				const changes = [
-					{
-						remove: {
-							searchspring: ['siteId'],
-						},
-					},
-				];
-
-				await editYAMLorJSON(options, packageName, changes);
-
-				const contents = await fsp.readFile(packagePath, 'utf8');
-				const parsed = parser.parse(contents);
-
-				const expectedContents = { ...mockPackage };
-				delete expectedContents.searchspring.siteId;
-				expect(parsed).toStrictEqual(expectedContents);
-			});
-
-			it('can use remove to remove multiple keys', async () => {
-				const options = {
-					context: {
-						project: {
-							path: projectDir,
-						},
-					},
-				};
-
-				const changes = [
-					{
-						remove: {
-							searchspring: ['siteId', 'framework'],
-						},
-					},
-				];
-
-				await editYAMLorJSON(options, packageName, changes);
-
-				const contents = await fsp.readFile(packagePath, 'utf8');
-				const parsed = parser.parse(contents);
-
-				const expectedContents = { ...mockPackage };
-				delete expectedContents.searchspring.siteId;
-				delete expectedContents.searchspring.framework;
-
-				expect(parsed).toStrictEqual(expectedContents);
-			});
-
-			it('can use remove to remove array entries', async () => {
-				const options = {
-					context: {
-						project: {
-							path: projectDir,
-						},
-					},
-				};
-
-				const changes = [
-					{
-						remove: {
-							searchspring: {
-								tags: ['finder', 'ac'],
-							},
-						},
-					},
-				];
-
-				await editYAMLorJSON(options, packageName, changes);
-
-				const contents = await fsp.readFile(packagePath, 'utf8');
-				const parsed = parser.parse(contents);
-
-				const expectedContents = { ...mockPackage };
-				expectedContents.searchspring.tags = ['email'];
-
-				expect(parsed).toStrictEqual(expectedContents);
-			});
-
-			it('can use remove to remove root level keys', async () => {
-				const options = {
-					context: {
-						project: {
-							path: projectDir,
-						},
-					},
-				};
-
-				const changes = [
-					{
-						remove: ['version'],
-					},
-				];
-
-				await editYAMLorJSON(options, packageName, changes);
-
-				const contents = await fsp.readFile(packagePath, 'utf8');
-				const parsed = parser.parse(contents);
-
-				const expectedContents = { ...mockPackage };
-				delete expectedContents.version;
-				expect(parsed).toStrictEqual(expectedContents);
-			});
-
-			it('can use remove to remove multiple root level keys', async () => {
-				const options = {
-					context: {
-						project: {
-							path: projectDir,
-						},
-					},
-				};
-
-				const changes = [
-					{
-						remove: ['version', 'searchspring'],
-					},
-				];
-
-				await editYAMLorJSON(options, packageName, changes);
-
-				const contents = await fsp.readFile(packagePath, 'utf8');
-				const parsed = parser.parse(contents);
-
-				const expectedContents = { ...mockPackage };
-				delete expectedContents.version;
-				delete expectedContents.searchspring;
-				expect(parsed).toStrictEqual(expectedContents);
-			});
-
-			it('can use remove to remove nested keys', async () => {
-				const options = {
-					context: {
-						project: {
-							path: projectDir,
-						},
-					},
-				};
-
-				const changes = [
-					{
-						remove: {
-							searchspring: {
-								nestedObject: ['hello'],
-							},
-						},
-					},
-				];
-
-				await editYAMLorJSON(options, packageName, changes);
-
-				const contents = await fsp.readFile(packagePath, 'utf8');
-				const parsed = parser.parse(contents);
-
-				const expectedContents = {
-					...mockPackage,
-				};
-				delete expectedContents.searchspring.nestedObject.hello;
-				expect(parsed).toStrictEqual(expectedContents);
-			});
-
-			it('can use remove to remove deep nested keys', async () => {
-				const options = {
-					context: {
-						project: {
-							path: projectDir,
-						},
-					},
-				};
-
-				const changes = [
-					{
-						remove: {
-							searchspring: {
-								nestedObject: {
-									deep: ['helloo'],
-								},
-							},
-						},
-					},
-				];
-
-				await editYAMLorJSON(options, packageName, changes);
-
-				const contents = await fsp.readFile(packagePath, 'utf8');
-				const parsed = parser.parse(contents);
-
-				const expectedContents = {
-					...mockPackage,
-				};
-				delete expectedContents.searchspring.nestedObject.deep.helloo;
-				expect(parsed).toStrictEqual(expectedContents);
-			});
-
-			it('can use remove when key does not exist', async () => {
-				const options = {
-					context: {
-						project: {
-							path: projectDir,
-						},
-					},
-				};
-
-				const changes = [
-					{
-						remove: {
-							searchspring: ['doesnotexist'],
-						},
-					},
-				];
-
-				await editYAMLorJSON(options, packageName, changes);
-
-				const contents = await fsp.readFile(packagePath, 'utf8');
-				const parsed = parser.parse(contents);
-
-				const expectedContents = { ...mockPackage };
-
-				expect(parsed).toStrictEqual(expectedContents);
-			});
-		});
 	});
 });
