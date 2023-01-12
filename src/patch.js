@@ -5,6 +5,7 @@ import chalk from 'chalk';
 import inquirer from 'inquirer';
 import ncp from 'ncp';
 import YAML from 'yaml';
+import glob from 'glob';
 
 import { editJSON } from './patch/edit-json.js';
 import { editYAML } from './patch/edit-yaml.js';
@@ -130,7 +131,7 @@ export const applyPatches = async (options, skipUpdate = false) => {
 	const availablePatches = await getVersions(options);
 
 	// verify requested version
-	const versionMatch = /^\w?(\d+\.\d+\.\d+-?\d*)$/.exec(versionApply);
+	const versionMatch = /^^\w?(\d+\.\d+\.\d+)$/.exec(versionApply);
 	let filteredVersionApply;
 
 	if (versionApply == 'latest') {
@@ -193,7 +194,7 @@ export const applyPatches = async (options, skipUpdate = false) => {
 	}
 
 	// modify package.json with finalVersion number
-	console.log(chalk.blue(`finalizing patch...`));
+	console.log(chalk.blue(`\nfinalizing patch...`));
 	await editJSON(options, 'package.json', [{ update: { properties: { searchspring: { version: finalVersion } } } }]);
 
 	// patching complete
@@ -285,41 +286,44 @@ const runPatch = async (options, patchFile) => {
 				}
 				case 'files': {
 					const files = step[action];
-					const fileNames = Object.keys(files);
+					const fileGlobs = Object.keys(files);
 
-					for (const fileName of fileNames) {
-						const { action, changes } = files[fileName];
-						switch (action) {
-							case 'edit-json': {
-								try {
-									const extension = fileName.split('.').pop();
-									if (['json'].includes(extension)) {
-										await editJSON(options, fileName, changes);
+					for (const fileGlob of fileGlobs) {
+						const { action, changes } = files[fileGlob];
+
+						try {
+							// get filenames using glob - ignore `node_modules` and `patch` files
+							const fileNames = glob.sync(fileGlob, { nosort: true, ignore: ['node_modules/**', 'patch/**'] });
+
+							for (const fileName of fileNames) {
+								const extension = fileName.split('.').pop();
+
+								switch (action) {
+									case 'edit-json': {
+										if (['json'].includes(extension)) {
+											console.log(`editing ${fileName}`);
+											await editJSON(options, fileName, changes);
+										}
+
+										break;
 									}
-								} catch (err) {
-									console.log(err);
-									exit(1);
-								}
+									case 'edit-yaml': {
+										if (['yaml', 'yml'].includes(extension)) {
+											console.log(`editing ${fileName}`);
+											await editYAML(options, fileName, changes);
+										}
 
-								break;
-							}
-							case 'edit-yaml': {
-								try {
-									const extension = fileName.split('.').pop();
-									if (['yaml', 'yml'].includes(extension)) {
-										await editYAML(options, fileName, changes);
+										break;
 									}
-								} catch (err) {
-									console.log(err);
-									exit(1);
+									default: {
+										// FUTURE TODO: support editing other file types
+										break;
+									}
 								}
-
-								break;
 							}
-							default: {
-								// FUTURE TODO: support editing other file types
-								break;
-							}
+						} catch (err) {
+							console.error(err);
+							exit(1);
 						}
 					}
 					break;
