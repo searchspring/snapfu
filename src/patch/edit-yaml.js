@@ -202,34 +202,19 @@ export const editYAML = async (options, fileName, changes) => {
 					case 'path': {
 						const path = change[action].path;
 						const value = change[action].value || change[action].values;
-						const index = change[action].index;
 						const currentValue = doc.getIn(path, true);
 
 						if (currentValue) {
-							if (!value && typeof index == 'undefined') {
+							if (!value) {
 								// remove the path entry entirely
 								doc.deleteIn(path);
 							} else if (currentValue?.items) {
 								// value removal only makes sense on arrays
-								if (typeof index != 'undefined') {
-									doc.setIn(
-										path,
-										currentValue.items.filter((val, i) => i != index)
-									);
-								} else if (value) {
-									if (Array.isArray(value)) {
-										doc.setIn(
-											path,
-											currentValue.items.filter((item) => !value.includes(item.value))
-										);
-									} else {
-										const valueIndex = currentValue.items.findIndex((item) => item.value == value);
-
-										if (valueIndex >= 0) {
-											doc.setIn(path, currentValue.items.splice(index, 1));
-										}
-									}
-								}
+								const valuesToRemove = Array.isArray(value) ? value : [value];
+								doc.setIn(
+									path,
+									currentValue.items.filter((item) => !valuesToRemove.includes(item.value))
+								);
 							}
 						}
 

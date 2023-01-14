@@ -988,8 +988,7 @@ describe('editYAML function', () => {
 			const changes = [
 				{
 					remove: {
-						path: ['on'],
-						index: 1,
+						path: ['on', 1],
 					},
 				},
 			];

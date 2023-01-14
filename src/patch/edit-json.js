@@ -227,24 +227,26 @@ export const editJSON = async (options, fileName, changes) => {
 								}
 							} else {
 								// last path entry - set the value
-								if (!fileRef) return;
 
-								if (typeof value == 'undefined' && typeof index == 'undefined') {
-									// remove the path entry entirely
-									delete fileRef[entry];
+								if (!fileRef) {
+									// fileRef not found
+									return;
+								}
+
+								if (typeof value == 'undefined') {
+									if (Array.isArray(fileRef) && Number.isInteger(entry)) {
+										// remove array entry
+										fileRef.splice(entry, 1);
+									} else {
+										// remove the path entry entirely
+										delete fileRef[entry];
+									}
 								} else if (fileRef[entry] && Array.isArray(fileRef[entry])) {
 									// value removal only makes sense on arrays
-									if (typeof index != 'undefined') {
-										fileRef[entry].splice(index, 1);
-									} else if (value)
-										if (Array.isArray(value)) {
-											fileRef[entry] = fileRef[entry].filter((val) => !value.includes(val));
-										} else {
-											const valueIndex = fileRef[entry].indexOf(value);
-											if (valueIndex >= 0) {
-												fileRef[entry].splice(valueIndex, 1);
-											}
-										}
+
+									const valuesToRemove = Array.isArray(value) ? value : [value];
+
+									fileRef[entry] = fileRef[entry].filter((val) => !valuesToRemove.includes(val));
 								}
 							}
 						});

@@ -990,11 +990,11 @@ describe('editJSON function', () => {
 		});
 
 		it('can use `remove` to remove an array at index', async () => {
+			const indexPos = 1;
 			const changes = [
 				{
 					remove: {
-						path: ['searchspring', 'tags'],
-						index: 1,
+						path: ['searchspring', 'tags', indexPos],
 					},
 				},
 			];
@@ -1005,7 +1005,7 @@ describe('editJSON function', () => {
 			const parsed = JSON.parse(contents);
 
 			const expectedContents = { ...getMockPackage() };
-			expectedContents.searchspring.tags = ['finder', 'email'];
+			expectedContents.searchspring.tags.splice(indexPos, 1);
 
 			expect(parsed).toStrictEqual(expectedContents);
 		});
