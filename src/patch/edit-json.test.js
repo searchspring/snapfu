@@ -199,6 +199,38 @@ describe('editJSON function', () => {
 			expect(parsed).toStrictEqual(expectedContents);
 		});
 
+		it('can use `update` to update multiple existing keys', async () => {
+			const ultrapack = '^7.7.7';
+			const verified = true;
+
+			const changes = [
+				{
+					update: {
+						properties: {
+							searchspring: {
+								verified,
+							},
+							dependencies: {
+								ultrapack,
+							},
+						},
+					},
+				},
+			];
+
+			await editJSON(options, packageName, changes);
+
+			const contents = await fsp.readFile(packagePath, 'utf8');
+
+			const parsed = JSON.parse(contents);
+
+			const expectedContents = getMockPackage();
+			expectedContents.searchspring.verified = verified;
+			expectedContents.dependencies.ultrapack = ultrapack;
+
+			expect(parsed).toStrictEqual(expectedContents);
+		});
+
 		it('can use `update` to add deep nested keys', async () => {
 			const ocean = {
 				deep: {
@@ -354,6 +386,44 @@ describe('editJSON function', () => {
 
 			const expectedContents = getMockPackage();
 			(expectedContents.searchspring.tags = expectedContents.searchspring.tags.concat(newTags)), expect(parsed).toStrictEqual(expectedContents);
+		});
+
+		it('can use `update` to append to an existing array and modify an existing key and add a new key', async () => {
+			const newTags = ['newItem', 'newer', 'newest'];
+			const verified = true;
+			const topLevel = {
+				this: {
+					new: {
+						thing: ['is', 'here'],
+					},
+				},
+			};
+
+			const changes = [
+				{
+					update: {
+						properties: {
+							searchspring: {
+								tags: newTags,
+								verified,
+							},
+							topLevel,
+						},
+					},
+				},
+			];
+
+			await editJSON(options, packageName, changes);
+
+			const contents = await fsp.readFile(packagePath, 'utf8');
+			const parsed = JSON.parse(contents);
+
+			const expectedContents = getMockPackage();
+			expectedContents.searchspring.tags = expectedContents.searchspring.tags.concat(newTags);
+			expectedContents.searchspring.verified = verified;
+			expectedContents.topLevel = topLevel;
+
+			expect(parsed).toStrictEqual(expectedContents);
 		});
 
 		it('can use `remove` to delete key', async () => {
@@ -818,7 +888,7 @@ describe('editJSON function', () => {
 			const changes = [
 				{
 					update: {
-						path: ['searchspring', 'arrayOfObjects', [2], 'prop'],
+						path: ['searchspring', 'arrayOfObjects', 2, 'prop'],
 						value: newPropValue,
 					},
 				},
@@ -883,7 +953,7 @@ describe('editJSON function', () => {
 			const changes = [
 				{
 					remove: {
-						path: ['searchspring', 'arrayOfObjects', [2], 'order'],
+						path: ['searchspring', 'arrayOfObjects', 2, 'order'],
 					},
 				},
 			];

@@ -26,14 +26,13 @@ steps:
                     value: ${{ toJSON(secrets) }}
 */
 
-const mockDeploy = `
-on: [push, pull_request]
+const mockDeploy = `on: [ push, pull_request ]
 
 jobs:
   Publish:
     runs-on: ubuntu-latest
     name: Snap Action
-    things: [1, 2]
+    things: [ 1, 2 ]
     steps:
       - name: Checkout action
         uses: actions/checkout@v2
@@ -42,7 +41,7 @@ jobs:
       - name: Run @searchspring/snap-action
         uses: ./
         with:
-        # required
+          # required
           repository: \${{ env.GITHUB_REPOSITORY }}
           secretKey: \${{ secrets.WEBSITE_SECRET_KEY }}
           secrets: \${{ toJSON(secrets) }}
@@ -50,10 +49,14 @@ jobs:
           aws-secret-access-key: \${{ secrets.SNAPFU_AWS_SECRET_ACCESS_KEY }}
           aws-cloudfront-distribution-id: \${{secrets.SNAPFU_AWS_DISTRIBUTION_ID}}
           aws-s3-bucket-name: \${{secrets.SNAPFU_AWS_BUCKET}}
-        # optional
+          # optional
           NODE_AUTH_TOKEN: \${{ secrets.PACKAGE_TOKEN }}
           GITHUB_BOT_TOKEN: \${{ secrets.MACHINE_TOKEN }}
           LHCI_GITHUB_APP_TOKEN: \${{ secrets.LHCI_GITHUB_APP_TOKEN }}
+          skipTests: true
+          skipLighthouse: true
+          skipPublish: true
+          skipInvalidation: true
 `;
 
 const getMockDeploy = () => YAML.parse(mockDeploy);
@@ -92,7 +95,7 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
-	await fsp.writeFile(deployPath, mockDeploy);
+	await fsp.writeFile(deployPath, mockDeploy, 'utf8');
 });
 
 describe('editYAML function', () => {
@@ -148,7 +151,7 @@ describe('editYAML function', () => {
 	});
 
 	describe('using `properties`', () => {
-		it.skip(`preserves comments when there are changes specified`, async () => {
+		it(`preserves comments when there are changes specified`, async () => {
 			const changes = [
 				{
 					update: {
@@ -236,6 +239,38 @@ describe('editYAML function', () => {
 			const parsed = YAML.parse(contents);
 
 			const expectedContents = { ...getMockDeploy(), dependencies, devDependencies };
+
+			expect(parsed).toStrictEqual(expectedContents);
+		});
+
+		it('can use `update` to update multiple existing keys', async () => {
+			const newThings = ['one', 'two', 'three'];
+			const verified = true;
+
+			const changes = [
+				{
+					update: {
+						properties: {
+							jobs: {
+								Publish: {
+									verified,
+									newThings,
+								},
+							},
+						},
+					},
+				},
+			];
+
+			await editYAML(options, deployName, changes);
+
+			const contents = await fsp.readFile(deployPath, 'utf8');
+
+			const parsed = YAML.parse(contents);
+
+			const expectedContents = getMockDeploy();
+			expectedContents.jobs.Publish.verified = verified;
+			expectedContents.jobs.Publish.newThings = newThings;
 
 			expect(parsed).toStrictEqual(expectedContents);
 		});
@@ -342,6 +377,73 @@ describe('editYAML function', () => {
 
 			const expectedContents = getMockDeploy();
 			expectedContents.on = expectedContents.on.concat(newTrigger);
+			expect(parsed).toStrictEqual(expectedContents);
+		});
+
+		it('can use `update` to append to a deeply nested existing array', async () => {
+			const newThings = [3, 4];
+
+			const changes = [
+				{
+					update: {
+						properties: {
+							jobs: {
+								Publish: {
+									things: newThings,
+								},
+							},
+						},
+					},
+				},
+			];
+
+			await editYAML(options, deployName, changes);
+
+			const contents = await fsp.readFile(deployPath, 'utf8');
+			const parsed = YAML.parse(contents);
+
+			const expectedContents = getMockDeploy();
+			expectedContents.jobs.Publish.things = expectedContents.jobs.Publish.things.concat(newThings);
+			expect(parsed).toStrictEqual(expectedContents);
+		});
+
+		it('can use `update` to append to an existing array and modify an existing key and add a new key', async () => {
+			const newThings = [3, 4];
+			const verified = true;
+			const topLevel = {
+				this: {
+					new: {
+						thing: ['is', 'here'],
+					},
+				},
+			};
+
+			const changes = [
+				{
+					update: {
+						properties: {
+							jobs: {
+								Publish: {
+									things: newThings,
+									verified,
+								},
+							},
+							topLevel,
+						},
+					},
+				},
+			];
+
+			await editYAML(options, deployName, changes);
+
+			const contents = await fsp.readFile(deployPath, 'utf8');
+			const parsed = YAML.parse(contents);
+
+			const expectedContents = getMockDeploy();
+			expectedContents.jobs.Publish.things = expectedContents.jobs.Publish.things.concat(newThings);
+			expectedContents.jobs.Publish.verified = verified;
+			expectedContents.topLevel = topLevel;
+
 			expect(parsed).toStrictEqual(expectedContents);
 		});
 
@@ -464,7 +566,7 @@ describe('editYAML function', () => {
 			const changes = [
 				{
 					remove: {
-						properties: ['version', 'searchspring'],
+						properties: ['jobs', 'on'],
 					},
 				},
 			];
@@ -475,8 +577,8 @@ describe('editYAML function', () => {
 			const parsed = YAML.parse(contents);
 
 			const expectedContents = { ...getMockDeploy() };
-			delete expectedContents.version;
-			delete expectedContents.searchspring;
+			delete expectedContents.on;
+			delete expectedContents.jobs;
 			expect(parsed).toStrictEqual(expectedContents);
 		});
 
@@ -537,7 +639,7 @@ describe('editYAML function', () => {
 	});
 
 	describe('using `path`', () => {
-		it.skip(`preserves comments when there are changes specified`, async () => {
+		it(`preserves comments when there are changes specified`, async () => {
 			const changes = [
 				{
 					update: {
@@ -765,13 +867,42 @@ describe('editYAML function', () => {
 			expect(parsed).toStrictEqual(expectedContents);
 		});
 
+		it('can use `update` to append to an object to an existing array', async () => {
+			const newStep = {
+				name: 'New Step',
+				uses: 'actions/fakeaction@v999',
+				with: {
+					option1: 'an option',
+					arrayOfStuff: ['things', 'and', 'stuff'],
+				},
+			};
+
+			const changes = [
+				{
+					update: {
+						path: ['jobs', 'Publish', 'steps'],
+						value: newStep,
+						modifier: 'append',
+					},
+				},
+			];
+
+			await editYAML(options, deployName, changes);
+
+			const contents = await fsp.readFile(deployPath, 'utf8');
+			const parsed = YAML.parse(contents);
+
+			const expectedContents = getMockDeploy();
+			(expectedContents.jobs.Publish.steps = expectedContents.jobs.Publish.steps.concat(newStep)), expect(parsed).toStrictEqual(expectedContents);
+		});
+
 		it('can use `update` to select an array index within the path', async () => {
 			const newPropValue = 'super secret';
 
 			const changes = [
 				{
 					update: {
-						path: ['jobs', 'Publish', 'steps', [1], 'secrets'],
+						path: ['jobs', 'Publish', 'steps', 1, 'secrets'],
 						value: newPropValue,
 					},
 				},
@@ -806,16 +937,16 @@ describe('editYAML function', () => {
 			expect(parsed).toStrictEqual(expectedContents);
 		});
 
-		it('can use `remove` to delete multiple keys', async () => {
+		it('can use `remove` to delete multiple keys with array index in path', async () => {
 			const changes = [
 				{
 					remove: {
-						path: ['jobs', 'Publish', 'steps', [0], 'name'],
+						path: ['jobs', 'Publish', 'steps', 0, 'name'],
 					},
 				},
 				{
 					remove: {
-						path: ['jobs', 'Publish', 'steps', [0], 'uses'],
+						path: ['jobs', 'Publish', 'steps', 0, 'uses'],
 					},
 				},
 			];
@@ -993,7 +1124,7 @@ describe('editYAML function', () => {
 			const changes = [
 				{
 					remove: {
-						path: ['jobs', 'Publish', 'steps', [3], 'dne'],
+						path: ['jobs', 'Publish', 'steps', 3, 'dne'],
 					},
 				},
 			];

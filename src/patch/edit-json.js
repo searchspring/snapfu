@@ -53,13 +53,13 @@ export const editJSON = async (options, fileName, changes) => {
 									const valueObjectKeys = Object.keys(value || {});
 									valueObjectKeys.forEach((key) => {
 										if (!obj) {
-											//obj doesnt exist
+											// obj doesnt exist
 											obj = {};
 											obj[key] = value[key];
 										} else if (Array.isArray(obj[key])) {
 											obj[key] = obj[key].concat(value[key]);
 										} else if (typeof obj[key] == 'object') {
-											//obj is object, run it again
+											// obj is object, run it again
 											obj[key] = checkForNestedObj(obj[key], value[key]);
 										} else {
 											obj[key] = value[key];
@@ -97,11 +97,10 @@ export const editJSON = async (options, fileName, changes) => {
 									}
 
 									fileRef = fileRef[entry];
-								} else if (Array.isArray(entry) && entry.length == 1 && Number.isInteger(entry[0])) {
-									// path entry is an array with an index
-									const index = entry[0];
-									if (fileRef[index]) {
-										fileRef = fileRef[index];
+								} else if (Number.isInteger(entry)) {
+									// path entry is an index
+									if (fileRef[entry]) {
+										fileRef = fileRef[entry];
 									}
 								}
 							} else {
@@ -152,8 +151,6 @@ export const editJSON = async (options, fileName, changes) => {
 			case 'remove': {
 				switch (actionType) {
 					case 'properties': {
-						const keysToChange = Object.keys(change[action].properties);
-
 						if (Array.isArray(change[action].properties)) {
 							// remove is an array of keys to delete at the top level of file
 							change[action].properties.forEach((key) => {
@@ -161,6 +158,9 @@ export const editJSON = async (options, fileName, changes) => {
 							});
 						} else if (typeof change[action].properties === 'object') {
 							// remove is an object with possible nested properties to delete
+
+							const keysToChange = Object.keys(change[action].properties);
+
 							for (const keyToRemove of keysToChange) {
 								if (!(keyToRemove in file)) {
 									// keyToRemove is not in file
@@ -219,11 +219,10 @@ export const editJSON = async (options, fileName, changes) => {
 								if (typeof entry == 'string') {
 									// path entry is a string navigating object
 									fileRef = fileRef[entry];
-								} else if (Array.isArray(entry) && entry.length == 1 && Number.isInteger(entry[0])) {
-									// path entry is an array with an index
-									const index = entry[0];
-									if (fileRef[index]) {
-										fileRef = fileRef[index];
+								} else if (Number.isInteger(entry)) {
+									// path entry is an index
+									if (fileRef[entry]) {
+										fileRef = fileRef[entry];
 									}
 								}
 							} else {

@@ -2,6 +2,8 @@ import YAML from 'yaml';
 import { promises as fsp } from 'fs';
 import path from 'path';
 
+const YAML_STRING_OPTIONS = { lineWidth: 0, minContentWidth: 0, indent: 2 };
+
 export const editYAML = async (options, fileName, changes) => {
 	if (!changes.length || !fileName) {
 		return;
@@ -20,9 +22,9 @@ export const editYAML = async (options, fileName, changes) => {
 		return;
 	}
 
-	let file, originalFile;
+	let doc, originalFile;
 	try {
-		file = YAML.parse(contents);
+		doc = YAML.parseDocument(contents, { toStringDefaults: YAML_STRING_OPTIONS });
 		originalFile = YAML.parse(contents);
 	} catch (err) {
 		throw `editYAML unable to parse ${fileName}`;
@@ -47,38 +49,37 @@ export const editYAML = async (options, fileName, changes) => {
 						const keysToChange = Object.keys(change[action].properties);
 
 						for (const keyToUpdate of keysToChange) {
-							const value = change[action].properties[keyToUpdate];
+							const properties = change[action].properties[keyToUpdate];
 
-							const checkForNestedObj = (obj, value) => {
+							const setChange = (path, value) => {
+								const currentValue = doc.getIn(path);
+
 								if (typeof value == 'object' && !Array.isArray(value)) {
 									const valueObjectKeys = Object.keys(value || {});
 									valueObjectKeys.forEach((key) => {
-										if (!obj) {
-											//obj doesnt exist
-											obj = {};
-											obj[key] = value[key];
-										} else if (Array.isArray(obj[key])) {
-											obj[key] = obj[key].concat(value[key]);
-										} else if (typeof obj[key] == 'object') {
-											//obj is object, run it again
-											obj[key] = checkForNestedObj(obj[key], value[key]);
+										// add key to path
+										const newPath = [...path, key];
+										const keyValue = doc.getIn(newPath);
+
+										if (keyValue?.items && !YAML.isMap(keyValue)) {
+											doc.setIn(newPath, keyValue.items.concat(value[key]));
+										} else if (YAML.isMap(keyValue)) {
+											// patch contains object, run it again
+											setChange(newPath, value[key]);
 										} else {
-											obj[key] = value[key];
+											doc.setIn(newPath, value[key]);
 										}
 									});
 								} else {
-									if (Array.isArray(obj)) {
-										obj = obj.concat(value);
+									if (currentValue && currentValue.items) {
+										doc.setIn(path, currentValue.items.concat(value));
 									} else {
-										obj = value;
+										doc.setIn(path, value);
 									}
 								}
-
-								return obj;
 							};
 
-							// start recursion
-							file[keyToUpdate] = checkForNestedObj(file[keyToUpdate], value);
+							setChange([keyToUpdate], properties);
 						}
 
 						break;
@@ -89,55 +90,41 @@ export const editYAML = async (options, fileName, changes) => {
 						const value = change[action].value || change[action].values;
 						const modifier = change[action].modifier || 'set';
 
-						let fileRef = file;
-						path.forEach((entry, index) => {
-							if (index != path.length - 1) {
-								if (typeof entry == 'string') {
-									if (!fileRef[entry]) {
-										fileRef[entry] = {};
-									}
-
-									fileRef = fileRef[entry];
-								} else if (Array.isArray(entry) && entry.length == 1 && Number.isInteger(entry[0])) {
-									// path entry is an array with an index
-									const index = entry[0];
-									if (fileRef[index]) {
-										fileRef = fileRef[index];
-									}
+						if (value) {
+							switch (modifier) {
+								case 'set': {
+									doc.setIn(path, value);
+									break;
 								}
-							} else {
-								// last path entry - set the value
-								switch (modifier) {
-									case 'set': {
-										fileRef[entry] = value;
-										break;
+
+								case 'append': {
+									const currentValue = doc.getIn(path, true);
+
+									if (currentValue && currentValue.items) {
+										doc.setIn(path, currentValue.items.concat(value));
+									} else if (currentValue) {
+										doc.setIn(path, currentValue + value);
 									}
 
-									case 'append': {
-										if (Array.isArray(fileRef[entry])) {
-											fileRef[entry] = fileRef[entry].concat(value);
-										} else {
-											fileRef[entry] = fileRef[entry] + value;
-										}
-
-										break;
-									}
-
-									case 'prepend': {
-										if (Array.isArray(fileRef[entry])) {
-											fileRef[entry] = value.concat(fileRef[entry]);
-										} else {
-											fileRef[entry] = value + fileRef[entry];
-										}
-
-										break;
-									}
-
-									default:
-										break;
+									break;
 								}
+
+								case 'prepend': {
+									const currentValue = doc.getIn(path, true);
+
+									if (currentValue && currentValue.items) {
+										doc.setIn(path, value.concat(currentValue.items));
+									} else if (currentValue) {
+										doc.setIn(path, value + currentValue);
+									}
+
+									break;
+								}
+
+								default:
+									break;
 							}
-						});
+						}
 
 						break;
 					}
@@ -153,56 +140,59 @@ export const editYAML = async (options, fileName, changes) => {
 			case 'remove': {
 				switch (actionType) {
 					case 'properties': {
-						const keysToChange = Object.keys(change[action].properties);
-
 						if (Array.isArray(change[action].properties)) {
 							// remove is an array of keys to delete at the top level of file
 							change[action].properties.forEach((key) => {
-								delete file[key];
+								doc.deleteIn([key]);
 							});
 						} else if (typeof change[action].properties === 'object') {
 							// remove is an object with possible nested properties to delete
-							for (const keyToRemove of keysToChange) {
-								if (!(keyToRemove in file)) {
-									// keyToRemove is not in file
-									return;
-								}
+							const keysToChange = Object.keys(change[action].properties);
 
-								let pathToRemove = [];
+							for (const keyToUpdate of keysToChange) {
+								const properties = change[action].properties[keyToUpdate];
 
-								const checkfor = (obj) => {
-									if (Array.isArray(obj)) {
-										// found leaf node (array)
-										let initialReference = file[keyToRemove];
-										let currentPath = initialReference;
+								const setChange = (path, value) => {
+									const currentValue = doc.getIn(path);
 
-										for (let i = 0; i < pathToRemove.length; i++) {
-											currentPath = currentPath[pathToRemove[i]];
-										}
+									if (typeof value == 'object' && !Array.isArray(value)) {
+										const valueObjectKeys = Object.keys(value || {});
+										valueObjectKeys.forEach((key) => {
+											// add key to path
+											const newPath = [...path, key];
 
-										if (Array.isArray(currentPath)) {
-											obj.forEach((value) => {
-												const index = currentPath.indexOf(value);
-												if (index > -1) {
-													currentPath.splice(index, 1);
-												}
-											});
-										} else {
-											// loop through the obj and delete keys
-											obj.forEach((key) => {
-												delete currentPath[key];
-											});
-										}
+											const keyValue = doc.getIn(newPath);
+
+											if (keyValue?.items && !YAML.isMap(keyValue)) {
+												const valuesToRemove = Array.isArray(value[key]) ? value[key] : [value[key]];
+												doc.setIn(
+													[...path, key],
+													keyValue.items.filter((item) => !valuesToRemove.includes(item.value))
+												);
+											} else if (YAML.isMap(keyValue)) {
+												// path contains object, run it again
+												setChange(newPath, value[key]);
+											}
+										});
 									} else {
-										// is an object, continue until you find an array
-										const keys = Object.keys(obj || {});
-										for (let i = 0; i < keys.length; i++) {
-											pathToRemove.push(keys[i]);
-											checkfor(obj[keys[i]]);
+										if (currentValue?.items && !YAML.isMap(currentValue)) {
+											// encountered an array
+											const valuesToRemove = Array.isArray(value) ? value : [value];
+											doc.setIn(
+												path,
+												currentValue.items.filter((item) => !valuesToRemove.includes(item.value))
+											);
+										} else {
+											// remove the path entry entirely
+											const valuesToRemove = Array.isArray(value) ? value : [value];
+											for (const val of valuesToRemove) {
+												doc.deleteIn([...path, val]);
+											}
 										}
 									}
 								};
-								checkfor(change[action].properties[keyToRemove]);
+
+								setChange([keyToUpdate], properties);
 							}
 						}
 
@@ -213,43 +203,35 @@ export const editYAML = async (options, fileName, changes) => {
 						const path = change[action].path;
 						const value = change[action].value || change[action].values;
 						const index = change[action].index;
+						const currentValue = doc.getIn(path, true);
 
-						let fileRef = file;
-						path.forEach((entry, i) => {
-							if (i != path.length - 1) {
-								if (typeof entry == 'string') {
-									// path entry is a string navigating object
-									fileRef = fileRef[entry];
-								} else if (Array.isArray(entry) && entry.length == 1 && Number.isInteger(entry[0])) {
-									// path entry is an array with an index
-									const index = entry[0];
-									if (fileRef[index]) {
-										fileRef = fileRef[index];
+						if (currentValue) {
+							if (!value && typeof index == 'undefined') {
+								// remove the path entry entirely
+								doc.deleteIn(path);
+							} else if (currentValue?.items) {
+								// value removal only makes sense on arrays
+								if (typeof index != 'undefined') {
+									doc.setIn(
+										path,
+										currentValue.items.filter((val, i) => i != index)
+									);
+								} else if (value) {
+									if (Array.isArray(value)) {
+										doc.setIn(
+											path,
+											currentValue.items.filter((item) => !value.includes(item.value))
+										);
+									} else {
+										const valueIndex = currentValue.items.findIndex((item) => item.value == value);
+
+										if (valueIndex >= 0) {
+											doc.setIn(path, currentValue.items.splice(index, 1));
+										}
 									}
 								}
-							} else {
-								// last path entry - set the value
-								if (!fileRef) return;
-
-								if (!value && typeof index == 'undefined') {
-									// remove the path entry entirely
-									delete fileRef[entry];
-								} else if (fileRef[entry] && Array.isArray(fileRef[entry])) {
-									// value removal only makes sense on arrays
-									if (typeof index != 'undefined') {
-										fileRef[entry].splice(index, 1);
-									} else if (value)
-										if (Array.isArray(value)) {
-											fileRef[entry] = fileRef[entry].filter((val) => !value.includes(val));
-										} else {
-											const valueIndex = fileRef[entry].indexOf(value);
-											if (valueIndex >= 0) {
-												fileRef[entry].splice(valueIndex, 1);
-											}
-										}
-								}
 							}
-						});
+						}
 
 						break;
 					}
@@ -267,8 +249,8 @@ export const editYAML = async (options, fileName, changes) => {
 	}
 
 	// write changes to file
-	if (YAML.stringify(originalFile) !== YAML.stringify(file)) {
-		const fileContents = YAML.stringify(file, null, '\t');
+	if (YAML.stringify(originalFile) !== YAML.stringify(doc, YAML_STRING_OPTIONS)) {
+		const fileContents = YAML.stringify(doc, YAML_STRING_OPTIONS);
 
 		await fsp.writeFile(filePath, fileContents, 'utf8');
 	}
