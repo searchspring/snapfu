@@ -247,6 +247,9 @@ export const init = async (options) => {
 			// create local directory
 			let folderName = await createDir(dir);
 
+			// set organization to user.login when answer is undefined (question never asked)
+			answers.organization = answers.organization || user.login;
+
 			// determine if using org or userspace
 			let creationMethod = answers.organization == user.login ? 'createForAuthenticatedUser' : 'createInOrg';
 
