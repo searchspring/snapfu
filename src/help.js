@@ -10,10 +10,11 @@ These are the snapfu commands used in various situations
     ${chalk.whiteBright('init')} ${chalk.grey('<directory>')}              Creates a new snap project (optional directory)
     ${chalk.whiteBright('recs')}                          Recommendation template management
     ${chalk.whiteBright('secrets')}                       Project secret management
+    ${chalk.whiteBright('patch')}                         Apply patches to update project
     ${chalk.whiteBright('login')}                         Oauths with github
+    ${chalk.whiteBright('logout')}                        Removes login credentials
     ${chalk.whiteBright('org-access')}                    Review and change organization access for the tool
     ${chalk.whiteBright('whoami')}                        Shows the current user
-    ${chalk.whiteBright('logout')}                        Removes login credentials
     ${chalk.whiteBright('about')}                         Shows versioning
     ${chalk.whiteBright('help')} ${chalk.grey('<command>')}                Display help text (optional command)`;
 
@@ -42,8 +43,18 @@ These are the snapfu secrets commands
 
     ${chalk.whiteBright('add')}                           Adds secrets to snap project
     ${chalk.whiteBright('update')}                        Update secrets in snap project
-    ${chalk.whiteBright('verify')}                        Verify secrets in snap project
-    ${chalk.whiteBright('help')} ${chalk.grey('<command>')}                Display help text (optional command)`;
+    ${chalk.whiteBright('verify')}                        Verify secrets in snap project`;
+
+// patch help text
+const patchText = `Usage: snapfu patch ${chalk.white('<' + chalk.underline('command') + '>')} ${chalk.grey(
+	'<' + chalk.underline('args') + '>'
+)} ${chalk.green('[' + chalk.underline('--options') + ']')}
+
+These are the snapfu patch commands
+
+    ${chalk.whiteBright('apply')}                         Apply patch version (version or latest)
+    ${chalk.whiteBright('list')}                          List available versions for project
+    ${chalk.whiteBright('fetch')}                         Fetch latest versions of patches`;
 
 // help text mapping
 const helpMap = {
@@ -53,6 +64,7 @@ const helpMap = {
 	recommendations: recommendationText,
 	secret: secretText,
 	secrets: secretText,
+	patch: patchText,
 };
 
 export const help = (options) => {

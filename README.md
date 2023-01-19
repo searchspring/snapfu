@@ -2,9 +2,9 @@
 
 **snap · fu** - _"the way of snap"_
 
-![build](https://github.com/searchspring/snapfu/workflows/build/badge.svg?branch=master)
+<a href="https://www.npmjs.com/package/snapfu"><img alt="NPM Status" src="https://img.shields.io/npm/v/snapfu.svg?style=flat"></a>
 
-Snapfu is the scaffolding command line tool for the Snap SDK. This tool creates a new Searchspring website from one of our existing snap templates and bootstraps a development environment and, if you have access, deploys to an AWS S3 bucket behind a Cloudfront distribution.
+Snapfu is the scaffolding command line tool for the Searchspring Snap SDK. This tool creates a new Searchspring project from one of our existing Snap templates and bootstraps a development environment. These templates include a Github action that when triggered will build and deploy Snap bundles to our infrastructure (permissions required).
 
 ## Installation
 
@@ -24,10 +24,11 @@ snapfu login
 ## Init
 
 Create your website with the init command. Init will gather some information about the kind
-of Snap build template you wish to create. You will need your siteId from the SMC before you run this command. This command will,
+of Snap build template you wish to create. You will need your `siteId` and `secretKey` from the SMC before you run this command. This command will:
 
 -   download template files
 -   create and initialize a repository in the Github organization you selected
+-   populate a Github secret with the provided `secretKey`
 
 ```bash
 snapfu init my-awesome-website
@@ -40,6 +41,7 @@ snapfu init my-awesome-website
 Now you can run the project with your standard `npm` tooling.
 
 ```bash
+cd my-awesome-website
 npm install
 npm run dev
 ```
@@ -55,21 +57,20 @@ The tool uses Github actions to copy files to our AWS S3 backed CDN (Cloudfront)
 When you commit to the main branch (production), the github action will deploy all the files that build into `./dist` to a publicly readable S3 bucket which can be accessed at the following URLs:
 
 ```
-http://snapui.searchspring.io/<siteId>/bundle.js
-http://snapui.searchspring.io/<siteId>/production/bundle.js
+https://snapui.searchspring.io/<siteId>/bundle.js
+https://snapui.searchspring.io/<siteId>/production/bundle.js
 ```
 
 Similarly, if you push a branch to github called `my-branch` that will be available at
 
 ```
-http://snapui.searchspring.io/<siteId>/my-branch/bundle.js
+https://snapui.searchspring.io/<siteId>/my-branch/bundle.js
 ```
 
 ## Deploying to other places
 
 You can modify the file `deploy.yml` in your generated project under `my-awesome-website/.github/workflows/deploy.yml`
-to complete different actions if you don't want to use the Searchspring build process or
-don't have access to it.
+to complete different actions if you don't want to use the Searchspring build process or don't have access to it.
 
 ### SCP
 

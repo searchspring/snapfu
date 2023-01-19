@@ -2,12 +2,12 @@ import chalk from 'chalk';
 import inquirer from 'inquirer';
 import path from 'path';
 import fs, { promises as fsp } from 'fs';
-import { help } from './help';
-import { wait } from './wait';
-import { DEFAULT_BRANCH } from './init';
-import { frameworks } from './frameworks';
-import { ConfigApi } from './services/ConfigApi';
 import { exit } from 'process';
+import { help } from './help.js';
+import { wait } from './utils/index.js';
+import { DEFAULT_BRANCH } from './init.js';
+import { frameworks } from './frameworks/index.js';
+import { ConfigApi } from './services/ConfigApi.js';
 
 const TEMPLATE_TYPE_RECS = 'snap/recommendation';
 const DIR_BLACK_LIST = ['node_modules', '.git'];
@@ -224,12 +224,15 @@ export async function removeTemplate(options) {
 
 	const remove = async (secretKey) => {
 		try {
+			// using fancy terminal output replacement
+			process.stdout.write(`${chalk.green(`        ${templateName}`)} ${chalk.blue(`[${branchName}]`)}`);
+
 			await new ConfigApi(secretKey, options.dev).archiveTemplate(payload);
-			console.log(chalk.green(`${templateName}`), chalk.white(`[${branchName}]`));
-			console.log(chalk.green('Template archived in remote.'));
+
+			process.stdout.write(chalk.gray.italic(' - archived in remote'));
 		} catch (err) {
-			console.log(chalk.red(`${templateName}`), chalk.white(`[${branchName}]`));
-			console.log(chalk.red(err));
+			process.stdout.write(chalk.red.italic(' - archived failed'));
+			console.log('        ', chalk.red(err));
 		}
 
 		await wait(100);
@@ -239,12 +242,13 @@ export async function removeTemplate(options) {
 		for (let i = 0; i < options.multipleSites.length; i++) {
 			const { secretKey, siteId, name } = options.multipleSites[i];
 
-			process.stdout.write(`archiving ${templateName} for siteId ${siteId} (${name})   `);
+			console.log(`${chalk.white.bold(`${name} ${chalk.cyan(`(${siteId})`)}`)}`);
+			// console.log(`    archiving template`);
 			await remove(secretKey);
 		}
 	} else {
 		const { secretKey } = options.options;
-		process.stdout.write('archiving...   ');
+		console.log(`${chalk.white.bold(`${repository.name}`)}`);
 		await remove(secretKey);
 	}
 }

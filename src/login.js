@@ -19,11 +19,11 @@ export const login = async (options, opener, port) => {
 	}
 
 	const value = await receivedUrl;
-	return auth.saveCredsFromUrl(value);
+	return auth.saveCredsFromUrl(value, options.config.searchspringDir);
 };
 
 export const logout = async (options) => {
-	return auth.removeCreds();
+	return auth.removeCreds(options.config.searchspringDir);
 };
 
 export const orgAccess = async (options, opener) => {
@@ -52,14 +52,7 @@ export const github = {
 };
 
 export const auth = {
-	home: () => {
-		return os.homedir();
-	},
-	saveCredsFromUrl: async (url, location) => {
-		let dir = path.join(auth.home(), '/.searchspring');
-		if (location) {
-			dir = location;
-		}
+	saveCredsFromUrl: async (url, dir) => {
 		if (!fs.existsSync(dir)) {
 			fs.mkdirSync(dir);
 		}
@@ -68,7 +61,7 @@ export const auth = {
 			try {
 				let user = JSON.parse(query.user);
 				try {
-					const creds = await this.auth.loadCreds();
+					const creds = await auth.loadCreds(dir);
 					user.keys = creds.keys || {}; // preserve any exisiting keys
 				} catch (e) {
 					// do nothing when login is invoked for the first time and creds.json doesn't exist
@@ -83,15 +76,11 @@ export const auth = {
 			}
 		}
 	},
-	saveSecretKey: async (secretKey, siteId, location) => {
-		let dir = path.join(auth.home(), '/.searchspring');
-		if (location) {
-			dir = location;
-		}
+	saveSecretKey: async (secretKey, siteId, dir) => {
 		if (!fs.existsSync(dir)) {
 			fs.mkdirSync(dir);
 		}
-		const creds = await this.auth.loadCreds();
+		const creds = await auth.loadCreds(dir);
 		if (creds && secretKey && siteId) {
 			creds.keys = creds.keys || {};
 			creds.keys[siteId] = secretKey;
@@ -106,17 +95,17 @@ export const auth = {
 			}
 		}
 	},
-	removeCreds: async () => {
-		const creds = await this.auth.loadCreds();
+	removeCreds: async (dir) => {
+		const creds = await auth.loadCreds(dir);
 		if (creds) {
-			const credsLocation = path.join(auth.home(), '/.searchspring/creds.json');
+			const credsLocation = path.join(dir, '/creds.json');
 			const newCreds = { keys: creds.keys };
 			await fsp.writeFile(credsLocation, JSON.stringify(newCreds));
 		}
 	},
-	loadCreds: async () => {
+	loadCreds: async (dir) => {
 		return new Promise((resolve, reject) => {
-			let credsLocation = path.join(auth.home(), '/.searchspring/creds.json');
+			let credsLocation = path.join(dir, '/creds.json');
 			if (!fs.existsSync(credsLocation)) {
 				reject('creds not found');
 			}
@@ -124,10 +113,52 @@ export const auth = {
 			if (!creds) {
 				reject('creds not found');
 			}
-			let user = JSON.parse(creds);
-			user.keys = user.keys || {};
-			resolve(user);
+
+			try {
+				const user = JSON.parse(creds);
+				user.keys = user.keys || {};
+				resolve(user);
+			} catch (err) {
+				reject('creds are invalid');
+			}
 		});
+	},
+	loadSettings: async (dir) => {
+		return new Promise((resolve, reject) => {
+			let settingsLocation = path.join(dir, '/snapfu.json');
+			if (!fs.existsSync(settingsLocation)) {
+				resolve({});
+			}
+			let settingsContents = fs.readFileSync(settingsLocation, 'utf8');
+			if (!settingsContents) {
+				reject('settings are invalid');
+			}
+
+			try {
+				const settings = JSON.parse(settingsContents);
+				resolve(settings);
+			} catch (err) {
+				reject('settings are invalid');
+			}
+		});
+	},
+	loadUser: async (dir) => {
+		let user;
+
+		try {
+			user = await auth.loadCreds(dir);
+		} catch (err) {
+			console.error(err);
+			user = { keys: {} };
+		}
+
+		try {
+			user.settings = await auth.loadSettings(dir);
+		} catch (err) {
+			// invalid settings - ignoring
+		}
+
+		return user;
 	},
 	listenForCallback: (port) => {
 		return new Promise((resolutionFunc, rejectionFunc) => {

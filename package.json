@@ -5,26 +5,29 @@
 	"license": "MIT",
 	"description": "Command line interface for Snap!",
 	"main": "src/index.js",
+	"type": "module",
 	"prettier": "@searchspring/prettier",
 	"bin": {
-		"snapfu": "bin/snapfu"
+		"snapfu": "bin/snapfu.js"
 	},
 	"scripts": {
 		"build:metrics": "node ./metrics/generate.mjs",
+		"clean": "rm -rf ./node_modules && rm ./package-lock.json",
 		"commit": "cz",
 		"test": "jest",
 		"test:watch": "jest --watch",
 		"format": "prettier --write src *.json",
 		"format-check": "prettier --check src *.json",
 		"prepare": "husky install",
-		"version": "standard-version",
-		"postversion": "git push && git push --tags"
+		"version": "standard-version -a",
+		"postversion": "git push && git push --tags",
+		"snapfu": "./bin/snapfu.js"
 	},
 	"lint-staged": {
 		"./package.json": [
 			"prettier --write"
 		],
-		"./src/**/*.{js}": [
+		"./src/**/*.js": [
 			"prettier --write"
 		]
 	},
@@ -32,14 +35,14 @@
 		"@octokit/rest": "^18.10.0",
 		"arg": "^5.0.1",
 		"chalk": "^4.1.2",
-		"esm": "^3.2.25",
-		"git-clone": "^0.1.0",
+		"glob": "^8.0.3",
 		"inquirer": "^8.1.2",
 		"ncp": "^2.0.0",
 		"node-fetch": "^2.6.1",
 		"open": "^8.2.1",
-		"semver-compare": "^1.0.0",
-		"tweetsodium": "^0.0.5"
+		"replacestream": "^4.0.3",
+		"tweetsodium": "^0.0.5",
+		"yaml": "^2.1.1"
 	},
 	"devDependencies": {
 		"@babel/plugin-transform-runtime": "^7.15.0",
