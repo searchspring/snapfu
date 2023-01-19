@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.1.0](https://github.com/searchspring/snapfu/compare/v1.0.29...v1.1.0) (2023-01-19)
+
+
+### Features
+
+* **publish:** attempting to fix the versioning issue with releases ([5e2190f](https://github.com/searchspring/snapfu/commit/5e2190fb99f898823264b5674d23f8886cbe29e1))
+
 ### 1.0.29 (2023-01-19)
 
 ### 1.0.28 (2022-12-08)
