@@ -1,6 +1,6 @@
 {
 	"name": "snapfu",
-	"version": "1.0.28",
+	"version": "1.0.29",
 	"author": "searchspring",
 	"license": "MIT",
 	"description": "Command line interface for Snap!",
