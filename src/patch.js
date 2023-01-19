@@ -5,7 +5,10 @@ import chalk from 'chalk';
 import inquirer from 'inquirer';
 import ncp from 'ncp';
 import YAML from 'yaml';
+import glob from 'glob';
 
+import { editJSON } from './patch/edit-json.js';
+import { editYAML } from './patch/edit-yaml.js';
 import { cmp, commandOutput, boxify, boxifyVersions } from './utils/index.js';
 
 export const setupPatchRepo = async (options) => {
@@ -80,23 +83,27 @@ export const getVersions = async (options, startingAt, endingAt) => {
 
 	// ~/.searchspring/snapfu-patches/{framework}/{version}
 	const frameworkPath = path.join(options.config.patches.dir, framework);
-	const patchVersions = await fsp.readdir(path.join(frameworkPath));
+	const patchDirExists = existsSync(frameworkPath);
 	let versions = [];
-	for (const file of patchVersions) {
-		const filePath = path.resolve(frameworkPath, file);
-		const fileStats = await statSync(filePath);
-		if (fileStats.isDirectory()) {
-			versions.push(file);
+
+	if (patchDirExists) {
+		const patchVersions = await fsp.readdir(path.join(frameworkPath));
+		for (const file of patchVersions) {
+			const filePath = path.resolve(frameworkPath, file);
+			const fileStats = await statSync(filePath);
+			if (fileStats.isDirectory()) {
+				versions.push(file);
+			}
 		}
-	}
-	versions.sort(cmp);
+		versions.sort(cmp);
 
-	if (startingAt) {
-		versions = versions.filter((version) => cmp(version, startingAt) > 0);
-	}
+		if (startingAt) {
+			versions = versions.filter((version) => cmp(version, startingAt) > 0);
+		}
 
-	if (endingAt) {
-		versions = versions.filter((version) => cmp(version, endingAt) <= 0);
+		if (endingAt) {
+			versions = versions.filter((version) => cmp(version, endingAt) <= 0);
+		}
 	}
 
 	return versions;
@@ -124,7 +131,7 @@ export const applyPatches = async (options, skipUpdate = false) => {
 	const availablePatches = await getVersions(options);
 
 	// verify requested version
-	const versionMatch = /^\w?(\d+\.\d+\.\d+-?\d*)$/.exec(versionApply);
+	const versionMatch = /^^\w?(\d+\.\d+\.\d+)$/.exec(versionApply);
 	let filteredVersionApply;
 
 	if (versionApply == 'latest') {
@@ -187,8 +194,8 @@ export const applyPatches = async (options, skipUpdate = false) => {
 	}
 
 	// modify package.json with finalVersion number
-	console.log(chalk.blue(`finalizing patch...`));
-	await editYAMLorJSON(options, 'package.json', [{ update: { searchspring: { version: finalVersion } } }]);
+	console.log(chalk.blue(`\nfinalizing patch...`));
+	await editJSON(options, 'package.json', [{ update: { properties: { searchspring: { version: finalVersion } } } }]);
 
 	// patching complete
 	console.log();
@@ -257,7 +264,7 @@ const runPatch = async (options, patchFile) => {
 
 		for (const action of actions) {
 			switch (action) {
-				case 'run':
+				case 'run': {
 					const run = step[action];
 					try {
 						const commands = run.trim().split('\n');
@@ -276,177 +283,57 @@ const runPatch = async (options, patchFile) => {
 						exit(1);
 					}
 					break;
-				case 'files':
-					const files = step[action];
-					const fileNames = Object.keys(files);
-
-					for (const fileName of fileNames) {
-						const { action, changes } = files[fileName];
-						switch (action) {
-							case 'edit':
-								try {
-									const extension = fileName.split('.').pop();
-									if (['json', 'yaml', 'yml'].includes(extension)) {
-										await editYAMLorJSON(options, fileName, changes);
-									} else {
-										// FUTURE TODO: support editing other file types
-										// await editFile(options, fileName, changes);
-									}
-								} catch (err) {
-									console.log(err);
-									exit(1);
-								}
-
-								break;
-							default:
-								break;
-						}
-					}
-					break;
-
-				default:
-					break;
-			}
-		}
-	}
-};
-
-export const editYAMLorJSON = async (options, fileName, changes) => {
-	if (!changes.length || !fileName) {
-		return;
-	}
-
-	const fileType = fileName.split('.').pop()?.toLowerCase();
-	const parser = fileType == 'json' ? JSON : YAML;
-	const projectDir = options.context.project.path;
-	const filePath = path.join(projectDir, fileName);
-
-	let contents;
-	try {
-		await fsp.stat(filePath);
-		contents = await fsp.readFile(filePath, 'utf8');
-		// file exists
-	} catch (err) {
-		// directory doesn't exist - do nothing
-		console.log(`File ${fileName} does not exist. Skipping`);
-		return;
-	}
-
-	let file, originalFile;
-	try {
-		file = parser.parse(contents);
-		originalFile = parser.parse(contents);
-	} catch (err) {
-		throw `editYAMLorJSON unable to parse ${fileName}`;
-	}
-
-	// read changes and apply them to parsed JSON
-	for (const change of changes) {
-		const action = Object.keys(change)[0];
-		const keysToChange = Object.keys(change[action]);
-
-		switch (action) {
-			case 'update':
-				for (const keyToUpdate of keysToChange) {
-					const value = change[action][keyToUpdate];
-
-					const checkForNestedObj = (obj, value) => {
-						if (typeof value == 'object') {
-							const valueObjectKeys = Object.keys(value || {});
-							valueObjectKeys.forEach((key) => {
-								if (!obj) {
-									//obj doesnt exist
-									obj = {};
-									obj[key] = value[key];
-								} else if (Array.isArray(obj[key])) {
-									obj[key] = obj[key].concat(value[key]);
-								} else if (typeof obj[key] == 'object') {
-									//obj is object, run it again
-									obj[key] = checkForNestedObj(obj[key], value[key]);
-								} else {
-									obj[key] = value[key];
-								}
-							});
-						} else if (typeof value == 'string') {
-							obj = value;
-						}
-						return obj;
-					};
-
-					//init
-					file[keyToUpdate] = checkForNestedObj(file[keyToUpdate], value);
 				}
-				break;
-			case 'remove':
-				if (Array.isArray(change[action])) {
-					// remove is an array of keys to delete at the top level of file
-					change[action].forEach((key) => {
-						delete file[key];
-					});
-				} else if (typeof change[action] === 'object') {
-					// remove is an object with possible nested properties to delete
-					for (const keyToRemove of keysToChange) {
-						if (!(keyToRemove in file)) {
-							// keyToRemove is not in file
-							return;
-						}
+				case 'files': {
+					const files = step[action];
+					const fileGlobs = Object.keys(files);
 
-						let pathToRemove = [];
+					for (const fileGlob of fileGlobs) {
+						const { action, changes } = files[fileGlob];
 
-						const checkfor = (obj) => {
-							if (Array.isArray(obj)) {
-								// found leaf node (array)
-								let initialReference = file[keyToRemove];
-								let currentPath = initialReference;
+						try {
+							// get filenames using glob - ignore `node_modules` and `patch` files
+							const fileNames = glob.sync(fileGlob, { nosort: true, ignore: ['node_modules/**', 'patch/**'] });
 
-								for (let i = 0; i < pathToRemove.length; i++) {
-									currentPath = currentPath[pathToRemove[i]];
-								}
+							for (const fileName of fileNames) {
+								const extension = fileName.split('.').pop();
 
-								if (Array.isArray(currentPath)) {
-									obj.forEach((value) => {
-										const index = currentPath.indexOf(value);
-										if (index > -1) {
-											currentPath.splice(index, 1);
+								switch (action) {
+									case 'edit-json': {
+										if (['json'].includes(extension)) {
+											console.log(`editing ${fileName}`);
+											await editJSON(options, fileName, changes);
 										}
-									});
-								} else {
-									// loop through the obj and delete keys
-									obj.forEach((key) => {
-										delete currentPath[key];
-									});
-								}
-							} else {
-								// is an object, continue until you find an array
-								const keys = Object.keys(obj || {});
-								for (let i = 0; i < keys.length; i++) {
-									pathToRemove.push(keys[i]);
-									checkfor(obj[keys[i]]);
+
+										break;
+									}
+									case 'edit-yaml': {
+										if (['yaml', 'yml'].includes(extension)) {
+											console.log(`editing ${fileName}`);
+											await editYAML(options, fileName, changes);
+										}
+
+										break;
+									}
+									default: {
+										// FUTURE TODO: support editing other file types
+										break;
+									}
 								}
 							}
-						};
-						checkfor(change[action][keyToRemove]);
+						} catch (err) {
+							console.error(err);
+							exit(1);
+						}
 					}
+					break;
 				}
 
-				break;
-			default:
-				break;
+				default: {
+					break;
+				}
+			}
 		}
-	}
-
-	// write changes to file
-	if (parser.stringify(originalFile) !== parser.stringify(file)) {
-		console.log(chalk.italic(`modified ${filePath}`));
-
-		let fileContents;
-		if (fileType == 'json') {
-			fileContents = parser.stringify(file, null, '\t');
-		} else if (fileType == 'yaml' || 'yml') {
-			fileContents = parser.stringify(file, { lineWidth: 0 });
-		}
-
-		await fsp.writeFile(filePath, fileContents, 'utf8');
 	}
 };
 
