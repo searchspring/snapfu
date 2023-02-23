@@ -432,10 +432,10 @@ export const setTagProtection = async function (options, details) {
 				pattern,
 			});
 
-			if (tagProtectionResponse?.status === 200 || tagProtectionResponse?.status === 201) {
+			if (tagProtectionResponse?.status === 201) {
 				console.log(chalk.green(`created tag protection rule '${pattern}'`));
 			} else {
-				throw new Error(err);
+				throw new Error('tag not created');
 			}
 		} catch (err) {
 			console.log(chalk.red(`failed to set tag protection rule '${pattern}'`));
