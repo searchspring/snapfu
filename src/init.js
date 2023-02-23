@@ -390,7 +390,11 @@ export const init = async (options) => {
 				name: answers.name,
 				dir,
 			});
+
+			// set tag and branch protection rules
+			await setTagProtection(options, { organization: answers.organization, name: answers.name });
 			await setBranchProtection(options, { organization: answers.organization, name: answers.name });
+
 			if (dir != cwd()) {
 				console.log(`The ${chalk.blue(folderName)} directory has been created and initialized from ${chalk.blue(`${answers.template}`)}.`);
 				console.log(`Get started by installing package dependencies and creating a branch:`);
@@ -405,6 +409,41 @@ export const init = async (options) => {
 		console.log(chalk.red(err));
 		exit(1);
 	}
+};
+
+export const setTagProtection = async function (options, details) {
+	const pattern = '*';
+	const { user } = options;
+
+	let octokit = new Octokit({
+		auth: user.token,
+	});
+
+	const { organization, name } = details;
+
+	if (!options.dev && organization && name) {
+		console.log(`Setting tag protection for ${organization}/${name}...`);
+
+		try {
+			// create tag protection rule repository
+			const tagProtectionResponse = await octokit.rest.repos.createTagProtection({
+				owner: organization,
+				repo: name,
+				pattern,
+			});
+
+			if (tagProtectionResponse?.status === 201) {
+				console.log(chalk.green(`created tag protection rule '${pattern}'`));
+			} else {
+				throw new Error('tag not created');
+			}
+		} catch (err) {
+			console.log(chalk.red(`failed to set tag protection rule '${pattern}'`));
+		}
+	} else {
+		console.log(chalk.yellow('skipping creation of tag protection'));
+	}
+	console.log(); // new line spacing
 };
 
 export const setBranchProtection = async function (options, details) {
