@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.2.0](https://github.com/searchspring/snapfu/compare/v1.1.0...v1.2.0) (2023-02-23)
+
+
+### Features
+
+* **init:** adding tag protection to init step ([b3fc452](https://github.com/searchspring/snapfu/commit/b3fc4524a2b03c271cd00ed9c2a2e9b4897a49da))
+
 ## [1.1.0](https://github.com/searchspring/snapfu/compare/v1.0.29...v1.1.0) (2023-01-19)
 
 
