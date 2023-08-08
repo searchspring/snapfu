@@ -343,6 +343,7 @@ ${invalidParam}
 		} catch (err) {
 			console.log(chalk.red(`        ${template.details.name}`), chalk.blue(`[${branchName}]`));
 			console.log('        ', chalk.red(err));
+			exit(1);
 		}
 
 		// prevent rate limiting
