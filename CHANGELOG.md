@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.2.1](https://github.com/searchspring/snapfu/compare/v1.2.0...v1.2.1) (2023-08-09)
+
+
+### Bug Fixes
+
+* **recs/sync:** making the sync command exit with error when encountering problems ([ea13cbc](https://github.com/searchspring/snapfu/commit/ea13cbce1575e2536163043c9d8502591ede9e21))
+
 ## [1.2.0](https://github.com/searchspring/snapfu/compare/v1.1.0...v1.2.0) (2023-02-23)
 
 
