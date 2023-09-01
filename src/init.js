@@ -75,7 +75,6 @@ export const init = async (options) => {
 					page,
 				});
 
-				console.log('response?', response);
 				response.data?.items?.map((repo) => {
 					repos.push(repo);
 				});
