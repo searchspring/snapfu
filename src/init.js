@@ -576,7 +576,7 @@ export const cloneAndCopyRepo = async function (sourceRepo, destination, exclude
 	if (excludeFiles) {
 		const excludeList = ['.git', 'snapfu.config.yml'];
 
-		// filter out files not in the exclude list
+		// filter out files in the exclude list
 		options.filter = (name) => excludeList.every((entry) => name != `${folder}/${entry}`);
 	}
 
