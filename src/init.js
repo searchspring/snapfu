@@ -57,22 +57,28 @@ export const init = async (options) => {
 		});
 
 		const fetchTemplateRepos = async () => {
+			// using search modifiers - https://docs.github.com/en/search-github/searching-on-github/searching-for-repositories
+			const searchOrgs = orgs
+				.concat(user.login)
+				.concat('searchspring')
+				.map((org) => `org:${org}`);
+
 			let page = 0;
 			let per_page = 100;
 			let repos = [];
 			let response;
 			do {
 				page++;
-				response = await octokit.rest.repos.listForOrg({
-					org: 'searchspring',
-					type: 'public',
+				response = await octokit.rest.search.repos({
+					q: `snapfu-template-+archived:false+${searchOrgs.join('+')}`,
 					per_page,
 					page,
 				});
-				response.data.map((repo) => {
+
+				response.data?.items?.map((repo) => {
 					repos.push(repo);
 				});
-			} while (response.data.length == per_page);
+			} while (response.data?.items.length == per_page);
 			return repos.filter((repo) => repo.name.startsWith(`snapfu-template-`));
 		};
 
@@ -105,7 +111,8 @@ export const init = async (options) => {
 			// filter out repos that apply to the framework
 			const templateRepos = snapfuTemplateRepos
 				.filter((repo) => repo.name.startsWith(`snapfu-template-${answers1.framework}`))
-				.map((repo) => repo.name);
+				.map((repo) => repo.full_name)
+				.sort();
 
 			const templates = {};
 			// map repos
