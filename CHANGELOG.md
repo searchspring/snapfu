@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.3.1](https://github.com/searchspring/snapfu/compare/v1.3.0...v1.3.1) (2023-09-05)
+
+
+### Bug Fixes
+
+* **init:** renaming snapfu.yml template config to snapfu.config.yml and excluding it from copy ([7ce3118](https://github.com/searchspring/snapfu/commit/7ce31183c8d4692fa701c994ae42ab7a2c5a761b))
+
+
+### Docs
+
+* **init:** fixing comment ([0a59efb](https://github.com/searchspring/snapfu/commit/0a59efb441f36f9cb09fd4aba35925e8ca2e1138))
+
 ## [1.3.0](https://github.com/searchspring/snapfu/compare/v1.2.1...v1.3.0) (2023-09-01)
 
 
