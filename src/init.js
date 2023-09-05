@@ -176,7 +176,7 @@ export const init = async (options) => {
 				const contentResponse = await octokit.rest.repos.getContent({
 					owner: template.owner,
 					repo: template.repo,
-					path: 'snapfu.yml',
+					path: 'snapfu.config.yml',
 				});
 
 				try {
@@ -184,12 +184,12 @@ export const init = async (options) => {
 					const fileContents = buffer.toString('ascii');
 					template.advanced = YAML.parse(fileContents);
 				} catch (err) {
-					console.log(chalk.red(`Failed to parse snapfu.yml contents...\n`));
+					console.log(chalk.red(`Failed to parse snapfu.config.yml contents...\n`));
 					exit(1);
 				}
 			} catch (err) {
 				if (err.status !== 404) {
-					console.log(chalk.red(`Failed to fetch snapfu.yml...\n`));
+					console.log(chalk.red(`Failed to fetch snapfu.config.yml...\n`));
 					exit(1);
 				}
 			}
@@ -562,7 +562,7 @@ export const setRepoSecret = async function (options, details) {
 	console.log(); // new line spacing
 };
 
-export const cloneAndCopyRepo = async function (sourceRepo, destination, excludeGit, variables) {
+export const cloneAndCopyRepo = async function (sourceRepo, destination, excludeFiles, variables) {
 	let folder = await fs.mkdtemp(path.join(os.tmpdir(), 'snapfu-temp')).then(async (folder, err) => {
 		if (err) throw err;
 		return folder;
@@ -573,10 +573,11 @@ export const cloneAndCopyRepo = async function (sourceRepo, destination, exclude
 
 	let options = { clobber: true };
 
-	if (excludeGit) {
-		options.filter = (name) => {
-			return !name.endsWith('/.git');
-		};
+	if (excludeFiles) {
+		const excludeList = ['.git', 'snapfu.config.yml'];
+
+		// filter out files in the exclude list
+		options.filter = (name) => excludeList.every((entry) => name != `${folder}/${entry}`);
 	}
 
 	if (variables) {
