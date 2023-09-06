@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.3.2](https://github.com/searchspring/snapfu/compare/v1.3.1...v1.3.2) (2023-09-06)
+
+
+### Bug Fixes
+
+* **init:** fixing issue with repository name / owner / repoName ([27bb736](https://github.com/searchspring/snapfu/commit/27bb736d3e2d04dca6759a0da9c37d29d34f1ec0))
+
 ### [1.3.1](https://github.com/searchspring/snapfu/compare/v1.3.0...v1.3.1) (2023-09-05)
 
 
