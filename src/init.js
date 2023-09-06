@@ -116,12 +116,14 @@ export const init = async (options) => {
 
 			const templates = {};
 			// map repos
-			templateRepos.forEach((repo) => {
-				templates[repo] = {
+			templateRepos.forEach((repository) => {
+				const [owner, repo] = repository.split('/');
+
+				templates[repository] = {
 					repo,
-					owner: 'searchspring',
-					ssh: `git@github.com:searchspring/${repo}.git`,
-					http: `https://github.com/searchspring/${repo}`,
+					owner,
+					ssh: `git@github.com:${repository}.git`,
+					http: `https://github.com/${repository}`,
 				};
 			});
 
@@ -140,13 +142,14 @@ export const init = async (options) => {
 					if (split.length > 2) {
 						const repo = split[split.length - 1];
 						const owner = split[split.length - 2];
+						const repository = `${owner}/${repo}`;
 
-						templateRepos.push(repo);
+						templateRepos.push(repository);
 
-						templates[repo] = {
+						templates[repository] = {
 							repo,
 							owner,
-							ssh: `git@github.com:${owner}/${repo}.git`,
+							ssh: `git@github.com:${repository}.git`,
 							http: url,
 						};
 					}
@@ -194,6 +197,20 @@ export const init = async (options) => {
 				}
 			}
 
+			// ask additional questions (for advanced templates)
+			if (template.advanced?.variables?.length) {
+				let advancedQuestions = [];
+				template.advanced.variables.forEach((variable) => {
+					if (variable.name && variable.type && variable.message) {
+						// remove the value
+						delete variable.value;
+						advancedQuestions.push(variable);
+					}
+				});
+
+				template.answers = await inquirer.prompt(advancedQuestions);
+			}
+
 			const questions3 = [
 				{
 					type: 'list',
@@ -226,21 +243,6 @@ export const init = async (options) => {
 
 			// combined answers
 			const answers = { ...answers1, ...answers2, ...answers3 };
-
-			// ask additional questions (for advanced templates)
-			if (template.advanced?.variables?.length) {
-				console.log(chalk.gray(`\n${template.advanced.name ? `${template.advanced.name} ` : ''}Template Configuration`));
-				let advancedQuestions = [];
-				template.advanced.variables.forEach((variable) => {
-					if (variable.name && variable.type && variable.message) {
-						// remove the value
-						delete variable.value;
-						advancedQuestions.push(variable);
-					}
-				});
-
-				template.answers = await inquirer.prompt(advancedQuestions);
-			}
 
 			// validate siteId and secretKey
 			try {
