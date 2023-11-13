@@ -27,12 +27,27 @@ export async function getContext(dir) {
 	}
 
 	if (remote) {
-		// get repo org and name from remote (URL is either HTTPS or SSH)
-		[organization, name] = remote
-			.replace(/^git@github.com:/, '')
-			.replace(/^https:\/\/github.com\//, '')
-			.replace(/.git$/, '')
-			.split('/');
+		// Removing the .git at the end
+		remote = remote.trim().replace(/\.git\/?$/, '');
+
+		let path = [];
+
+		// If URL contains an @ it's an SSH repository URL
+		if (remote.indexOf('@') > -1) {
+			// Splitting the string at the : and taking the second value
+			path = remote.split(':')[1]?.split('/');
+		} else {
+			// Just split the string at /
+			path = remote?.split('/');
+		}
+
+		if (path && path.length > 1) {
+			// Name is the last value in the path
+			name = path[path.length - 1];
+
+			// Organization is the second to last value in the path
+			organization = path[path.length - 2];
+		}
 	}
 
 	return {
