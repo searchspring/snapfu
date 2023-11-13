@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.3.3](https://github.com/searchspring/snapfu/compare/v1.3.2...v1.3.3) (2023-11-13)
+
+
+### Bug Fixes
+
+* **context:** change to how the organization and name of the repository is extracted for the context ([9b0af9c](https://github.com/searchspring/snapfu/commit/9b0af9c1bdc5d57c300578e88f3f1717b1458a1f))
+
 ### [1.3.2](https://github.com/searchspring/snapfu/compare/v1.3.1...v1.3.2) (2023-09-06)
 
 
