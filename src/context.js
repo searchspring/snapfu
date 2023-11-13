@@ -28,7 +28,7 @@ export async function getContext(dir) {
 
 	if (remote) {
 		// Removing the .git at the end
-		remote = remote.replace('.git', '');
+		remote = remote.trim().replace(/\.git\/?$/, '');
 
 		let path = [];
 
@@ -40,8 +40,8 @@ export async function getContext(dir) {
 			// Just split the string at /
 			path = remote?.split('/');
 		}
-		
-		if(path && path.length > 1) {
+
+		if (path && path.length > 1) {
 			// Name is the last value in the path
 			name = path[path.length - 1];
 
