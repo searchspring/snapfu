@@ -56,7 +56,7 @@ export const init = async (options) => {
 			});
 		});
 
-		const fetchTemplateRepos = async () => {
+		const fetchScaffoldRepos = async () => {
 			// using search modifiers - https://docs.github.com/en/search-github/searching-on-github/searching-for-repositories
 			const searchOrgs = orgs
 				.concat(user.login)
@@ -70,7 +70,7 @@ export const init = async (options) => {
 			do {
 				page++;
 				response = await octokit.rest.search.repos({
-					q: `snapfu-template-+archived:false+${searchOrgs.join('+')}`,
+					q: `snapfu-scaffold-+archived:false+${searchOrgs.join('+')}`,
 					per_page,
 					page,
 				});
@@ -79,13 +79,13 @@ export const init = async (options) => {
 					repos.push(repo);
 				});
 			} while (response.data?.items.length == per_page);
-			return repos.filter((repo) => repo.name.startsWith(`snapfu-template-`));
+			return repos.filter((repo) => repo.name.startsWith(`snapfu-scaffold-`));
 		};
 
-		const snapfuTemplateRepos = await fetchTemplateRepos();
+		const snapfuScaffoldRepos = await fetchScaffoldRepos();
 
-		if (!snapfuTemplateRepos?.length) {
-			console.log(chalk.red('failed to fetch templates...'));
+		if (!snapfuScaffoldRepos?.length) {
+			console.log(chalk.red('failed to fetch scaffolds...'));
 		} else {
 			let questions = [
 				{
@@ -109,17 +109,17 @@ export const init = async (options) => {
 			const answers1 = await inquirer.prompt(questions);
 
 			// filter out repos that apply to the framework
-			const templateRepos = snapfuTemplateRepos
-				.filter((repo) => repo.name.startsWith(`snapfu-template-${answers1.framework}`))
+			const scaffoldRepos = snapfuScaffoldRepos
+				.filter((repo) => repo.name.startsWith(`snapfu-scaffold-${answers1.framework}`))
 				.map((repo) => repo.full_name)
 				.sort();
 
-			const templates = {};
+			const scaffolds = {};
 			// map repos
-			templateRepos.forEach((repository) => {
+			scaffoldRepos.forEach((repository) => {
 				const [owner, repo] = repository.split('/');
 
-				templates[repository] = {
+				scaffolds[repository] = {
 					repo,
 					owner,
 					ssh: `git@github.com:${repository}.git`,
@@ -127,15 +127,15 @@ export const init = async (options) => {
 				};
 			});
 
-			if (user?.settings?.templates?.repositories?.length) {
+			if (user?.settings?.scaffolds?.repositories?.length) {
 				// add separator for clear delimiting
 				const capitalizedFramework = answers1.framework.charAt(0).toUpperCase() + answers1.framework.slice(1);
 
-				templateRepos.unshift(new inquirer.Separator(`Snapfu ${capitalizedFramework} Templates`));
-				templateRepos.push(new inquirer.Separator('Custom Templates'));
+				scaffoldRepos.unshift(new inquirer.Separator(`Snapfu ${capitalizedFramework} Scaffolds`));
+				scaffoldRepos.push(new inquirer.Separator('Custom Scaffolds'));
 
-				// loop through custom repos and add to templateRepos list and templates mapping
-				user.settings.templates.repositories.forEach((url) => {
+				// loop through custom repos and add to scaffoldRepos list and scaffolds mapping
+				user.settings.scaffolds.repositories.forEach((url) => {
 					// supporting HTTP only list for now
 					const split = url.split('/');
 
@@ -144,9 +144,9 @@ export const init = async (options) => {
 						const owner = split[split.length - 2];
 						const repository = `${owner}/${repo}`;
 
-						templateRepos.push(repository);
+						scaffoldRepos.push(repository);
 
-						templates[repository] = {
+						scaffolds[repository] = {
 							repo,
 							owner,
 							ssh: `git@github.com:${repository}.git`,
@@ -159,33 +159,33 @@ export const init = async (options) => {
 			const questions2 = [
 				{
 					type: 'list',
-					name: 'template',
-					message: "Please choose the template you'd like to use:",
-					choices: templateRepos,
-					default: `snapfu-template-${answers1.framework}`,
+					name: 'scaffold',
+					message: "Please choose the scaffold you'd like to use:",
+					choices: scaffoldRepos,
+					default: `snapfu-scaffold-${answers1.framework}`,
 				},
 			];
 
 			const answers2 = await inquirer.prompt(questions2);
 
-			// template reference
-			const template = templates[answers2.template];
-			if (!template) {
-				console.log(chalk.red(`Failed to find the selected template ${answers2.template}...\n`));
+			// scaffold reference
+			const scaffold = scaffolds[answers2.scaffold];
+			if (!scaffold) {
+				console.log(chalk.red(`Failed to find the selected scaffold ${answers2.scaffold}...\n`));
 				exit(1);
 			}
 
 			try {
 				const contentResponse = await octokit.rest.repos.getContent({
-					owner: template.owner,
-					repo: template.repo,
+					owner: scaffold.owner,
+					repo: scaffold.repo,
 					path: 'snapfu.config.yml',
 				});
 
 				try {
 					const buffer = new Buffer.from(contentResponse.data.content, 'base64');
 					const fileContents = buffer.toString('ascii');
-					template.advanced = YAML.parse(fileContents);
+					scaffold.advanced = YAML.parse(fileContents);
 				} catch (err) {
 					console.log(chalk.red(`Failed to parse snapfu.config.yml contents...\n`));
 					exit(1);
@@ -197,10 +197,10 @@ export const init = async (options) => {
 				}
 			}
 
-			// ask additional questions (for advanced templates)
-			if (template.advanced?.variables?.length) {
+			// ask additional questions (for advanced scaffolds)
+			if (scaffold.advanced?.variables?.length) {
 				let advancedQuestions = [];
-				template.advanced.variables.forEach((variable) => {
+				scaffold.advanced.variables.forEach((variable) => {
 					if (variable.name && variable.type && variable.message) {
 						// remove the value
 						delete variable.value;
@@ -208,7 +208,7 @@ export const init = async (options) => {
 					}
 				});
 
-				template.answers = await inquirer.prompt(advancedQuestions);
+				scaffold.answers = await inquirer.prompt(advancedQuestions);
 			}
 
 			const questions3 = [
@@ -360,32 +360,32 @@ export const init = async (options) => {
 				}
 			}
 
-			const templateVariables = {
+			const scaffoldVariables = {
 				'snapfu.name': answers.name,
 				'snapfu.siteId': answers.siteId,
 				'snapfu.author': user.name,
 				'snapfu.framework': answers.framework,
 			};
 
-			// add advanced template variables
-			if (template.answers) {
-				Object.keys(template.answers).forEach((key) => {
-					const value = template.answers[key];
-					templateVariables[`snapfu.variables.${key}`] = value;
+			// add advanced scaffold variables
+			if (scaffold.answers) {
+				Object.keys(scaffold.answers).forEach((key) => {
+					const value = scaffold.answers[key];
+					scaffoldVariables[`snapfu.variables.${key}`] = value;
 				});
 			}
 
 			try {
-				console.log(`Cloning template into ${dir} via SSH...`);
-				await cloneAndCopyRepo(template.ssh, dir, true, templateVariables);
-				console.log(`${chalk.cyan(template.ssh)}\n`);
+				console.log(`Cloning scaffolding into ${dir} via SSH...`);
+				await cloneAndCopyRepo(scaffold.ssh, dir, true, scaffoldVariables);
+				console.log(`${chalk.cyan(scaffold.ssh)}\n`);
 			} catch (err) {
-				console.log(`SSH authentication failed. Cloning template into ${dir} via HTTPS...`);
-				await cloneAndCopyRepo(template.http, dir, true, templateVariables);
-				console.log(`${chalk.cyan(template.http)}\n`);
+				console.log(`SSH authentication failed. Cloning scaffolding into ${dir} via HTTPS...`);
+				await cloneAndCopyRepo(scaffold.http, dir, true, scaffoldVariables);
+				console.log(`${chalk.cyan(scaffold.http)}\n`);
 			}
 
-			// waiting here due to copyPromise function resolving before template is actually copied
+			// waiting here due to copyPromise function resolving before scaffold is actually copied
 			// TODO: look into why ncp does not like our filtering (does not resolve promise in callback)
 			// wait...
 			await wait(1000);
@@ -405,11 +405,11 @@ export const init = async (options) => {
 			await setBranchProtection(options, { organization: answers.organization, name: answers.name });
 
 			if (dir != cwd()) {
-				console.log(`The ${chalk.blue(folderName)} directory has been created and initialized from ${chalk.blue(`${answers.template}`)}.`);
+				console.log(`The ${chalk.blue(folderName)} directory has been created and initialized from ${chalk.blue(`${answers.scaffold}`)}.`);
 				console.log(`Get started by installing package dependencies and creating a branch:`);
 				console.log(chalk.grey(`\n\tcd ${folderName} && npm install && git checkout -b development\n`));
 			} else {
-				console.log(`Current working directory has been initialized from ${chalk.blue(`${answers.template}`)}.`);
+				console.log(`Current working directory has been initialized from ${chalk.blue(`${answers.scaffold}`)}.`);
 				console.log(`Get started by installing package dependencies and creating a branch:`);
 				console.log(chalk.grey(`\n\tnpm install && git checkout -b development\n`));
 			}
@@ -570,7 +570,7 @@ export const cloneAndCopyRepo = async function (sourceRepo, destination, exclude
 		return folder;
 	});
 
-	// clone template repo into temp dir
+	// clone scaffold repo into temp dir
 	await commandOutput(`git clone ${sourceRepo} ${folder}`);
 
 	let options = { clobber: true };

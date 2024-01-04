@@ -4,7 +4,7 @@
 
 <a href="https://www.npmjs.com/package/snapfu"><img alt="NPM Status" src="https://img.shields.io/npm/v/snapfu.svg?style=flat"></a>
 
-Snapfu is the scaffolding command line tool for the Searchspring Snap SDK. This tool creates a new Searchspring project from one of our existing Snap templates and bootstraps a development environment. These templates include a Github action that when triggered will build and deploy Snap bundles to our infrastructure (permissions required).
+Snapfu is the scaffolding command line tool for the Searchspring Snap SDK. This tool creates a new Searchspring project from one of our existing Snap scaffolds and bootstraps a development environment. These scaffolds include a Github action that when triggered will build and deploy Snap bundles to our infrastructure (permissions required).
 
 ## Installation
 
@@ -24,9 +24,9 @@ snapfu login
 ## Init
 
 Create your website with the init command. Init will gather some information about the kind
-of Snap build template you wish to create. You will need your `siteId` and `secretKey` from the SMC before you run this command. This command will:
+of Snap project you wish to create. You will need your `siteId` and `secretKey` from the SMC before you run this command. This command will:
 
--   download template files
+-   download scaffolding files
 -   create and initialize a repository in the Github organization you selected
 -   populate a Github secret with the provided `secretKey`
 
