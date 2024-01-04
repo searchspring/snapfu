@@ -1,5 +1,6 @@
 import { promises as fsp } from 'fs';
 import path from 'path';
+import deepmerge from 'deepmerge';
 
 export const editJSON = async (options, fileName, changes) => {
 	if (!changes.length || !fileName) {
@@ -141,6 +142,86 @@ export const editJSON = async (options, fileName, changes) => {
 					}
 
 					// no type matches
+					default:
+						break;
+				}
+
+				break;
+			}
+
+			case 'move': {
+				switch (actionType) {
+					case 'path': {
+						const path = change[action].path;
+						const newPath = change[action].newPath;
+						let modifier = change[action].modifier;
+
+						let fileRef = file;
+						let newFileRef = file;
+						path.forEach((entry, i) => {
+							if (i != path.length - 1) {
+								if (typeof entry == 'string') {
+									// path entry is a string navigating object
+									if (fileRef[entry]) {
+										fileRef = fileRef[entry];
+									} else {
+										// path does not exist, cannot continue
+										return;
+									}
+								}
+							} else {
+								// last path entry - prepare to move
+
+								if (!fileRef || !fileRef[entry]) {
+									// fileRef not found
+									return;
+								}
+
+								// check for existence of newPath
+								newPath.forEach((newEntry, i) => {
+									if (i != newPath.length - 1) {
+										if (typeof newEntry == 'string') {
+											// path newEntry is a string navigating object
+											if (newFileRef[newEntry]) {
+												newFileRef = newFileRef[newEntry];
+											} else {
+												// path does not exist, must create it
+												newFileRef = newFileRef[newEntry] = {};
+											}
+										}
+									} else {
+										// final newPath newEntry
+										const existingType = typeof newFileRef[newEntry];
+
+										if (existingType != 'undefined' && !modifier) {
+											// newPath already exists and no modifier is present
+											return;
+										}
+
+										if (existingType == 'string') modifier = 'overwrite';
+
+										switch (modifier) {
+											case 'merge': {
+												newFileRef[newEntry] = deepmerge(newFileRef[newEntry], fileRef[entry]);
+												break;
+											}
+											default:
+											case 'replace': {
+												newFileRef[newEntry] = fileRef[entry];
+												break;
+											}
+										}
+
+										// remove original path entry
+										delete fileRef[entry];
+									}
+								});
+							}
+						});
+
+						break;
+					}
+
 					default:
 						break;
 				}
