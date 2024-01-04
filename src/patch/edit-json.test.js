@@ -26,6 +26,7 @@ const mockPackage = {
 		siteId: 'ga9kq2',
 		framework: 'preact',
 		platform: 'bigcommerce',
+		template: 'snapfu-template-preact',
 		tags: ['finder', 'ac', 'email'],
 		nestedObject: {
 			hello: 'world',
@@ -638,6 +639,247 @@ describe('editJSON function', () => {
 	});
 
 	describe('using `path`', () => {
+		it('will do nothing when using `move` when the properties do not exist', async () => {
+			const changes = [
+				{
+					move: {
+						path: ['does', 'not', 'exist'],
+						newPath: ['never', 'will', 'exist'],
+					},
+				},
+			];
+
+			await editJSON(options, packageName, changes);
+
+			const contents = await fsp.readFile(packagePath, 'utf8');
+			const parsed = JSON.parse(contents);
+
+			const expectedContents = { ...getMockPackage() };
+			expect(parsed).toStrictEqual(expectedContents);
+		});
+
+		it('can use `move` to rename existing properties', async () => {
+			const changes = [
+				{
+					move: {
+						path: ['searchspring', 'template'],
+						newPath: ['searchspring', 'scaffolding'],
+					},
+				},
+			];
+
+			await editJSON(options, packageName, changes);
+
+			const contents = await fsp.readFile(packagePath, 'utf8');
+			const parsed = JSON.parse(contents);
+
+			const expectedContents = { ...getMockPackage() };
+			expectedContents.searchspring.scaffolding = expectedContents.searchspring.template;
+			delete expectedContents.searchspring.template;
+			expect(parsed).toStrictEqual(expectedContents);
+		});
+
+		it('can use `move` to rename existing properties to non-existent nested property', async () => {
+			const changes = [
+				{
+					move: {
+						path: ['searchspring', 'template'],
+						newPath: ['new', 'place', 'template'],
+					},
+				},
+			];
+
+			await editJSON(options, packageName, changes);
+
+			const contents = await fsp.readFile(packagePath, 'utf8');
+			const parsed = JSON.parse(contents);
+
+			const expectedContents = { ...getMockPackage() };
+			expectedContents.new = {};
+			expectedContents.new.place = {};
+			expectedContents.new.place.template = expectedContents.searchspring.template;
+			delete expectedContents.searchspring.template;
+			expect(parsed).toStrictEqual(expectedContents);
+		});
+
+		it('will not overwrite existing properties when using `move`', async () => {
+			const changes = [
+				{
+					move: {
+						path: ['searchspring', 'template'],
+						newPath: ['searchspring', 'framework'],
+					},
+				},
+			];
+
+			await editJSON(options, packageName, changes);
+
+			const contents = await fsp.readFile(packagePath, 'utf8');
+			const parsed = JSON.parse(contents);
+
+			const expectedContents = { ...getMockPackage() };
+			expect(parsed).toStrictEqual(expectedContents);
+		});
+
+		it('will overwrite existing string property when using `move` with the `replace` modifier', async () => {
+			const changes = [
+				{
+					move: {
+						path: ['searchspring', 'template'],
+						newPath: ['searchspring', 'framework'],
+						modifier: 'replace',
+					},
+				},
+			];
+
+			await editJSON(options, packageName, changes);
+
+			const contents = await fsp.readFile(packagePath, 'utf8');
+			const parsed = JSON.parse(contents);
+
+			const expectedContents = { ...getMockPackage() };
+			expectedContents.searchspring.framework = expectedContents.searchspring.template;
+			delete expectedContents.searchspring.template;
+			expect(parsed).toStrictEqual(expectedContents);
+		});
+
+		it('will overwrite existing object properties when using `move` with the `replace` modifier', async () => {
+			const changes = [
+				{
+					move: {
+						path: ['dependencies'],
+						newPath: ['devDependencies'],
+						modifier: 'replace',
+					},
+				},
+			];
+
+			await editJSON(options, packageName, changes);
+
+			const contents = await fsp.readFile(packagePath, 'utf8');
+			const parsed = JSON.parse(contents);
+
+			const expectedContents = { ...getMockPackage() };
+			expectedContents.devDependencies = {
+				preact: '^10.6.4',
+				mobx: '^6.3.12',
+			};
+			delete expectedContents.dependencies;
+			expect(parsed).toStrictEqual(expectedContents);
+		});
+
+		it('will overwrite existing string properties when using `move` with the `merge` modifier', async () => {
+			const changes = [
+				{
+					move: {
+						path: ['searchspring', 'template'],
+						newPath: ['searchspring', 'framework'],
+						modifier: 'merge',
+					},
+				},
+			];
+
+			await editJSON(options, packageName, changes);
+
+			const contents = await fsp.readFile(packagePath, 'utf8');
+			const parsed = JSON.parse(contents);
+
+			const expectedContents = { ...getMockPackage() };
+			expectedContents.searchspring.framework = expectedContents.searchspring.template;
+			delete expectedContents.searchspring.template;
+			expect(parsed).toStrictEqual(expectedContents);
+		});
+
+		it('will deeply merge existing object properties when using `move` with the `merge` modifier', async () => {
+			const changes = [
+				{
+					move: {
+						path: ['dependencies'],
+						newPath: ['devDependencies'],
+						modifier: 'merge',
+					},
+				},
+			];
+
+			await editJSON(options, packageName, changes);
+
+			const contents = await fsp.readFile(packagePath, 'utf8');
+			const parsed = JSON.parse(contents);
+
+			const expectedContents = { ...getMockPackage() };
+			expectedContents.devDependencies = {
+				preact: '^10.6.4',
+				mobx: '^6.3.12',
+				webpack: '^5.65.0',
+				sass: '^1.46.0',
+			};
+			delete expectedContents.dependencies;
+			expect(parsed).toStrictEqual(expectedContents);
+		});
+
+		it('will overwrite existing array properties when using `move` with the `replace` modifier', async () => {
+			const changes = [
+				{
+					move: {
+						path: ['searchspring', 'tags'],
+						newPath: ['array'],
+						modifier: 'replace',
+					},
+				},
+			];
+
+			await editJSON(options, packageName, changes);
+
+			const contents = await fsp.readFile(packagePath, 'utf8');
+			const parsed = JSON.parse(contents);
+
+			const expectedContents = { ...getMockPackage() };
+			expectedContents.array = expectedContents.searchspring.tags;
+			delete expectedContents.searchspring.tags;
+			expect(parsed).toStrictEqual(expectedContents);
+		});
+
+		it('will merge existing array properties when using `move` with the `merge` modifier', async () => {
+			const changes = [
+				{
+					move: {
+						path: ['searchspring', 'tags'],
+						newPath: ['array'],
+						modifier: 'merge',
+					},
+				},
+			];
+
+			await editJSON(options, packageName, changes);
+
+			const contents = await fsp.readFile(packagePath, 'utf8');
+			const parsed = JSON.parse(contents);
+
+			const expectedContents = { ...getMockPackage() };
+			expectedContents.array = [...expectedContents.array, ...expectedContents.searchspring.tags];
+			delete expectedContents.searchspring.tags;
+			expect(parsed).toStrictEqual(expectedContents);
+		});
+
+		it('will not modify existing array when using `move` without a modifier', async () => {
+			const changes = [
+				{
+					move: {
+						path: ['searchspring', 'tags'],
+						newPath: ['array'],
+					},
+				},
+			];
+
+			await editJSON(options, packageName, changes);
+
+			const contents = await fsp.readFile(packagePath, 'utf8');
+			const parsed = JSON.parse(contents);
+
+			const expectedContents = { ...getMockPackage() };
+			expect(parsed).toStrictEqual(expectedContents);
+		});
+
 		it('can use `update` to add new keys', async () => {
 			const dependencies = {
 				'@searchspring/snap-preact': '0.21.0',
