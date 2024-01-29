@@ -10,6 +10,7 @@ import { login, logout, orgAccess, auth } from './login.js';
 import { initTemplate, listTemplates, removeTemplate, syncTemplate } from './recs.js';
 import { init } from './init.js';
 import { listPatches, applyPatches, setupPatchRepo } from './patch.js';
+import { buildLibrary } from './library.js';
 import { about } from './about.js';
 import { wait, cmp } from './utils/index.js';
 import { help } from './help.js';
@@ -165,10 +166,20 @@ async function parseArgumentsIntoOptions(rawArgs) {
 	return {
 		config: {
 			searchspringDir,
+			directories: {
+				components: {
+					recommendation: './src/components/Recommendations',
+				},
+			},
 			patches: {
 				dir: path.join(searchspringDir, 'snapfu-patches'),
 				repoName: 'snapfu-patches',
 				repoUrl: `https://github.com/searchspring/snapfu-patches.git`,
+			},
+			library: {
+				dir: path.join(searchspringDir, 'snapfu-library'),
+				repoName: 'snapfu-library',
+				repoUrl: `https://github.com/searchspring/snapfu-library.git`,
 			},
 		},
 		user,
@@ -195,6 +206,12 @@ export async function cli(args) {
 
 		case 'init': {
 			await init(options);
+			break;
+		}
+
+		case 'library': {
+			const library = await buildLibrary(options);
+			// console.log('library', library);
 			break;
 		}
 

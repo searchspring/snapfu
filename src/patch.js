@@ -3,13 +3,12 @@ import path from 'path';
 import { exit } from 'process';
 import chalk from 'chalk';
 import inquirer from 'inquirer';
-import ncp from 'ncp';
 import YAML from 'yaml';
 import glob from 'glob';
 
 import { editJSON } from './patch/edit-json.js';
 import { editYAML } from './patch/edit-yaml.js';
-import { cmp, commandOutput, boxify, boxifyVersions } from './utils/index.js';
+import { cmp, copy, commandOutput, boxify, boxifyVersions } from './utils/index.js';
 
 export const setupPatchRepo = async (options) => {
 	// clone or pull snapfu patches repository
@@ -223,7 +222,7 @@ export const applyPatch = async (options, patch) => {
 	// copy patch files into ./patch directory in project
 	await fsp.mkdir(projectPatchDir);
 	const patchDir = path.join(options.config.patches.dir, framework, patch);
-	await copyDir(patchDir, projectPatchDir);
+	await copy(patchDir, projectPatchDir, { clobber: true });
 
 	// read the dir and log contents
 	const dirFiles = await fsp.readdir(projectPatchDir);
@@ -335,16 +334,4 @@ const runPatch = async (options, patchFile) => {
 			}
 		}
 	}
-};
-
-const copyDir = (source, destination) => {
-	return new Promise((resolve, reject) => {
-		const options = { clobber: true };
-		ncp(source, destination, options, function (err) {
-			if (err) {
-				reject(err);
-			}
-			resolve();
-		});
-	});
 };

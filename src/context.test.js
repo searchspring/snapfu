@@ -1,8 +1,10 @@
-import { getClosest, getPackageJSON, getContext } from './context';
+import { getClosest, getProject, getContext } from './context';
 import tempDirectory from 'temp-dir';
 import fs from 'fs-extra';
 import path from 'path';
 import { promises as fsp } from 'fs';
+
+const mockIndexFile = `// nothing in here`;
 
 const mockPackageJSON = {
 	searchspring: {
@@ -57,19 +59,55 @@ describe('getClosest function', () => {
 	});
 });
 
-describe('getPackageJSON function', () => {
-	it('finds the nearest package.json file from process.cwd()', async () => {
-		const packageJSON = getPackageJSON();
-		expect(packageJSON).toBeDefined();
+describe('getProject function', () => {
+	it('finds the nearest project file from process.cwd()', async () => {
+		const project = getProject();
+		expect(project).toBeDefined();
 	});
 
 	it('returns the parsed json file and adds a "project" attribute', async () => {
-		const packageJSON = await getPackageJSON();
-		expect(packageJSON.version).toBeDefined();
-		expect(packageJSON.project).toBeDefined();
-		expect(packageJSON.project).toHaveProperty('path');
-		expect(packageJSON.project).toHaveProperty('dirname');
-		expect(packageJSON.project.dirname).toBe('snapfu');
+		// assumes Javascript when there is no index.ts file found
+		const project = await getProject(projectDir);
+		const packageJSON = project.packageJSON;
+		console.log(packageJSON);
+		expect(packageJSON.searchspring).toBeDefined();
+		expect(project).toHaveProperty('path');
+		expect(project).toHaveProperty('dirname');
+		expect(project.dirname).toBe('secret.project');
+		expect(project.type).toBe('javascript');
+	});
+
+	it('can get javacript type project', async () => {
+		// add index.js
+		const indexPath = path.join(projectDir, 'src', 'index.js');
+		await fsp.writeFile(indexPath, JSON.stringify(mockIndexFile));
+
+		const project = await getProject(projectDir);
+		const packageJSON = project.packageJSON;
+		expect(packageJSON.searchspring).toBeDefined();
+		expect(project).toHaveProperty('path');
+		expect(project).toHaveProperty('dirname');
+		expect(project.dirname).toBe('secret.project');
+		expect(project.type).toBe('javascript');
+
+		await fsp.rm(indexPath);
+	});
+
+	it('can get typescript type project', async () => {
+		// add index.ts
+		const indexPath = path.join(projectDir, 'src', 'index.ts');
+		await fsp.writeFile(indexPath, JSON.stringify(mockIndexFile));
+
+		const project = await getProject(projectDir);
+		const packageJSON = project.packageJSON;
+		expect(packageJSON.searchspring).toBeDefined();
+		expect(project).toHaveProperty('path');
+		expect(project).toHaveProperty('dirname');
+		expect(project.dirname).toBe('secret.project');
+		expect(project.type).toBe('typescript');
+
+		// cleanup
+		await fsp.rm(indexPath);
 	});
 });
 

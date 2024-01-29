@@ -4,10 +4,10 @@ import path from 'path';
 import fs, { promises as fsp } from 'fs';
 import { exit } from 'process';
 import { help } from './help.js';
-import { wait } from './utils/index.js';
+import { wait, copy, copyTransform } from './utils/index.js';
 import { DEFAULT_BRANCH } from './init.js';
-import { frameworks } from './frameworks/index.js';
 import { ConfigApi } from './services/ConfigApi.js';
+import { buildLibrary } from './library.js';
 
 const TEMPLATE_TYPE_RECS = 'snap/recommendation';
 const DIR_BLACK_LIST = ['node_modules', '.git'];
@@ -27,7 +27,10 @@ export async function initTemplate(options) {
 		return;
 	}
 
-	if (!searchspring.framework || !frameworks[searchspring.framework]) {
+	// fetch library contents
+	const library = await buildLibrary(options);
+
+	if (!searchspring.framework || !library[searchspring.framework]) {
 		console.log(chalk.red(`Error: No path specified and unknown Snap framework.`));
 		return;
 	}
@@ -37,8 +40,14 @@ export async function initTemplate(options) {
 		return;
 	}
 
-	const framework = frameworks[searchspring.framework];
-	const templateDefaultDir = path.resolve(context.project.path, framework.template.dir);
+	const framework = library[searchspring.framework];
+
+	if (!framework?.components?.recommendation) {
+		console.log(chalk.red(`Error: Library does not contain recommendation components.`));
+		return;
+	}
+
+	const templateDefaultDir = path.resolve(context.project.path, options.config.directories.components.recommendation);
 	let answers1;
 	if (!nameArg) {
 		answers1 = await inquirer.prompt([
@@ -66,13 +75,13 @@ export async function initTemplate(options) {
 			validate: (input) => {
 				return input && input.length > 0;
 			},
-			default: framework.template.dir,
+			default: options.config.directories.components.recommendation,
 		},
 		{
 			type: 'list',
 			name: 'type',
 			message: 'Please select the type of recommendations:',
-			choices: Object.keys(framework.template.components),
+			choices: Object.keys(framework.components.recommendation),
 			default: 'default',
 		},
 	]);
@@ -86,24 +95,59 @@ export async function initTemplate(options) {
 	const templateDir = (answers && answers.directory) || templateDefaultDir;
 	const componentName = pascalCase(name);
 
-	const settings = {
-		type: `${TEMPLATE_TYPE_RECS}/${answers.type}`,
-	};
-
 	try {
-		await writeTemplateFile(
-			path.resolve(process.cwd(), templateDir, `${componentName}.json`),
-			generateTemplateSettings({ name, description, type: settings.type })
-		);
-		if (framework) {
+		// copy over files for new component
+		const component = framework.components.recommendation[answers.type];
+		if (component || !component.path || !component.files?.length) {
+			// create component template JSON descriptor file
 			await writeTemplateFile(
-				path.resolve(process.cwd(), templateDir, `${componentName}.jsx`),
-				framework.template.components[answers.type](componentName)
+				path.resolve(process.cwd(), templateDir, `${componentName}.json`),
+				generateTemplateSettings({ name, description, type: `${TEMPLATE_TYPE_RECS}/${answers.type}` })
 			);
-			await writeTemplateFile(
-				path.resolve(process.cwd(), templateDir, `${componentName}.scss`),
-				framework.template.styles[answers.type](componentName)
-			);
+
+			let options = { clobber: true };
+			const variables = { 'snapfu.variables.name': componentName };
+
+			options.transform = async (read, write, file) => {
+				await copyTransform(read, write, variables, file);
+			};
+
+			// filter out files in the exclude list
+			options.filter = (name) => {
+				if (path.extname(name)) {
+					return component.files.includes(name.split('/').pop());
+				} else {
+					// directory
+					return true;
+				}
+			};
+
+			// rename files
+			options.rename = (name) => {
+				console.log('rename name', name);
+
+				// 'foo/bar/baz'.split(path.sep);
+
+				const split = name.split(path.sep);
+
+				// const split = path.sep(name);
+
+				const fileName = split[split.length - 1];
+				const extension = path.extname(fileName); // extname includes the .
+
+				// rename the filename
+				split[split.length - 1] = `${componentName}${extension}`;
+				const newName = path.join(...split);
+				console.log('rename new name', newName);
+				return newName;
+			};
+
+			const projectComponentDirectory = path.resolve(process.cwd(), templateDir);
+			console.log('copying from', component.path);
+			console.log('copying to', projectComponentDirectory);
+			copy(component.path, projectComponentDirectory, options);
+		} else {
+			throw `Component "${componentName}" in library is corrupt!`;
 		}
 	} catch (err) {
 		console.log(chalk.red(`Error: Failed to initialize template.`));
