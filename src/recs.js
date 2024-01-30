@@ -101,7 +101,7 @@ export async function initTemplate(options) {
 		if (component || !component.path || !component.files?.length) {
 			// create component template JSON descriptor file
 			await writeTemplateFile(
-				path.resolve(process.cwd(), templateDir, `${componentName}.json`),
+				path.resolve(context.project.path, templateDir, `${componentName}.json`),
 				generateTemplateSettings({ name, description, type: `${TEMPLATE_TYPE_RECS}/${answers.type}` })
 			);
 
@@ -112,10 +112,12 @@ export async function initTemplate(options) {
 				await copyTransform(read, write, variables, file);
 			};
 
-			// filter out files in the exclude list
+			// filter out files only in list
 			options.filter = (name) => {
-				if (path.extname(name)) {
-					return component.files.includes(name.split('/').pop());
+				const fileDetails = path.parse(name);
+				if (fileDetails.ext) {
+					// if file has an extension check if it is in the component file list - list will exclude language (eg. js/ts) based on context
+					return component.files.includes(fileDetails.base);
 				} else {
 					// directory
 					return true;
@@ -124,28 +126,22 @@ export async function initTemplate(options) {
 
 			// rename files
 			options.rename = (name) => {
-				console.log('rename name', name);
+				const fileDetails = path.parse(name);
 
-				// 'foo/bar/baz'.split(path.sep);
-
-				const split = name.split(path.sep);
-
-				// const split = path.sep(name);
-
-				const fileName = split[split.length - 1];
-				const extension = path.extname(fileName); // extname includes the .
-
-				// rename the filename
-				split[split.length - 1] = `${componentName}${extension}`;
-				const newName = path.join(...split);
-				console.log('rename new name', newName);
-				return newName;
+				if (fileDetails.ext && fileDetails.name.toLowerCase() == answers.type.toLowerCase()) {
+					// rename the file if it is not a directory AND it has a name matching the directory name (eg. default)
+					fileDetails.name = componentName;
+					delete fileDetails.base; // needed so that path.format utilizes name and ext
+					const newName = path.format(fileDetails);
+					return newName;
+				} else {
+					return name;
+				}
 			};
 
-			const projectComponentDirectory = path.resolve(process.cwd(), templateDir);
-			console.log('copying from', component.path);
-			console.log('copying to', projectComponentDirectory);
-			copy(component.path, projectComponentDirectory, options);
+			const projectComponentDirectory = path.resolve(context.project.path, templateDir);
+
+			await copy(component.path, projectComponentDirectory, options);
 		} else {
 			throw `Component "${componentName}" in library is corrupt!`;
 		}
