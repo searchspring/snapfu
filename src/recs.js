@@ -86,7 +86,7 @@ export async function initTemplate(options) {
 		},
 	]);
 
-	console.log(`Initializing template...`);
+	console.log(`\nInitializing template...`);
 
 	let answers = { ...answers1, ...answers2 };
 

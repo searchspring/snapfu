@@ -1,19 +1,8 @@
 /*
-
-	Commands needing components:
+	Current commands utilizing components:
 	* recs init
-
-	* utilize snapfu-library repository
-	* use `ncp` to copy files from repo to project
-	* need functions for:
-		* clone/fetch repo
-		* install component
-		* list components (per framework / type)
 	
 	snapfu-library https://github.com/searchspring/snapfu-library
-
-	* sanitize name from inquirer to support only variablesNames
-
 */
 
 import { existsSync, mkdirSync, promises as fsp, statSync } from 'fs';
@@ -30,20 +19,29 @@ export const setupLibraryRepo = async (options) => {
 			mkdirSync(options.config.searchspringDir);
 		}
 		if (existsSync(options.config.library.dir)) {
-			console.log(`Updating ${options.config.library.repoName}...`);
 			const { stdout, stderr } = await commandOutput(`git pull`, options.config.library.dir);
-			// console.log(stdout || stderr);
+
+			if (options.dev) {
+				console.log(`Updating ${options.config.library.repoName}...`);
+				console.log(stdout || stderr);
+			}
 		} else {
-			console.log(`Cloning ${options.config.library.repoName} into ${options.config.library.dir} ...`);
 			const { stdout, stderr } = await commandOutput(
 				`git clone ${options.config.library.repoUrl} ${options.config.library.repoName}`,
 				options.config.searchspringDir
 			);
-			// console.log(stdout || stderr);
+
+			if (options.dev) {
+				console.log(`Cloning ${options.config.library.repoName} into ${options.config.library.dir} ...`);
+				console.log(stdout || stderr);
+			}
 		}
 	} catch (e) {
 		console.log(chalk.red(`Failed to update library files!`));
-		// console.log(chalk.red(e));
+
+		if (options.dev) {
+			console.log(chalk.red(e));
+		}
 		exit(1);
 	}
 };
