@@ -105,7 +105,7 @@ export async function initTemplate(options) {
 				generateTemplateSettings({ name, description, type: `${TEMPLATE_TYPE_RECS}/${answers.type}` })
 			);
 
-			let options = { clobber: true };
+			let options = { clobber: false };
 			const variables = { 'snapfu.variables.name': componentName };
 
 			options.transform = async (read, write, file) => {
@@ -126,6 +126,7 @@ export async function initTemplate(options) {
 
 			// rename files
 			options.rename = (name) => {
+				let filePath;
 				const fileDetails = path.parse(name);
 
 				if (fileDetails.ext && fileDetails.name.toLowerCase() == answers.type.toLowerCase()) {
@@ -133,10 +134,22 @@ export async function initTemplate(options) {
 					fileDetails.name = componentName;
 					delete fileDetails.base; // needed so that path.format utilizes name and ext
 					const newName = path.format(fileDetails);
-					return newName;
+
+					filePath = newName;
 				} else {
-					return name;
+					filePath = name;
 				}
+
+				// logging for wether we create or not
+				fs.stat(filePath, (exists) => {
+					if (!exists) {
+						console.log(chalk.yellow(`File already exists: ${filePath}`));
+					} else {
+						console.log(chalk.green(`Creating file: ${filePath}`));
+					}
+				});
+
+				return filePath;
 			};
 
 			const projectComponentDirectory = path.resolve(context.project.path, templateDir);
