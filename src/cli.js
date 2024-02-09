@@ -165,10 +165,20 @@ async function parseArgumentsIntoOptions(rawArgs) {
 	return {
 		config: {
 			searchspringDir,
+			directories: {
+				components: {
+					recommendation: './src/components/Recommendations',
+				},
+			},
 			patches: {
 				dir: path.join(searchspringDir, 'snapfu-patches'),
 				repoName: 'snapfu-patches',
 				repoUrl: `https://github.com/searchspring/snapfu-patches.git`,
+			},
+			library: {
+				dir: path.join(searchspringDir, 'snapfu-library'),
+				repoName: 'snapfu-library',
+				repoUrl: `https://github.com/searchspring/snapfu-library.git`,
 			},
 		},
 		user,

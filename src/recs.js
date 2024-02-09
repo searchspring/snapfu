@@ -4,10 +4,10 @@ import path from 'path';
 import fs, { promises as fsp } from 'fs';
 import { exit } from 'process';
 import { help } from './help.js';
-import { wait } from './utils/index.js';
+import { wait, copy, copyTransform } from './utils/index.js';
 import { DEFAULT_BRANCH } from './init.js';
-import { frameworks } from './frameworks/index.js';
 import { ConfigApi } from './services/ConfigApi.js';
+import { buildLibrary } from './library.js';
 
 const TEMPLATE_TYPE_RECS = 'snap/recommendation';
 const DIR_BLACK_LIST = ['node_modules', '.git'];
@@ -27,7 +27,10 @@ export async function initTemplate(options) {
 		return;
 	}
 
-	if (!searchspring.framework || !frameworks[searchspring.framework]) {
+	// fetch library contents
+	const library = await buildLibrary(options);
+
+	if (!searchspring.framework || !library[searchspring.framework]) {
 		console.log(chalk.red(`Error: No path specified and unknown Snap framework.`));
 		return;
 	}
@@ -37,8 +40,14 @@ export async function initTemplate(options) {
 		return;
 	}
 
-	const framework = frameworks[searchspring.framework];
-	const templateDefaultDir = path.resolve(context.project.path, framework.template.dir);
+	const framework = library[searchspring.framework];
+
+	if (!framework?.components?.recommendation) {
+		console.log(chalk.red(`Error: Library does not contain recommendation components.`));
+		return;
+	}
+
+	const templateDefaultDir = path.resolve(context.project.path, options.config.directories.components.recommendation);
 	let answers1;
 	if (!nameArg) {
 		answers1 = await inquirer.prompt([
@@ -66,18 +75,18 @@ export async function initTemplate(options) {
 			validate: (input) => {
 				return input && input.length > 0;
 			},
-			default: framework.template.dir,
+			default: options.config.directories.components.recommendation,
 		},
 		{
 			type: 'list',
 			name: 'type',
 			message: 'Please select the type of recommendations:',
-			choices: Object.keys(framework.template.components),
+			choices: Object.keys(framework.components.recommendation),
 			default: 'default',
 		},
 	]);
 
-	console.log(`Initializing template...`);
+	console.log(`\nInitializing template...`);
 
 	let answers = { ...answers1, ...answers2 };
 
@@ -86,24 +95,68 @@ export async function initTemplate(options) {
 	const templateDir = (answers && answers.directory) || templateDefaultDir;
 	const componentName = pascalCase(name);
 
-	const settings = {
-		type: `${TEMPLATE_TYPE_RECS}/${answers.type}`,
-	};
-
 	try {
-		await writeTemplateFile(
-			path.resolve(process.cwd(), templateDir, `${componentName}.json`),
-			generateTemplateSettings({ name, description, type: settings.type })
-		);
-		if (framework) {
+		// copy over files for new component
+		const component = framework.components.recommendation[answers.type];
+		if (component || !component.path || !component.files?.length) {
+			// create component template JSON descriptor file
 			await writeTemplateFile(
-				path.resolve(process.cwd(), templateDir, `${componentName}.jsx`),
-				framework.template.components[answers.type](componentName)
+				path.resolve(context.project.path, templateDir, `${componentName}.json`),
+				generateTemplateSettings({ name, description, type: `${TEMPLATE_TYPE_RECS}/${answers.type}` })
 			);
-			await writeTemplateFile(
-				path.resolve(process.cwd(), templateDir, `${componentName}.scss`),
-				framework.template.styles[answers.type](componentName)
-			);
+
+			let options = { clobber: false };
+			const variables = { 'snapfu.variables.name': componentName };
+
+			options.transform = async (read, write, file) => {
+				await copyTransform(read, write, variables, file);
+			};
+
+			// filter out files only in list
+			options.filter = (name) => {
+				const fileDetails = path.parse(name);
+				if (fileDetails.ext) {
+					// if file has an extension check if it is in the component file list - list will exclude language (eg. js/ts) based on context
+					return component.files.includes(fileDetails.base);
+				} else {
+					// directory
+					return true;
+				}
+			};
+
+			// rename files
+			options.rename = (name) => {
+				let filePath;
+				const fileDetails = path.parse(name);
+
+				if (fileDetails.ext && fileDetails.name.toLowerCase() == answers.type.toLowerCase()) {
+					// rename the file if it is not a directory AND it has a name matching the directory name (eg. default)
+					fileDetails.name = componentName;
+					delete fileDetails.base; // needed so that path.format utilizes name and ext
+					const newName = path.format(fileDetails);
+
+					filePath = newName;
+				} else {
+					filePath = name;
+				}
+
+				// logging for wether we create or not
+				fs.stat(filePath, (exists) => {
+					if (!exists) {
+						console.log(chalk.yellow(`File already exists: ${filePath}`));
+					} else {
+						console.log(chalk.green(`Creating file: ${filePath}`));
+					}
+				});
+
+				return filePath;
+			};
+
+			const projectComponentDirectory = path.resolve(context.project.path, templateDir);
+
+			await copy(component.path, projectComponentDirectory, options);
+		} else {
+			throw `Component "${componentName}" in library is corrupt!`;
 		}
 	} catch (err) {
 		console.log(chalk.red(`Error: Failed to initialize template.`));

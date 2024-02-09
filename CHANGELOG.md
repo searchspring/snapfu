@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.4.0](https://github.com/searchspring/snapfu/compare/v1.3.3...v1.4.0) (2024-01-04)
+
+
+### Features
+
+* **patch:** adding `move` change to `edit-json` action for renaming ([fb1e517](https://github.com/searchspring/snapfu/commit/fb1e51777ec6994398afd88621396401c9a0a1f0))
+
 ### [1.3.3](https://github.com/searchspring/snapfu/compare/v1.3.2...v1.3.3) (2023-11-13)
 
 

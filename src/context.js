@@ -9,10 +9,9 @@ import { commandOutput } from './utils/index.js';
 export async function getContext(dir) {
 	let project, searchspring, branch, branchList, remote, organization, name, projectVersion;
 	try {
-		const packageContext = await getPackageJSON(dir);
+		project = await getProject(dir);
 
-		project = packageContext?.project;
-		searchspring = packageContext?.searchspring;
+		searchspring = project?.packageJSON?.searchspring;
 		projectVersion = searchspring?.version || '0.0.0';
 	} catch (err) {
 		// do nothing
@@ -64,20 +63,42 @@ export async function getContext(dir) {
 	};
 }
 
-export async function getPackageJSON(dir) {
+export async function getProject(dir) {
 	try {
 		const [packageFile] = await getClosest(dir || process.cwd(), 'package.json');
 
 		if (packageFile) {
+			// parse the contents
 			const contents = await fsp.readFile(packageFile, 'utf8');
 			const parsedContents = JSON.parse(contents);
 
-			parsedContents.project = {
+			// determine project codebase
+			// if index.ts exists, assume typescript
+			let type = 'javascript';
+			if (parsedContents.searchspring) {
+				try {
+					// check for ts
+					await fsp.stat(path.join(path.dirname(packageFile), 'src', 'index.ts'));
+					type = 'typescript';
+				} catch (err) {
+					// check for tsx
+					try {
+						await fsp.stat(path.join(path.dirname(packageFile), 'src', 'index.tsx'));
+						type = 'typescript';
+					} catch (err) {
+						// do nothing
+					}
+				}
+			}
+
+			const projectDetails = {
 				path: path.dirname(packageFile),
 				dirname: path.basename(path.dirname(packageFile)),
+				type,
+				packageJSON: parsedContents,
 			};
 
-			return parsedContents;
+			return projectDetails;
 		}
 
 		return {};
