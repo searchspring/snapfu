@@ -24,7 +24,7 @@ export const createDir = (dir) => {
 		let files = readdirSync(dir);
 
 		if (files.length !== 0) {
-			rejectionFunc('folder not empty, exiting');
+			rejectionFunc(`Cannot initialize non-empty directory: ${dir}`);
 		}
 
 		resolutionFunc(folderName);
