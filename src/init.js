@@ -5,7 +5,7 @@ import path from 'path';
 import chalk from 'chalk';
 import { Octokit } from '@octokit/rest';
 import inquirer from 'inquirer';
-import sodium from 'tweetsodium';
+import libsodium from 'libsodium-wrappers';
 import { auth } from './login.js';
 import { getContext } from './context.js';
 import { commandOutput, wait, copy, copyTransform } from './utils/index.js';
@@ -531,8 +531,10 @@ export const setRepoSecret = async function (options, details) {
 			// Convert the message and key to Uint8Array's (Buffer implements that interface)
 			const messageBytes = Buffer.from(value);
 			const keyBytes = Buffer.from(key, 'base64');
+
+			await libsodium.ready;
 			// Encrypt using LibSodium.
-			const encryptedBytes = sodium.seal(messageBytes, keyBytes);
+			const encryptedBytes = libsodium.crypto_box_seal(messageBytes, keyBytes);
 			// Base64 the encrypted secret
 			const encrypted_value = Buffer.from(encryptedBytes).toString('base64');
 

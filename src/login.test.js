@@ -1,10 +1,7 @@
 import { github, auth } from './login';
 import tempDirectory from 'temp-dir';
 import fs from 'fs-extra';
-import path from 'path';
-import request from 'request-promise';
 import fp from 'find-free-port';
-import { promises as fsp } from 'fs';
 
 let tempDir = '';
 let port = -1;
@@ -26,9 +23,9 @@ afterEach(() => {
 describe('listen for callback', () => {
 	it('callout', async () => {
 		let receivedUrl = auth.listenForCallback(port);
-		await request(`http://localhost:${port}?user={"name":"bob"}`);
+		await fetch(`http://localhost:${port}?user={"name":"bob"}`);
 		await receivedUrl.then((resolvedUrl) => {
-			expect(resolvedUrl).toEqual('/?user=%7B%22name%22:%22bob%22%7D');
+			expect(resolvedUrl).toEqual('/?user={%22name%22:%22bob%22}');
 		});
 	});
 });
