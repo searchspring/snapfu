@@ -26,7 +26,7 @@ describe('listen for callback', () => {
 		let receivedUrl = auth.listenForCallback(port);
 		await fetch(`http://localhost:${port}?user={"name":"bob"}`);
 		await receivedUrl.then((resolvedUrl) => {
-			expect(resolvedUrl).toEqual('/?user={%22name%22:%22bob%22}');
+			expect(resolvedUrl).toEqual('/?user=%7B%22name%22:%22bob%22%7D');
 		});
 	});
 });
