@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.5.0](https://github.com/searchspring/snapfu/compare/v1.4.0...v1.5.0) (2024-03-07)
+
+
+### Features
+
+* **packages:** updating packes to eliminate vulnerabilites ([75851a1](https://github.com/searchspring/snapfu/commit/75851a16c6b9ce4615f0b525fb320db1f81bc7c8))
+
+
+### Bug Fixes
+
+* **recs/init:** got rename working ([ff6c0bc](https://github.com/searchspring/snapfu/commit/ff6c0bc4fb304b3ab65b15c2a963165c15d4b946))
+* **recs/init:** modifying the order of questions and misc text ([2fc616b](https://github.com/searchspring/snapfu/commit/2fc616bcb44e3eb48f7f0a30ea0c40abf022688a))
+* **recs/init:** removing clobber and adding logging ([0213ac5](https://github.com/searchspring/snapfu/commit/0213ac5d6000f90efeefc86fb79772526a5e06dd))
+* **secret:** moving to libsodium.js and fetch ([e852d5a](https://github.com/searchspring/snapfu/commit/e852d5a3c40e7ddbbc11686a05d3f32ec8cd876f))
+
 ## [1.4.0](https://github.com/searchspring/snapfu/compare/v1.3.3...v1.4.0) (2024-01-04)
 
 
