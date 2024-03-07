@@ -10,7 +10,7 @@ import { ConfigApi } from './services/ConfigApi.js';
 import { buildLibrary } from './library.js';
 
 const TEMPLATE_TYPE_RECS = 'snap/recommendation';
-const DIR_BLACK_LIST = ['node_modules', '.git'];
+const DIR_EXCLUDE_LIST = ['node_modules', '.git'];
 
 function showTemplateHelp() {
 	help({ command: 'help', args: ['template'] });
@@ -48,9 +48,19 @@ export async function initTemplate(options) {
 	}
 
 	const templateDefaultDir = path.resolve(context.project.path, options.config.directories.components.recommendation);
-	let answers1;
+	const answers1 = await inquirer.prompt([
+		{
+			type: 'list',
+			name: 'type',
+			message: 'Please select the type of recommendations:',
+			choices: Object.keys(framework.components.recommendation),
+			default: 'default',
+		},
+	]);
+
+	let answers2;
 	if (!nameArg) {
-		answers1 = await inquirer.prompt([
+		answers2 = await inquirer.prompt([
 			{
 				type: 'input',
 				name: 'name',
@@ -62,7 +72,10 @@ export async function initTemplate(options) {
 		]);
 	}
 
-	let answers2 = await inquirer.prompt([
+	const name = nameArg || answers2.name;
+	const componentName = pascalCase(name);
+
+	const answers3 = await inquirer.prompt([
 		{
 			type: 'input',
 			name: 'description',
@@ -75,25 +88,16 @@ export async function initTemplate(options) {
 			validate: (input) => {
 				return input && input.length > 0;
 			},
-			default: options.config.directories.components.recommendation,
-		},
-		{
-			type: 'list',
-			name: 'type',
-			message: 'Please select the type of recommendations:',
-			choices: Object.keys(framework.components.recommendation),
-			default: 'default',
+			default: path.join(options.config.directories.components.recommendation, componentName),
 		},
 	]);
 
 	console.log(`\nInitializing template...`);
 
-	let answers = { ...answers1, ...answers2 };
+	const answers = { ...answers1, ...answers2, ...answers3 };
 
-	const name = nameArg || answers.name;
 	const description = answers && answers.description;
 	const templateDir = (answers && answers.directory) || templateDefaultDir;
-	const componentName = pascalCase(name);
 
 	try {
 		// copy over files for new component
@@ -179,7 +183,8 @@ export async function listTemplates(options) {
 
 		console.log(`${chalk.white.bold(`    ${repository.name}`)}`);
 
-		const templates = await getTemplates(context.project.path);
+		// look for templates, but only in the ./src directory
+		const templates = await getTemplates(path.join(context.project.path, 'src'));
 
 		if (!templates || !templates.length) {
 			console.log(chalk.italic('        no templates found...'));
@@ -518,7 +523,7 @@ export async function readTemplateSettings(filePath) {
 }
 
 export async function findJsonFiles(dir) {
-	// get all JSON files (exclude looking in blacklist)
+	// get all JSON files (exclude looking in excluded directories)
 	try {
 		const details = await fsp.stat(dir);
 		if (!details || !details.isDirectory) {
@@ -534,7 +539,7 @@ export async function findJsonFiles(dir) {
 				try {
 					const fileStats = fs.statSync(filePath);
 
-					if (!fileStats.isSymbolicLink() && fileStats.isDirectory() && !DIR_BLACK_LIST.includes(file)) {
+					if (!fileStats.isSymbolicLink() && fileStats.isDirectory() && !DIR_EXCLUDE_LIST.includes(file)) {
 						return file;
 					} else if (file.match(/\.json$/)) {
 						templateFiles.push(filePath);

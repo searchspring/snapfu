@@ -21,7 +21,7 @@ describe('check empty dir', () => {
 				fail();
 			})
 			.catch((err) => {
-				expect(err).toEqual('folder not empty, exiting');
+				expect(err).toEqual(`Cannot initialize non-empty directory: ${folder}`);
 			});
 	});
 });
