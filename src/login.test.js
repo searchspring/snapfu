@@ -1,5 +1,6 @@
 import { github, auth } from './login';
 import tempDirectory from 'temp-dir';
+import fetch from 'node-fetch';
 import fs from 'fs-extra';
 import fp from 'find-free-port';
 
