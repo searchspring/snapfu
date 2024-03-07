@@ -5,12 +5,10 @@ import path from 'path';
 import chalk from 'chalk';
 import { Octokit } from '@octokit/rest';
 import inquirer from 'inquirer';
-import sodium from 'tweetsodium';
-import ncp from 'ncp';
-import replaceStream from 'replacestream';
+import libsodium from 'libsodium-wrappers';
 import { auth } from './login.js';
 import { getContext } from './context.js';
-import { commandOutput, wait } from './utils/index.js';
+import { commandOutput, wait, copy, copyTransform } from './utils/index.js';
 import { ConfigApi } from './services/ConfigApi.js';
 import YAML from 'yaml';
 
@@ -26,7 +24,7 @@ export const createDir = (dir) => {
 		let files = readdirSync(dir);
 
 		if (files.length !== 0) {
-			rejectionFunc('folder not empty, exiting');
+			rejectionFunc(`Cannot initialize non-empty directory: ${dir}`);
 		}
 
 		resolutionFunc(folderName);
@@ -533,8 +531,10 @@ export const setRepoSecret = async function (options, details) {
 			// Convert the message and key to Uint8Array's (Buffer implements that interface)
 			const messageBytes = Buffer.from(value);
 			const keyBytes = Buffer.from(key, 'base64');
+
+			await libsodium.ready;
 			// Encrypt using LibSodium.
-			const encryptedBytes = sodium.seal(messageBytes, keyBytes);
+			const encryptedBytes = libsodium.crypto_box_seal(messageBytes, keyBytes);
 			// Base64 the encrypted secret
 			const encrypted_value = Buffer.from(encryptedBytes).toString('base64');
 
@@ -584,40 +584,12 @@ export const cloneAndCopyRepo = async function (sourceRepo, destination, exclude
 
 	if (variables) {
 		options.transform = async (read, write, file) => {
-			await transform(read, write, variables, file);
+			await copyTransform(read, write, variables, file);
 		};
 	}
 
 	// copy from temp dir to destination (with optional transforms)
-	await copyPromise(folder, destination, options);
-};
-
-export const transform = function (read, write, variables, file) {
-	if (
-		file.name.endsWith('.md') ||
-		file.name.endsWith('.html') ||
-		file.name.endsWith('.json') ||
-		file.name.endsWith('.yml') ||
-		file.name.endsWith('.scss') ||
-		file.name.endsWith('.sass') ||
-		file.name.endsWith('.jsx') ||
-		file.name.endsWith('.ts') ||
-		file.name.endsWith('.tsx') ||
-		file.name.endsWith('.js')
-	) {
-		// create and pipe through multiple replaceStreams
-		let pipeline = read;
-		Object.keys(variables).forEach(function (variable) {
-			let value = variables[variable];
-			let regex = new RegExp('{{\\s*' + variable + '\\s*}}', 'gi');
-			pipeline = pipeline.pipe(replaceStream(regex, value));
-		});
-
-		pipeline.pipe(write);
-		// write.write(content);
-	} else {
-		read.pipe(write);
-	}
+	await copy(folder, destination, options);
 };
 
 async function streamToString(stream) {
@@ -632,18 +604,5 @@ async function streamToByte(stream) {
 		stream.on('data', (chunk) => chunks.push(chunk));
 		stream.on('error', reject);
 		stream.on('end', () => resolve(Buffer.concat(chunks)));
-	});
-}
-
-function copyPromise(source, destination, options) {
-	return new Promise((resolutionFunc, rejectionFunc) => {
-		// ncp can be used to modify the files while copying - see https://www.npmjs.com/package/ncp
-		ncp(source, destination, options, function (err) {
-			if (err) {
-				rejectionFunc(err);
-			}
-			resolutionFunc();
-		});
-		resolutionFunc();
 	});
 }

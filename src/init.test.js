@@ -1,4 +1,5 @@
-import { createDir, transform } from './init';
+import { createDir } from './init';
+import { copyTransform } from './utils';
 import os from 'os';
 import { promises as fs } from 'fs';
 import path from 'path';
@@ -20,7 +21,7 @@ describe('check empty dir', () => {
 				fail();
 			})
 			.catch((err) => {
-				expect(err).toEqual('folder not empty, exiting');
+				expect(err).toEqual(`Cannot initialize non-empty directory: ${folder}`);
 			});
 	});
 });
@@ -33,7 +34,7 @@ describe('transforms', () => {
 			'snapfu.name': 'destination name',
 			'snapfu.author': 'codeallthethingz',
 		};
-		transform(Readable.from(buf), write, variables, {
+		copyTransform(Readable.from(buf), write, variables, {
 			name: 'package.json',
 		});
 
@@ -42,7 +43,7 @@ describe('transforms', () => {
 		});
 
 		write = MemoryStream.createWriteStream();
-		transform(Readable.from(buf), write, variables, {
+		copyTransform(Readable.from(buf), write, variables, {
 			name: 'package.yml',
 		});
 
@@ -53,7 +54,7 @@ describe('transforms', () => {
 	it('will not replace for all file types', async () => {
 		let read = Readable.from(Buffer.from('{{snapfu.name}}', 'utf8'));
 		let write = MemoryStream.createWriteStream();
-		await transform(
+		await copyTransform(
 			read,
 			write,
 			{
