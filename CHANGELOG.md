@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.5.1](https://github.com/searchspring/snapfu/compare/v1.5.0...v1.5.1) (2024-03-11)
+
+
+### Bug Fixes
+
+* **fetch:** bugfix for missing fetch on older versions of node ([997a593](https://github.com/searchspring/snapfu/commit/997a5935dbf758c3395ba80ba1fcec21bc250b2e))
+* **recs-archive:** bugfix for recs archive requiring branches to exist locally ([76095ec](https://github.com/searchspring/snapfu/commit/76095ec23c76584d666c0f8e1a3fff996759fc76))
+
 ## [1.5.0](https://github.com/searchspring/snapfu/compare/v1.4.0...v1.5.0) (2024-03-07)
 
 
