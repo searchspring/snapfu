@@ -5,6 +5,7 @@ import path from 'path';
 import chalk from 'chalk';
 import { Octokit } from '@octokit/rest';
 import inquirer from 'inquirer';
+import fetch from 'node-fetch';
 import libsodium from 'libsodium-wrappers';
 import { auth } from './login.js';
 import { getContext } from './context.js';
@@ -46,6 +47,9 @@ export const init = async (options) => {
 
 		let octokit = new Octokit({
 			auth: user.token,
+			request: {
+				fetch: fetch,
+			},
 		});
 
 		let orgs = await octokit.orgs.listForAuthenticatedUser().then(({ data }) => {
@@ -424,6 +428,9 @@ export const setTagProtection = async function (options, details) {
 
 	let octokit = new Octokit({
 		auth: user.token,
+		request: {
+			fetch: fetch,
+		},
 	});
 
 	const { organization, name } = details;
@@ -458,6 +465,9 @@ export const setBranchProtection = async function (options, details) {
 
 	let octokit = new Octokit({
 		auth: user.token,
+		request: {
+			fetch: fetch,
+		},
 	});
 
 	const { organization, name } = details;
@@ -508,6 +518,9 @@ export const setRepoSecret = async function (options, details) {
 
 	let octokit = new Octokit({
 		auth: user.token,
+		request: {
+			fetch: fetch,
+		},
 	});
 
 	const { siteId, secretKey, organization, name } = details;

@@ -10,6 +10,7 @@ import { ConfigApi } from './services/ConfigApi.js';
 import { buildLibrary } from './library.js';
 
 const TEMPLATE_TYPE_RECS = 'snap/recommendation';
+const TEMPLATE_TYPES = ['default', 'email', 'bundle'];
 const DIR_EXCLUDE_LIST = ['node_modules', '.git'];
 
 function showTemplateHelp() {
@@ -179,9 +180,7 @@ export async function listTemplates(options) {
 	}
 
 	if (!location || location == 'local') {
-		console.log(`${chalk.white('Local Templates')}`);
-
-		console.log(`${chalk.white.bold(`    ${repository.name}`)}`);
+		console.log(`${chalk.whiteBright(`Local Templates`)}`);
 
 		// look for templates, but only in the ./src directory
 		const templates = await getTemplates(path.join(context.project.path, 'src'));
@@ -189,12 +188,20 @@ export async function listTemplates(options) {
 		if (!templates || !templates.length) {
 			console.log(chalk.italic('        no templates found...'));
 		} else {
-			templates.forEach((template, index) => {
-				console.log(
-					`        ${chalk.green(template.details.name)} ${repository.branch ? chalk.blue(`[${repository.branch}]`) : ''} ${chalk.gray.italic(
-						`(${template.path})`
-					)}`
-				);
+			// reduce type to cooresponding TEMPLATE_TYPES
+			templates.map((template, index) => {
+				template.recommendationType = template.details?.type?.replace('snap/recommendation/', '') || 'default';
+			});
+
+			TEMPLATE_TYPES.forEach((type) => {
+				const typeTemplates = templates.filter((template) => template.recommendationType == type);
+				if (typeTemplates.length) {
+					console.log(`    ${chalk.white(`${type.charAt(0).toUpperCase() + type.slice(1)} Templates`)}`);
+					// loop through each template and log details
+					typeTemplates.map((template) => {
+						console.log(`        ${chalk.green(template.details.name)} ${chalk.blue(`[${repository.branch}]`)}`);
+					});
+				}
 			});
 		}
 	}
@@ -204,34 +211,33 @@ export async function listTemplates(options) {
 			console.log();
 		}
 
-		console.log(`${chalk.white('Active Remote Templates (SMC)')}`);
-
 		let smcManaged;
 
 		const list = async (secretKey, siteId = '', name = '') => {
 			const remoteTemplates = await new ConfigApi(secretKey, options.dev).getTemplates();
 
-			if (siteId && name) {
-				console.log(`${chalk.white.bold(`    ${name} ${chalk.cyan(`(${siteId})`)}`)}`);
-			}
+			console.log(`${chalk.whiteBright(`Active Remote Templates (SMC) - ${name} ${chalk.cyan(`(${siteId})`)}`)}`);
 
 			if (!remoteTemplates || !remoteTemplates.recommendTemplates || !remoteTemplates.recommendTemplates.length) {
-				console.log(chalk.italic('        no templates found...'));
+				console.log(chalk.italic('    no templates found...'));
 			} else {
 				remoteTemplates.recommendTemplates.forEach((template) => {
 					if (!template.managed) {
 						smcManaged = true;
 					}
+				});
 
-					const [name, branch] = template.name.split('__');
-
-					console.log(
-						`        ${template.managed ? '' : `${chalk.yellow('*')} `}${chalk.green(name)} ${
-							branch ? chalk.blue(`[${branch}]`) : ''
-						} ${chalk.gray.italic(
-							`(https://manage.searchspring.net/management/product-recs-templates/template-version-edit?template_name=${template.name})`
-						)}`
-					);
+				// loop through each type and log them
+				TEMPLATE_TYPES.forEach((type) => {
+					const typeTemplates = remoteTemplates.recommendTemplates.filter((template) => (template.type || 'default') == type);
+					if (typeTemplates.length) {
+						console.log(`    ${chalk.white(`${type.charAt(0).toUpperCase() + type.slice(1)} Templates`)}`);
+						// loop through each template and log details
+						typeTemplates.map((template) => {
+							const [name, branch] = template.name.split('__');
+							console.log(`        ${template.managed ? '' : `${chalk.yellow('*')} `} ${chalk.green(name)} ${chalk.blue(`[${branch}]`)}`);
+						});
+					}
 				});
 			}
 		};
@@ -273,10 +279,6 @@ export async function removeTemplate(options) {
 	}
 
 	const branchName = branch || repository.branch || DEFAULT_BRANCH;
-	if (repository && repository.branchList && !repository.branchList.includes(branchName)) {
-		console.log(chalk.red(`Error: Branch not found. - ${branch}`));
-		return;
-	}
 
 	const payload = { name: templateName, branch: branchName };
 
