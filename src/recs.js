@@ -273,10 +273,6 @@ export async function removeTemplate(options) {
 	}
 
 	const branchName = branch || repository.branch || DEFAULT_BRANCH;
-	if (repository && repository.branchList && !repository.branchList.includes(branchName)) {
-		console.log(chalk.red(`Error: Branch not found. - ${branch}`));
-		return;
-	}
 
 	const payload = { name: templateName, branch: branchName };
 
