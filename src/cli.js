@@ -8,6 +8,7 @@ import chalk from 'chalk';
 
 import { login, logout, orgAccess, auth } from './login.js';
 import { initTemplate, listTemplates, removeTemplate, syncTemplate } from './recs.js';
+import { initBadgeTemplate, listBadgeTemplates, removeBadgeTemplate, syncBadgeTemplate } from './badges.js';
 import { init } from './init.js';
 import { listPatches, applyPatches, setupPatchRepo } from './patch.js';
 import { about } from './about.js';
@@ -58,8 +59,8 @@ async function parseArgumentsIntoOptions(rawArgs) {
 	let multipleSites = [];
 
 	// drop out if not logged in for certain commands
-	const userCommands = ['init', 'recs', 'recommendation', 'recommendations', 'secret', 'secrets', 'logout', 'whoami', 'org-access'];
-	const secretCommands = ['recs', 'recommendation', 'recommendations', 'secret', 'secrets'];
+	const userCommands = ['init', 'badges', 'recs', 'recommendation', 'recommendations', 'secret', 'secrets', 'logout', 'whoami', 'org-access'];
+	const secretCommands = ['badges', 'recs', 'recommendation', 'recommendations', 'secret', 'secrets'];
 
 	const loggedIn = user && user.token;
 	const secretOptions = args['--secrets-ci'] || secretKey;
@@ -168,6 +169,7 @@ async function parseArgumentsIntoOptions(rawArgs) {
 			directories: {
 				components: {
 					recommendation: './src/components/Recommendations',
+					badge: './src/components/Badges',
 				},
 			},
 			patches: {
@@ -205,6 +207,43 @@ export async function cli(args) {
 
 		case 'init': {
 			await init(options);
+			break;
+		}
+
+		case 'badges': {
+			function showTemplateHelp() {
+				help({ command: 'help', args: ['badges'] });
+			}
+
+			if (!options.args.length) {
+				showTemplateHelp();
+				return;
+			}
+
+			const [command] = options.args;
+
+			switch (command) {
+				case 'init':
+					await initBadgeTemplate(options);
+					break;
+
+				case 'list':
+					await listBadgeTemplates(options);
+					break;
+
+				case 'archive':
+					await removeBadgeTemplate(options);
+					break;
+
+				case 'sync':
+					await syncBadgeTemplate(options);
+					break;
+
+				default:
+					showTemplateHelp();
+					break;
+			}
+
 			break;
 		}
 

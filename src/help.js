@@ -8,6 +8,7 @@ const rootText = `Usage: snapfu ${chalk.white('<' + chalk.underline('command') +
 These are the snapfu commands used in various situations
 
     ${chalk.whiteBright('init')} ${chalk.grey('<directory>')}              Creates a new snap project (optional directory)
+    ${chalk.whiteBright('badges')}                        Badges template management
     ${chalk.whiteBright('recs')}                          Recommendation template management
     ${chalk.whiteBright('secrets')}                       Project secret management
     ${chalk.whiteBright('patch')}                         Apply patches to update project
@@ -30,8 +31,8 @@ These are the snapfu recommendation template commands and options
     ${chalk.whiteBright('archive')} ${chalk.grey('<name> <branch>')}       Remove remote recommendation template (optional branch)
         ${chalk.green('--secret-key')} ${chalk.green('<key>')}
     ${chalk.whiteBright('sync')} ${chalk.grey(
-	'<name> <branch>'
-)}          Synchronize recommendation template and parameters with remote (optional branch)
+			'<name> <branch>'
+		)}          Synchronize recommendation template and parameters with remote (optional branch)
         ${chalk.green('--secret-key')} ${chalk.green('<key>')}`;
 
 // secrets help text
@@ -56,6 +57,20 @@ These are the snapfu patch commands
     ${chalk.whiteBright('list')}                          List available versions for project
     ${chalk.whiteBright('fetch')}                         Fetch latest versions of patches`;
 
+// badges template help text
+const badgesText = `Usage: snapfu badges ${chalk.white('<' + chalk.underline('command') + '>')} ${chalk.grey(
+	'<' + chalk.underline('args') + '>'
+)} ${chalk.green('[' + chalk.underline('--options') + ']')}
+
+These are the snapfu badges template commands and options
+
+    ${chalk.whiteBright('init')}                          Initialize badge template in current project
+    ${chalk.whiteBright('list')} ${chalk.grey('[local | remote]')}         Display list of badge templates (local or remote)
+    ${chalk.whiteBright('archive')} ${chalk.grey('<name>')}                Remove remote badge template
+        ${chalk.green('--secret-key')} ${chalk.green('<key>')}
+    ${chalk.whiteBright('sync')} ${chalk.grey('<name>')}                   Synchronize recommendation template and parameters with remote
+        ${chalk.green('--secret-key')} ${chalk.green('<key>')}`;
+
 // help text mapping
 const helpMap = {
 	root: rootText,
@@ -65,6 +80,7 @@ const helpMap = {
 	secret: secretText,
 	secrets: secretText,
 	patch: patchText,
+	badges: badgesText,
 };
 
 export const help = (options) => {
