@@ -16,22 +16,19 @@ const DEFAULT_LOCATIONS = {
 			{
 				name: 'left',
 				label: 'left',
-				description: 'left',
 			},
 		],
 		right: [
 			{
 				name: 'right',
 				label: 'right',
-				description: 'right',
 			},
 		],
 	},
-	callouts: [
+	callout: [
 		{
 			name: 'callout',
 			label: 'callout',
-			description: 'callout',
 		},
 	],
 };
@@ -232,13 +229,13 @@ export async function listBadgeTemplates(options) {
 				const maxLengthTag = remoteTemplates.badgeTemplates.reduce((max, template) => {
 					return template.tag.length > max ? template.tag.length : max;
 				}, 0);
-				const maxLengthLabel = remoteTemplates.badgeTemplates.reduce((max, template) => {
-					return template.label.length > max ? template.label.length : max;
+				const maxLengthName = remoteTemplates.badgeTemplates.reduce((max, template) => {
+					return template.name.length > max ? template.name.length : max;
 				}, 0);
 
 				remoteTemplates.badgeTemplates.map((template) => {
 					process.stdout.write(`        ${chalk.green(template.tag.padEnd(maxLengthTag + 2))}`);
-					process.stdout.write(`${chalk.gray(template.label.padEnd(maxLengthLabel + 2))}`);
+					process.stdout.write(`${chalk.gray(template.name.padEnd(maxLengthName + 2))}`);
 					process.stdout.write(
 						`Created: ${new Date(template.createdDate).toLocaleDateString()}  Updated: ${new Date(template.updatedDate).toLocaleDateString()}\n`
 					);
@@ -315,14 +312,14 @@ export async function removeBadgeTemplate(options) {
 
 function validateLocations(locations) {
 	const invalidLocationsParam = [];
-	const requiredLocationParams = ['type', 'overlay', 'callouts'];
+	const requiredLocationParams = ['type', 'overlay', 'callout'];
 	requiredLocationParams.forEach((requiredParam) => {
 		if (!(requiredParam in locations.details)) {
 			invalidLocationsParam.push(`locations paramater '${requiredParam}' is required`);
 		}
 	});
 	const overlay = locations.details.overlay;
-	const callouts = locations.details.callouts;
+	const callout = locations.details.callout;
 	if (typeof overlay !== 'object' || !Array.isArray(overlay.left) || !Array.isArray(overlay.right) || !overlay.left.length || !overlay.right.length) {
 		invalidLocationsParam.push(
 			`Error: locations paramater 'overlay' must be an object containing left and right properties of type array with at least 1 location`
@@ -337,9 +334,6 @@ function validateLocations(locations) {
 			if (!('label' in location) || typeof location.label !== 'string' || !location.label) {
 				invalidLocationsParam.push(`Error: locations paramater 'overlay.left[${index}]' must have a 'label' property`);
 			}
-			if (!('name' in location) || typeof location.description !== 'string' || !location.description) {
-				invalidLocationsParam.push(`Error: locations paramater 'overlay.left[${index}]' must have a 'description' property`);
-			}
 		});
 		overlay.right.map((location, index) => {
 			if (!('name' in location) || typeof location.name !== 'string' || !location.name) {
@@ -348,25 +342,19 @@ function validateLocations(locations) {
 			if (!('label' in location) || typeof location.label !== 'string' || !location.label) {
 				invalidLocationsParam.push(`Error: locations paramater 'overlay.right[${index}]' must have a 'label' property`);
 			}
-			if (!('name' in location) || typeof location.description !== 'string' || !location.description) {
-				invalidLocationsParam.push(`Error: locations paramater 'overlay.right[${index}]' must have a 'description' property`);
-			}
 		});
 	}
-	if (!Array.isArray(callouts) || !callouts.length) {
-		invalidLocationsParam.push(`Error: locations paramater 'callouts' must be an array with at least 1 location`);
-	} else if (callouts.length > 10) {
-		invalidLocationsParam.push(`Error: locations paramater 'callouts' must not exceed 10 locations`);
+	if (!Array.isArray(callout) || !callout.length) {
+		invalidLocationsParam.push(`Error: locations paramater 'callout' must be an array with at least 1 location`);
+	} else if (callout.length > 10) {
+		invalidLocationsParam.push(`Error: locations paramater 'callout' must not exceed 10 locations`);
 	} else {
-		callouts.map((location, index) => {
+		callout.map((location, index) => {
 			if (!('name' in location) || typeof location.name !== 'string' || !location.name) {
-				invalidLocationsParam.push(`Error: locations paramater 'callouts[${index}]' must have a 'name' property`);
+				invalidLocationsParam.push(`Error: locations paramater 'callout[${index}]' must have a 'name' property`);
 			}
 			if (!('label' in location) || typeof location.label !== 'string' || !location.label) {
-				invalidLocationsParam.push(`Error: locations paramater 'callouts[${index}]' must have a 'label' property`);
-			}
-			if (!('name' in location) || typeof location.description !== 'string' || !location.description) {
-				invalidLocationsParam.push(`Error: locations paramater 'callouts[${index}]' must have a 'description' property`);
+				invalidLocationsParam.push(`Error: locations paramater 'callout[${index}]' must have a 'label' property`);
 			}
 		});
 	}
@@ -466,7 +454,7 @@ function validateTemplate(template, locations) {
 							} else if (L1 === 'callout') {
 								// name of callout
 								if (L2) {
-									const match = locationsBeingUsed.callouts.find((callout) => callout.name === L2);
+									const match = locationsBeingUsed.callout.find((callout) => callout.name === L2);
 									if (!match) {
 										invalidParam.push(`template paramater '${detail}' at index ${index} does not match any callout location in locations.json`);
 									}
@@ -531,8 +519,6 @@ function validateTemplate(template, locations) {
 			case 'parameters':
 				if (!Array.isArray(template.details[detail])) {
 					invalidParam.push(`template paramater '${detail}' must be an array`);
-				} else if (template.details[detail].length == 0) {
-					invalidParam.push(`template paramater '${detail}' must have at least 1 parameter`);
 				} else {
 					template.details[detail].map((parameter, i) => {
 						Object.keys(parameter).forEach((key) => {
@@ -637,7 +623,7 @@ export async function syncBadgeTemplate(options) {
 		if (remoteTemplate) {
 			try {
 				// check if remote template already matches local template
-				const { label, description, snapComponent, labelConfig, locations } = remoteTemplate;
+				const { name, description, snapComponent, labelConfig, locations } = remoteTemplate;
 				// object property order stored in db may differ than what's synced, map to match payload order for comparison below
 				const properties = JSON.parse(remoteTemplate.properties).map((remoteParameter) => {
 					return {
@@ -651,7 +637,7 @@ export async function syncBadgeTemplate(options) {
 					};
 				});
 				const templateMatchRemote =
-					payload.label === label &&
+					payload.label === name &&
 					payload.description === description &&
 					payload.component === snapComponent &&
 					JSON.stringify(payload.value) === JSON.stringify(JSON.parse(labelConfig)) &&
@@ -695,13 +681,13 @@ export async function syncBadgeTemplate(options) {
 			try {
 				// check if remote locations already matches local locations
 				const localOverlay = locationsPayload.overlay;
-				const localCallouts = locationsPayload.callouts;
+				const localCallout = locationsPayload.callout;
 				const remoteLocations = JSON.parse(remoteTemplates.locations);
 				const remoteOverlay = remoteLocations.overlay;
-				const remoteCallouts = remoteLocations.callouts;
+				const remoteCallout = remoteLocations.callout;
 
 				const locationsMatchRemote =
-					JSON.stringify(localOverlay) === JSON.stringify(remoteOverlay) && JSON.stringify(localCallouts) === JSON.stringify(remoteCallouts);
+					JSON.stringify(localOverlay) === JSON.stringify(remoteOverlay) && JSON.stringify(localCallout) === JSON.stringify(remoteCallout);
 				if (locationsMatchRemote) {
 					console.log(
 						chalk.green(
@@ -766,7 +752,7 @@ export function generateTemplateSettings({ name, description, type }) {
 		label: `${pascalCase(name)} Badge`,
 		description: description || `${name} custom template`,
 		component: `${pascalCase(name)}`,
-		locations: ['overlays', 'callouts'],
+		locations: ['overlay', 'callout'],
 		value: {
 			enabled: true,
 		},
@@ -911,7 +897,7 @@ export function buildBadgeLocationsPayload(template) {
 	return {
 		type: template.type,
 		overlay: template.overlay,
-		callouts: template.callouts,
+		callout: template.callout,
 	};
 }
 export function buildBadgeTemplatePayload(template) {
@@ -924,7 +910,7 @@ export function buildBadgeTemplatePayload(template) {
 		locations: template.locations,
 		value: {
 			enabled: typeof template.value.enabled === 'boolean' ? template.value.enabled : true,
-			validations: template.value.validations,
+			validations: template.value.validations || null,
 		},
 		parameters:
 			template.parameters?.map((parameter) => {
