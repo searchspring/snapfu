@@ -65,12 +65,11 @@ export async function initBadgeTemplate(options) {
 	}
 
 	const templateDefaultDir = path.resolve(context.project.path, options.config.directories.components.badge);
-	console.log(templateDefaultDir);
 	const answers1 = await inquirer.prompt([
 		{
 			type: 'list',
 			name: 'type',
-			message: 'Please select the type of recommendations:',
+			message: 'Please select the type of badge:',
 			choices: Object.keys(framework.components.badge),
 			default: 'default',
 		},
