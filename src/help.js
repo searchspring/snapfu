@@ -62,13 +62,13 @@ const badgesText = `Usage: snapfu badges ${chalk.white('<' + chalk.underline('co
 	'<' + chalk.underline('args') + '>'
 )} ${chalk.green('[' + chalk.underline('--options') + ']')}
 
-These are the snapfu badges template commands and options
+These are the snapfu badge template commands and options
 
     ${chalk.whiteBright('init')}                          Initialize badge template in current project
     ${chalk.whiteBright('list')} ${chalk.grey('[local | remote]')}         Display list of badge templates (local or remote)
     ${chalk.whiteBright('archive')} ${chalk.grey('<name>')}                Remove remote badge template
         ${chalk.green('--secret-key')} ${chalk.green('<key>')}
-    ${chalk.whiteBright('sync')} ${chalk.grey('<name>')}                   Synchronize recommendation template and parameters with remote
+    ${chalk.whiteBright('sync')} ${chalk.grey('[<name> | locations.json]')}                   Synchronize badge template and parameters with remote
         ${chalk.green('--secret-key')} ${chalk.green('<key>')}`;
 
 // help text mapping

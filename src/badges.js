@@ -3,35 +3,13 @@ import inquirer from 'inquirer';
 import path from 'path';
 import fs, { promises as fsp } from 'fs';
 import { exit } from 'process';
-import { wait, copy, copyTransform } from './utils/index.js';
+import { wait, copy, copyTransform, pascalCase, handleize } from './utils/index.js';
 import { ConfigApi } from './services/ConfigApi.js';
 import { buildLibrary } from './library.js';
 
 const TEMPLATE_TYPE_BADGES = 'snap/badge';
 const DIR_EXCLUDE_LIST = ['node_modules', '.git'];
-
-const DEFAULT_LOCATIONS = {
-	overlay: {
-		left: [
-			{
-				name: 'left',
-				label: 'left',
-			},
-		],
-		right: [
-			{
-				name: 'right',
-				label: 'right',
-			},
-		],
-	},
-	callout: [
-		{
-			name: 'callout',
-			label: 'callout',
-		},
-	],
-};
+const LOCATIONS_FILE = 'locations.json';
 
 export async function initBadgeTemplate(options) {
 	const { context } = options;
@@ -217,6 +195,8 @@ export async function listBadgeTemplates(options) {
 		}
 		const list = async (secretKey, siteId = '', name = '') => {
 			const remoteTemplates = await new ConfigApi(secretKey, options.dev).getBadgeTemplates();
+			await wait(500);
+			const remoteLocations = await new ConfigApi(secretKey, options.dev).getBadgeLocations();
 
 			console.log(`${chalk.whiteBright(`Active Remote Templates (SMC) - ${name} ${chalk.cyan(`(${siteId})`)}`)}`);
 
@@ -236,12 +216,17 @@ export async function listBadgeTemplates(options) {
 					process.stdout.write(`        ${chalk.green(template.tag.padEnd(maxLengthTag + 2))}`);
 					process.stdout.write(`${chalk.gray(template.name.padEnd(maxLengthName + 2))}`);
 					process.stdout.write(
-						`Created: ${new Date(template.createdDate).toLocaleDateString()}  Updated: ${new Date(template.updatedDate).toLocaleDateString()}\n`
+						`Created: ${new Date(template.createdDate).toLocaleDateString()} ${new Date(template.createdDate).toLocaleTimeString('en-US')}   Updated: ${new Date(template.updatedDate).toLocaleDateString()} ${new Date(template.updatedDate).toLocaleTimeString('en-US')}\n`
 					);
 				});
-				if (remoteTemplates.locations) {
-					console.log(`    ${chalk.white(`Custom Locations`)}`);
-					console.log(`        ${chalk.green('locations')}`);
+				if (remoteLocations.locations) {
+					console.log(`    ${chalk.white(`Badge Locations`)}`);
+					process.stdout.write(
+						`        ${chalk.green(`locations    ${chalk.gray(`${remoteLocations.global == 1 ? 'global' : LOCATIONS_FILE}`.padEnd(maxLengthName + 2))}`)}`
+					);
+					process.stdout.write(
+						`Created: ${new Date(remoteLocations.createdDate).toLocaleDateString()} ${new Date(remoteLocations.createdDate).toLocaleTimeString('en-US')}   Updated: ${new Date(remoteLocations.updatedDate).toLocaleDateString()} ${new Date(remoteLocations.updatedDate).toLocaleTimeString('en-US')}\n`
+					);
 				}
 			}
 		};
@@ -251,11 +236,13 @@ export async function listBadgeTemplates(options) {
 				for (let i = 0; i < options.multipleSites.length; i++) {
 					const { secretKey, siteId, name } = options.multipleSites[i];
 					await list(secretKey, siteId, name);
+					await wait(500);
 					if (i < options.multipleSites.length - 1) console.log();
 				}
 			} else {
 				const { secretKey } = options.options;
 				await list(secretKey, options.context.searchspring.siteId, options.context.repository.name);
+				await wait(500);
 			}
 		} catch (err) {
 			console.log(chalk.red(err));
@@ -286,13 +273,16 @@ export async function removeBadgeTemplate(options) {
 			process.stdout.write(`${chalk.green(`        ${templateName}`)} `);
 
 			const { message } = await new ConfigApi(secretKey, options.dev).archiveBadgeTemplate(payload);
-			console.log(chalk.gray.italic(message));
+			if (message === 'success') {
+				process.stdout.write(chalk.gray.italic('- archived in remote'));
+			} else {
+				process.stdout.write(chalk.red.italic(message));
+				console.log();
+			}
 		} catch (err) {
-			process.stdout.write(chalk.red.italic(' - archived failed'));
+			process.stdout.write(chalk.red.italic('- archived failed'));
 			console.log('        ', chalk.red(err));
 		}
-
-		await wait(100);
 	};
 
 	if (options.multipleSites.length) {
@@ -301,11 +291,13 @@ export async function removeBadgeTemplate(options) {
 
 			console.log(`${chalk.white.bold(`${name} ${chalk.cyan(`(${siteId})`)}`)}`);
 			await remove(secretKey);
+			await wait(500);
 		}
 	} else {
 		const { secretKey } = options.options;
 		console.log(`${chalk.white.bold(`${repository.name}`)}`);
 		await remove(secretKey);
+		await wait(500);
 	}
 }
 
@@ -358,9 +350,15 @@ function validateLocations(locations) {
 		});
 	}
 
+	const allLocations = [...overlay.left, ...overlay.right, ...callout].map((location) => location.name);
+	const duplicateLocations = allLocations.filter((location, index) => allLocations.indexOf(location) !== index);
+	if (duplicateLocations.length) {
+		invalidLocationsParam.push(`Error: locations paramater has duplicate location names: ${duplicateLocations.join(', ')}`);
+	}
+
 	if (invalidLocationsParam.length) {
 		console.log(chalk.gray(locations.path));
-		console.log(chalk.red(`Error: at locations.json file with the following issues:`));
+		console.log(chalk.red(`Error: at ${LOCATIONS_FILE} file with the following issues:`));
 		invalidLocationsParam.forEach((param) => {
 			console.log('\t - ' + chalk.cyanBright(`${param}`));
 		});
@@ -415,56 +413,60 @@ function validateTemplate(template, locations) {
 					if (template.details[detail].length > 20) {
 						invalidParam.push(`template paramater '${detail}' must not exceed 20 locations`);
 					}
-					// validate locations against locations.json or default locations
-					const locationsBeingUsed = locations?.details || DEFAULT_LOCATIONS;
-					template.details[detail].map((location, index) => {
-						if (typeof location !== 'string') {
-							invalidParam.push(`template paramater '${detail}' must be an array of strings. Location ${index + 1} is not a string`);
-						} else if (
-							(!location.startsWith('callout') &&
-								!location.startsWith('overlay') &&
-								!location.startsWith('overlay/left') &&
-								!location.startsWith('overlay/right')) ||
-							location == 'overlay/left/' ||
-							location == 'overlay/right/'
-						) {
-							invalidParam.push(
-								`template paramater '${detail}' must be 'overlay', 'callout', 'callout/[name]', 'overlay/left', 'overlay/right', 'overlay/left/[name]' or 'overlay/right/[name]'`
-							);
-						}
+					if (locations?.details) {
+						template.details[detail].map((location, index) => {
+							if (typeof location !== 'string') {
+								invalidParam.push(`template paramater '${detail}' must be an array of strings. Location ${index + 1} is not a string`);
+							} else if (
+								(!location.startsWith('callout') &&
+									!location.startsWith('overlay') &&
+									!location.startsWith('overlay/left') &&
+									!location.startsWith('overlay/right')) ||
+								location == 'overlay/left/' ||
+								location == 'overlay/right/'
+							) {
+								invalidParam.push(
+									`template paramater '${detail}' must be 'overlay', 'callout', 'callout/[name]', 'overlay/left', 'overlay/right', 'overlay/left/[name]' or 'overlay/right/[name]'`
+								);
+							}
 
-						const [L1, L2, L3] = location.split('/');
-						if (L1) {
-							// overlay / callout
-							if (L1 === 'overlay') {
-								// left / right
-								if (L2 === 'left' || L2 === 'right' || !L2) {
-									// allow left/right/undefined
-									// name of overlay
-									if (L3) {
-										const match = locationsBeingUsed.overlay[L2].find((overlay) => overlay.name === L3);
+							const [L1, L2, L3] = location.split('/');
+							if (L1) {
+								// overlay / callout
+								if (L1 === 'overlay') {
+									// left / right
+									if (L2 === 'left' || L2 === 'right' || !L2) {
+										// allow left/right/undefined
+										// name of overlay
+										if (L3) {
+											const match = locations.details.overlay[L2].find((overlay) => overlay.name === L3);
+											if (!match) {
+												invalidParam.push(
+													`template paramater '${detail}' at index ${index} does not match any overlay location in ${LOCATIONS_FILE}`
+												);
+											}
+										}
+									} else {
+										invalidParam.push(
+											`template paramater '${detail}' at index ${index} must start with 'overlay', 'overlay/left' or 'overlay/right'`
+										);
+									}
+								} else if (L1 === 'callout') {
+									// name of callout
+									if (L2) {
+										const match = locations.details.callout.find((callout) => callout.name === L2);
 										if (!match) {
-											invalidParam.push(`template paramater '${detail}' at index ${index} does not match any overlay location in locations.json`);
+											invalidParam.push(`template paramater '${detail}' at index ${index} does not match any callout location in ${LOCATIONS_FILE}`);
 										}
 									}
 								} else {
-									invalidParam.push(`template paramater '${detail}' at index ${index} must start with 'overlay', 'overlay/left' or 'overlay/right'`);
-								}
-							} else if (L1 === 'callout') {
-								// name of callout
-								if (L2) {
-									const match = locationsBeingUsed.callout.find((callout) => callout.name === L2);
-									if (!match) {
-										invalidParam.push(`template paramater '${detail}' at index ${index} does not match any callout location in locations.json`);
-									}
+									invalidParam.push(`template paramater '${detail}' at index ${index} must start with 'overlay' or 'callout'`);
 								}
 							} else {
-								invalidParam.push(`template paramater '${detail}' at index ${index} must start with 'overlay' or 'callout'`);
+								invalidParam.push(`template paramater '${detail}' at index ${index} must be a string with a value`);
 							}
-						} else {
-							invalidParam.push(`template paramater '${detail}' at index ${index} must be a string with a value`);
-						}
-					});
+						});
+					}
 				}
 				break;
 			case 'value':
@@ -527,7 +529,7 @@ function validateTemplate(template, locations) {
 							if (['name', 'type', 'label', 'description', 'defaultValue'].includes(key) && (typeof parameter[key] !== 'string' || !parameter[key])) {
 								invalidParam.push(`template paramater '${detail}[${i}].${key}' must be a string with a value`);
 							}
-							const allowedTypes = ['array', 'text', 'color', 'url', 'integer'];
+							const allowedTypes = ['array', 'string', 'color', 'url', 'integer', 'decimal', 'boolean', 'checkbox', 'toggle'];
 							if (key === 'type' && !allowedTypes.includes(parameter[key])) {
 								invalidParam.push(`template paramater '${detail}[${i}].${key}' must be one of allowed types: ${allowedTypes.join(', ')}`);
 							}
@@ -603,13 +605,16 @@ export async function syncBadgeTemplate(options) {
 	const templates = await getTemplates(context.project.path);
 	const syncTemplates = templates.filter((template) => {
 		validateTemplate(template, locations);
-		if (templateName && template.details.name == templateName) {
+		if (templateName) {
+			if (template.details.name == templateName) {
+				return template;
+			}
+		} else {
 			return template;
 		}
-		return template;
 	});
 
-	if (!syncTemplates.length) {
+	if (!syncTemplates.length && templateName != LOCATIONS_FILE) {
 		console.log(chalk.red(`Error: Template(s) not found.`));
 		return;
 	}
@@ -644,11 +649,7 @@ export async function syncBadgeTemplate(options) {
 					JSON.stringify(payload.parameters) === JSON.stringify(properties);
 
 				if (templateMatchRemote) {
-					console.log(
-						chalk.green(
-							`        ${template.details.name} - ${chalk.yellow(`remote template matches local template payload. This template will not be synced`)}`
-						)
-					);
+					console.log(chalk.green(`        ${template.details.name} - ${chalk.yellow(`no changes to sync`)}`));
 					skipTemplateUpdate = true;
 				}
 			} catch (e) {
@@ -659,29 +660,34 @@ export async function syncBadgeTemplate(options) {
 		}
 		if (!skipTemplateUpdate) {
 			try {
+				await wait(500);
 				const { message } = await new ConfigApi(secretKey, options.dev).putBadgeTemplate(payload);
-				console.log(chalk.green(`        ${template.details.name} - ${chalk.gray.italic(message)}`));
+				if (message === 'success') {
+					console.log(chalk.green(`        ${template.details.name} - ${chalk.gray.italic('synced to remote')}`));
+				} else {
+					process.stdout.write(chalk.red.italic(message));
+					console.log();
+				}
 			} catch (err) {
 				console.log(chalk.red(`        ${template.details.name}`));
 				console.log('        ', chalk.red(err));
 				exit(1);
 			}
-			await wait(100);
 		}
 	};
 
 	const syncLocations = async (secretKey) => {
 		console.log(`    synchronizing locations`);
 		const locationsPayload = buildBadgeLocationsPayload(locations.details);
-		const remoteTemplates = await new ConfigApi(secretKey, options.dev).getBadgeTemplates();
+		const remoteBadgeLocations = await new ConfigApi(secretKey, options.dev).getBadgeLocations();
 		let skipLocationsUpdate = false;
 		// Sync custom locations if locations.json file exists
-		if (remoteTemplates.locations) {
+		if (remoteBadgeLocations.locations) {
 			try {
 				// check if remote locations already matches local locations
 				const localOverlay = locationsPayload.overlay;
 				const localCallout = locationsPayload.callout;
-				const remoteLocations = JSON.parse(remoteTemplates.locations);
+				const remoteLocations = JSON.parse(remoteBadgeLocations.locations);
 				const remoteOverlay = remoteLocations.overlay;
 				const remoteCallout = remoteLocations.callout;
 
@@ -690,7 +696,7 @@ export async function syncBadgeTemplate(options) {
 				if (locationsMatchRemote) {
 					console.log(
 						chalk.green(
-							`        locations.json - ${chalk.yellow(`remote custom locations matches local locations payload. This template will not be synced`)}`
+							`        ${LOCATIONS_FILE} - ${chalk.yellow(`remote custom locations matches local locations payload. This template will not be synced`)}`
 						)
 					);
 					skipLocationsUpdate = true;
@@ -703,14 +709,19 @@ export async function syncBadgeTemplate(options) {
 		}
 		if (!skipLocationsUpdate) {
 			try {
+				await wait(500);
 				const { message } = await new ConfigApi(secretKey, options.dev).putBadgeLocations(locationsPayload);
-				console.log(chalk.green(`        locations.json - ${chalk.gray.italic(message)}`));
+				if (message === 'success') {
+					console.log(chalk.green(`        ${LOCATIONS_FILE} - ${chalk.gray.italic('synced to remote')}`));
+				} else {
+					process.stdout.write(chalk.red.italic(message));
+					console.log();
+				}
 			} catch (err) {
-				console.log(chalk.red(`        locations.json`));
+				console.log(chalk.red(`        ${LOCATIONS_FILE}`));
 				console.log('        ', chalk.red(err));
 				exit(1);
 			}
-			await wait(100);
 		}
 	};
 
@@ -724,9 +735,11 @@ export async function syncBadgeTemplate(options) {
 				console.log(`    synchronizing template ${i + 1} of ${syncTemplates.length}`);
 
 				await sync(template, secretKey);
+				await wait(500);
 			}
-			if (locations) {
+			if ((locations && syncTemplates.length && !templateName) || templateName == LOCATIONS_FILE) {
 				await syncLocations(secretKey);
+				await wait(500);
 			}
 
 			if (x < options.multipleSites.length - 1) console.log();
@@ -737,8 +750,10 @@ export async function syncBadgeTemplate(options) {
 			const template = syncTemplates[i];
 			console.log(`    synchronizing template ${i + 1} of ${syncTemplates.length}`);
 			await sync(template, secretKey);
-			if (locations) {
+			await wait(500);
+			if ((locations && syncTemplates.length && !templateName) || templateName == LOCATIONS_FILE) {
 				await syncLocations(secretKey);
+				await wait(500);
 			}
 		}
 	}
@@ -791,7 +806,6 @@ export async function getTemplates(dir) {
 }
 
 export async function getLocationsFile(dir) {
-	console.log('getLocationsFile', getLocationsFile);
 	try {
 		const files = await findJsonFiles(dir);
 		const fileReads = files.map((filePath) => readTemplateSettings(filePath));
@@ -925,29 +939,4 @@ export function buildBadgeTemplatePayload(template) {
 				};
 			}) || [],
 	};
-}
-
-export function pascalCase(string) {
-	return `${string}`
-		.replace(new RegExp(/[-_]+/, 'g'), ' ')
-		.replace(new RegExp(/[^\w\s]/, 'g'), '')
-		.replace(new RegExp(/\s+(.)(\w*)/, 'g'), ($1, $2, $3) => `${$2.toUpperCase() + $3.toLowerCase()}`)
-		.replace(new RegExp(/\w/), (s) => s.toUpperCase());
-}
-
-export function handleize(input) {
-	if (typeof input != 'string') {
-		return input;
-	}
-
-	let handleized = input.toLowerCase();
-	handleized = handleized.replace(/[^\w\s]/g, '').trim();
-	handleized = handleized.replace(/\s/g, '-');
-	return handleized;
-}
-
-export async function timeout(microSeconds) {
-	return new Promise((resolve, reject) => {
-		setTimeout(resolve, microSeconds);
-	});
 }

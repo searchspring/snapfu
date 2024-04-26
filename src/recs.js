@@ -4,7 +4,7 @@ import path from 'path';
 import fs, { promises as fsp } from 'fs';
 import { exit } from 'process';
 import { help } from './help.js';
-import { wait, copy, copyTransform } from './utils/index.js';
+import { wait, copy, copyTransform, pascalCase, handleize } from './utils/index.js';
 import { DEFAULT_BRANCH } from './init.js';
 import { ConfigApi } from './services/ConfigApi.js';
 import { buildLibrary } from './library.js';
@@ -240,6 +240,7 @@ export async function listTemplates(options) {
 					}
 				});
 			}
+			await wait(500);
 		};
 
 		try {
@@ -289,13 +290,13 @@ export async function removeTemplate(options) {
 
 			await new ConfigApi(secretKey, options.dev).archiveTemplate(payload);
 
-			process.stdout.write(chalk.gray.italic(' - archived in remote'));
+			process.stdout.write(chalk.gray.italic(' - archived in remote ') + '\n');
 		} catch (err) {
 			process.stdout.write(chalk.red.italic(' - archived failed'));
 			console.log('        ', chalk.red(err));
 		}
 
-		await wait(100);
+		await wait(500);
 	};
 
 	if (options.multipleSites.length) {
@@ -303,7 +304,6 @@ export async function removeTemplate(options) {
 			const { secretKey, siteId, name } = options.multipleSites[i];
 
 			console.log(`${chalk.white.bold(`${name} ${chalk.cyan(`(${siteId})`)}`)}`);
-			// console.log(`    archiving template`);
 			await remove(secretKey);
 		}
 	} else {
@@ -407,7 +407,7 @@ ${invalidParam}
 		}
 
 		// prevent rate limiting
-		await wait(100);
+		await wait(500);
 	};
 
 	if (options.multipleSites.length) {
@@ -589,29 +589,4 @@ export function buildTemplatePayload(template, vars) {
 		},
 		parameters: template.parameters,
 	};
-}
-
-export function pascalCase(string) {
-	return `${string}`
-		.replace(new RegExp(/[-_]+/, 'g'), ' ')
-		.replace(new RegExp(/[^\w\s]/, 'g'), '')
-		.replace(new RegExp(/\s+(.)(\w*)/, 'g'), ($1, $2, $3) => `${$2.toUpperCase() + $3.toLowerCase()}`)
-		.replace(new RegExp(/\w/), (s) => s.toUpperCase());
-}
-
-export function handleize(input) {
-	if (typeof input != 'string') {
-		return input;
-	}
-
-	let handleized = input.toLowerCase();
-	handleized = handleized.replace(/[^\w\s]/g, '').trim();
-	handleized = handleized.replace(/\s/g, '-');
-	return handleized;
-}
-
-export async function timeout(microSeconds) {
-	return new Promise((resolve, reject) => {
-		setTimeout(resolve, microSeconds);
-	});
 }
