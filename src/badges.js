@@ -270,14 +270,13 @@ export async function removeBadgeTemplate(options) {
 	const remove = async (secretKey) => {
 		try {
 			// using fancy terminal output replacement
-			process.stdout.write(`${chalk.green(`        ${templateName}`)} `);
+			process.stdout.write(`${chalk.green(`        ${templateName}`)} - `);
 
 			const { message } = await new ConfigApi(secretKey, options.dev).archiveBadgeTemplate(payload);
 			if (message === 'success') {
-				process.stdout.write(chalk.gray.italic('- archived in remote'));
+				console.log(chalk.gray.italic('archived in remote'));
 			} else {
-				process.stdout.write(chalk.red.italic(message));
-				console.log();
+				console.log(chalk.red.italic(message));
 			}
 		} catch (err) {
 			process.stdout.write(chalk.red.italic('- archived failed'));
@@ -303,35 +302,34 @@ export async function removeBadgeTemplate(options) {
 
 function validateLocations(locations) {
 	const invalidLocationsParam = [];
-	const requiredLocationParams = ['type', 'overlay', 'callout'];
+	const requiredLocationParams = ['type', 'left', 'right', 'callout'];
 	requiredLocationParams.forEach((requiredParam) => {
 		if (!(requiredParam in locations.details)) {
 			invalidLocationsParam.push(`locations paramater '${requiredParam}' is required`);
 		}
 	});
-	const overlay = locations.details.overlay;
+	const left = locations.details.left;
+	const right = locations.details.right;
 	const callout = locations.details.callout;
-	if (typeof overlay !== 'object' || !Array.isArray(overlay.left) || !Array.isArray(overlay.right) || !overlay.left.length || !overlay.right.length) {
-		invalidLocationsParam.push(
-			`Error: locations paramater 'overlay' must be an object containing left and right properties of type array with at least 1 location`
-		);
-	} else if (overlay.left.length > 10 || overlay.right.length > 10) {
-		invalidLocationsParam.push(`Error: locations paramater 'overlay' left or right properties must not exceed 10 locations`);
+	if (!Array.isArray(left) || !Array.isArray(right) || !left.length || !right.length) {
+		invalidLocationsParam.push(`Error: locations paramater 'left' and 'right' properties must be an array with at least 1 location each`);
+	} else if (left.length > 10 || right.length > 10) {
+		invalidLocationsParam.push(`Error: locations paramater 'left' or 'right' properties must not exceed 10 locations`);
 	} else {
-		overlay.left.map((location, index) => {
-			if (!('name' in location) || typeof location.name !== 'string' || !location.name) {
-				invalidLocationsParam.push(`Error: locations paramater 'overlay.left[${index}]' must have a 'name' property`);
+		left.map((location, index) => {
+			if (!('tag' in location) || typeof location.tag !== 'string' || !location.tag) {
+				invalidLocationsParam.push(`Error: locations paramater 'left[${index}]' must have a 'tag' property`);
 			}
-			if (!('label' in location) || typeof location.label !== 'string' || !location.label) {
-				invalidLocationsParam.push(`Error: locations paramater 'overlay.left[${index}]' must have a 'label' property`);
+			if (!('name' in location) || typeof location.name !== 'string' || !location.name) {
+				invalidLocationsParam.push(`Error: locations paramater 'left[${index}]' must have a 'name' property`);
 			}
 		});
-		overlay.right.map((location, index) => {
-			if (!('name' in location) || typeof location.name !== 'string' || !location.name) {
-				invalidLocationsParam.push(`Error: locations paramater 'overlay.right[${index}]' must have a 'name' property`);
+		right.map((location, index) => {
+			if (!('tag' in location) || typeof location.tag !== 'string' || !location.tag) {
+				invalidLocationsParam.push(`Error: locations paramater 'right[${index}]' must have a 'tag' property`);
 			}
-			if (!('label' in location) || typeof location.label !== 'string' || !location.label) {
-				invalidLocationsParam.push(`Error: locations paramater 'overlay.right[${index}]' must have a 'label' property`);
+			if (!('name' in location) || typeof location.name !== 'string' || !location.name) {
+				invalidLocationsParam.push(`Error: locations paramater 'right[${index}]' must have a 'name' property`);
 			}
 		});
 	}
@@ -341,19 +339,27 @@ function validateLocations(locations) {
 		invalidLocationsParam.push(`Error: locations paramater 'callout' must not exceed 10 locations`);
 	} else {
 		callout.map((location, index) => {
+			if (!('tag' in location) || typeof location.tag !== 'string' || !location.tag) {
+				invalidLocationsParam.push(`Error: locations paramater 'callout[${index}]' must have a 'tag' property`);
+			}
 			if (!('name' in location) || typeof location.name !== 'string' || !location.name) {
 				invalidLocationsParam.push(`Error: locations paramater 'callout[${index}]' must have a 'name' property`);
-			}
-			if (!('label' in location) || typeof location.label !== 'string' || !location.label) {
-				invalidLocationsParam.push(`Error: locations paramater 'callout[${index}]' must have a 'label' property`);
 			}
 		});
 	}
 
-	const allLocations = [...overlay.left, ...overlay.right, ...callout].map((location) => location.name);
-	const duplicateLocations = allLocations.filter((location, index) => allLocations.indexOf(location) !== index);
-	if (duplicateLocations.length) {
-		invalidLocationsParam.push(`Error: locations paramater has duplicate location names: ${duplicateLocations.join(', ')}`);
+	const allLocations = [...left, ...right, ...callout];
+
+	const locationTags = allLocations.map((location) => location.tag);
+	const duplicateLocationTags = locationTags.filter((location, index) => locationTags.indexOf(location) !== index);
+	if (duplicateLocationTags.length) {
+		invalidLocationsParam.push(`Error: locations paramater has duplicate location tags: ${duplicateLocationTags.join(', ')}`);
+	}
+
+	const locationNames = allLocations.map((location) => location.name);
+	const duplicateLocationNames = locationNames.filter((location, index) => locationNames.indexOf(location) !== index);
+	if (duplicateLocationNames.length) {
+		invalidLocationsParam.push(`Error: locations paramater has duplicate location names: ${duplicateLocationNames.join(', ')}`);
 	}
 
 	if (invalidLocationsParam.length) {
@@ -416,54 +422,33 @@ function validateTemplate(template, locations) {
 					if (locations?.details) {
 						template.details[detail].map((location, index) => {
 							if (typeof location !== 'string') {
-								invalidParam.push(`template paramater '${detail}' must be an array of strings. Location ${index + 1} is not a string`);
-							} else if (
-								(!location.startsWith('callout') &&
-									!location.startsWith('overlay') &&
-									!location.startsWith('overlay/left') &&
-									!location.startsWith('overlay/right')) ||
-								location == 'overlay/left/' ||
-								location == 'overlay/right/'
-							) {
-								invalidParam.push(
-									`template paramater '${detail}' must be 'overlay', 'callout', 'callout/[name]', 'overlay/left', 'overlay/right', 'overlay/left/[name]' or 'overlay/right/[name]'`
-								);
-							}
-
-							const [L1, L2, L3] = location.split('/');
-							if (L1) {
-								// overlay / callout
-								if (L1 === 'overlay') {
-									// left / right
-									if (L2 === 'left' || L2 === 'right' || !L2) {
-										// allow left/right/undefined
-										// name of overlay
-										if (L3) {
-											const match = locations.details.overlay[L2].find((overlay) => overlay.name === L3);
-											if (!match) {
-												invalidParam.push(
-													`template paramater '${detail}' at index ${index} does not match any overlay location in ${LOCATIONS_FILE}`
-												);
-											}
-										}
-									} else {
-										invalidParam.push(
-											`template paramater '${detail}' at index ${index} must start with 'overlay', 'overlay/left' or 'overlay/right'`
-										);
-									}
-								} else if (L1 === 'callout') {
-									// name of callout
-									if (L2) {
-										const match = locations.details.callout.find((callout) => callout.name === L2);
-										if (!match) {
-											invalidParam.push(`template paramater '${detail}' at index ${index} does not match any callout location in ${LOCATIONS_FILE}`);
-										}
-									}
-								} else {
-									invalidParam.push(`template paramater '${detail}' at index ${index} must start with 'overlay' or 'callout'`);
+								invalidParam.push(`template paramater '${detail}' must be an array of strings. Index ${index} is not a string`);
+							} else if (location.includes('/')) {
+								const locationParts = location.split('/');
+								const [section, name] = locationParts;
+								if (locationParts.length > 2) {
+									invalidParam.push(`template paramater '${detail}' at index ${index} must not contain more than one '/'`);
 								}
-							} else {
-								invalidParam.push(`template paramater '${detail}' at index ${index} must be a string with a value`);
+								if (location.endsWith('/')) {
+									invalidParam.push(`template paramater '${detail}' at index ${index} must not end with '/'`);
+								}
+								if (location.startsWith('/')) {
+									invalidParam.push(`template paramater '${detail}' at index ${index} must not start with '/'`);
+								}
+								if (!section || !['left', 'right', 'callout'].includes(section)) {
+									invalidParam.push(`template paramater '${detail}' at index ${index} must start with 'left/', 'right/' or 'callout/'`);
+								}
+								if (!name) {
+									invalidParam.push(`template paramater '${detail}' at index ${index} must have a name after '/'`);
+								}
+								const match = locations.details[section].find((locationEntry) => locationEntry.tag === name);
+								if (!match) {
+									invalidParam.push(`template paramater '${detail}' at index ${index} does not match any '${section}' location in ${LOCATIONS_FILE}`);
+								}
+							} else if (!['left', 'right', 'callout'].includes(location)) {
+								invalidParam.push(
+									`template paramater '${detail}' at index ${index} must be 'callout', 'callout/[name]', 'left', 'right', 'left/[name]' or 'right/[name]'`
+								);
 							}
 						});
 					}
@@ -665,8 +650,7 @@ export async function syncBadgeTemplate(options) {
 				if (message === 'success') {
 					console.log(chalk.green(`        ${template.details.name} - ${chalk.gray.italic('synced to remote')}`));
 				} else {
-					process.stdout.write(chalk.red.italic(message));
-					console.log();
+					console.log(chalk.green(`        ${template.details.name} - ${chalk.red.italic(message)}`));
 				}
 			} catch (err) {
 				console.log(chalk.red(`        ${template.details.name}`));
@@ -685,20 +669,21 @@ export async function syncBadgeTemplate(options) {
 		if (remoteBadgeLocations.locations) {
 			try {
 				// check if remote locations already matches local locations
-				const localOverlay = locationsPayload.overlay;
+				const localLeft = locationsPayload.left;
+				const localRight = locationsPayload.right;
 				const localCallout = locationsPayload.callout;
+
 				const remoteLocations = JSON.parse(remoteBadgeLocations.locations);
-				const remoteOverlay = remoteLocations.overlay;
+				const remoteLeft = remoteLocations.left;
+				const remoteRight = remoteLocations.right;
 				const remoteCallout = remoteLocations.callout;
 
 				const locationsMatchRemote =
-					JSON.stringify(localOverlay) === JSON.stringify(remoteOverlay) && JSON.stringify(localCallout) === JSON.stringify(remoteCallout);
+					JSON.stringify(localLeft) === JSON.stringify(remoteLeft) &&
+					JSON.stringify(localRight) === JSON.stringify(remoteRight) &&
+					JSON.stringify(localCallout) === JSON.stringify(remoteCallout);
 				if (locationsMatchRemote) {
-					console.log(
-						chalk.green(
-							`        ${LOCATIONS_FILE} - ${chalk.yellow(`remote custom locations matches local locations payload. This template will not be synced`)}`
-						)
-					);
+					console.log(chalk.green(`        ${LOCATIONS_FILE} - ${chalk.yellow(`no changes to sync`)}`));
 					skipLocationsUpdate = true;
 				}
 			} catch (e) {
@@ -714,8 +699,7 @@ export async function syncBadgeTemplate(options) {
 				if (message === 'success') {
 					console.log(chalk.green(`        ${LOCATIONS_FILE} - ${chalk.gray.italic('synced to remote')}`));
 				} else {
-					process.stdout.write(chalk.red.italic(message));
-					console.log();
+					console.log(chalk.green(`        ${LOCATIONS_FILE} - ${chalk.red.italic(message)}`));
 				}
 			} catch (err) {
 				console.log(chalk.red(`        ${LOCATIONS_FILE}`));
@@ -766,7 +750,7 @@ export function generateTemplateSettings({ name, description, type }) {
 		label: `${pascalCase(name)} Badge`,
 		description: description || `${name} custom template`,
 		component: `${pascalCase(name)}`,
-		locations: ['overlay', 'callout'],
+		locations: ['left', 'right', 'callout'],
 		value: {
 			enabled: true,
 		},
@@ -909,7 +893,8 @@ export async function findJsonFiles(dir) {
 export function buildBadgeLocationsPayload(template) {
 	return {
 		type: template.type,
-		overlay: template.overlay,
+		left: template.left,
+		right: template.right,
 		callout: template.callout,
 	};
 }

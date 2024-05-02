@@ -185,7 +185,12 @@ export class ConfigApi {
 		} else if (response.status == 500) {
 			throw new Error(`Server encounterd a problem.`);
 		} else {
-			throw new Error(`Unknown error has occured.`);
+			const message = await response.text();
+			if (message) {
+				return { message };
+			} else {
+				throw new Error(err);
+			}
 		}
 	}
 }
