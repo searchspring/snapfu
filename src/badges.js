@@ -10,6 +10,7 @@ import { buildLibrary } from './library.js';
 const TEMPLATE_TYPE_BADGES = 'snap/badge';
 const DIR_EXCLUDE_LIST = ['node_modules', '.git'];
 const LOCATIONS_FILE = 'locations.json';
+const ROOT_LOCATIONS = ['left', 'right', 'callout'];
 
 export async function initBadgeTemplate(options) {
 	const { context } = options;
@@ -183,9 +184,25 @@ export async function listBadgeTemplates(options) {
 			console.log(chalk.italic('        no templates found...'));
 		} else {
 			console.log(`    ${chalk.white(`Badge Templates`)}`);
+
+			const maxLengthName = templates.reduce((max, template) => {
+				return template.details.name.length > max ? template.details.name.length : max;
+			}, 0);
+			const maxLengthLabel = templates.reduce((max, template) => {
+				return template.details.label.length > max ? template.details.label.length : max;
+			}, 0);
+
 			templates.map((template) => {
-				console.log(`        ${chalk.green(template.details.name)} (${template.details.label})`);
+				console.log(
+					`        ${chalk.green(template.details.name.padEnd(maxLengthName + 2))} ${chalk.gray(template.details.label.padEnd(maxLengthLabel + 2))}`
+				);
 			});
+
+			const locations = await getLocationsFile(context.project.path);
+			if (locations) {
+				console.log(`    ${chalk.white(`Badge Locations`)}`);
+				process.stdout.write(`        ${chalk.green(`locations    ${chalk.gray(LOCATIONS_FILE.padEnd(maxLengthName + 2))}`)}  `);
+			}
 		}
 	}
 
@@ -222,7 +239,7 @@ export async function listBadgeTemplates(options) {
 				if (remoteLocations.locations) {
 					console.log(`    ${chalk.white(`Badge Locations`)}`);
 					process.stdout.write(
-						`        ${chalk.green(`locations    ${chalk.gray(`${remoteLocations.global == 1 ? 'global' : LOCATIONS_FILE}`.padEnd(maxLengthName + 2))}`)}`
+						`        ${chalk.green(`locations    ${chalk.gray(`${remoteLocations.global == 1 ? 'global' : LOCATIONS_FILE}`.padEnd(maxLengthName + 2))}`)}  `
 					);
 					process.stdout.write(
 						`Created: ${new Date(remoteLocations.createdDate).toLocaleDateString()} ${new Date(remoteLocations.createdDate).toLocaleTimeString('en-US')}   Updated: ${new Date(remoteLocations.updatedDate).toLocaleDateString()} ${new Date(remoteLocations.updatedDate).toLocaleTimeString('en-US')}\n`
@@ -302,7 +319,7 @@ export async function removeBadgeTemplate(options) {
 
 function validateLocations(locations) {
 	const invalidLocationsParam = [];
-	const requiredLocationParams = ['type', 'left', 'right', 'callout'];
+	const requiredLocationParams = ['type', ...ROOT_LOCATIONS];
 	requiredLocationParams.forEach((requiredParam) => {
 		if (!(requiredParam in locations.details)) {
 			invalidLocationsParam.push(`locations paramater '${requiredParam}' is required`);
@@ -419,7 +436,15 @@ function validateTemplate(template, locations) {
 					if (template.details[detail].length > 20) {
 						invalidParam.push(`template paramater '${detail}' must not exceed 20 locations`);
 					}
-					if (locations?.details) {
+					if (locations) {
+						let remoteLocations;
+						try {
+							remoteLocations = JSON.parse(locations);
+						} catch (e) {
+							invalidParam.push(`Error: Failed to parse JSON from remote locations`);
+							break;
+						}
+
 						template.details[detail].map((location, index) => {
 							if (typeof location !== 'string') {
 								invalidParam.push(`template paramater '${detail}' must be an array of strings. Index ${index} is not a string`);
@@ -435,19 +460,21 @@ function validateTemplate(template, locations) {
 								if (location.startsWith('/')) {
 									invalidParam.push(`template paramater '${detail}' at index ${index} must not start with '/'`);
 								}
-								if (!section || !['left', 'right', 'callout'].includes(section)) {
-									invalidParam.push(`template paramater '${detail}' at index ${index} must start with 'left/', 'right/' or 'callout/'`);
+								if (!section || !ROOT_LOCATIONS.includes(section)) {
+									invalidParam.push(
+										`template paramater '${detail}' at index ${index} must start with ${ROOT_LOCATIONS.map((loc) => `'${loc}/'`).join(', ')}`
+									);
 								}
 								if (!name) {
 									invalidParam.push(`template paramater '${detail}' at index ${index} must have a name after '/'`);
 								}
-								const match = locations.details[section].find((locationEntry) => locationEntry.tag === name);
+								const match = remoteLocations[section].find((locationEntry) => locationEntry.tag === name);
 								if (!match) {
 									invalidParam.push(`template paramater '${detail}' at index ${index} does not match any '${section}' location in ${LOCATIONS_FILE}`);
 								}
-							} else if (!['left', 'right', 'callout'].includes(location)) {
+							} else if (!ROOT_LOCATIONS.includes(location)) {
 								invalidParam.push(
-									`template paramater '${detail}' at index ${index} must be 'callout', 'callout/[name]', 'left', 'right', 'left/[name]' or 'right/[name]'`
+									`template paramater '${detail}' at index ${index} must be ${ROOT_LOCATIONS.map((loc) => `'${loc}', '${loc}/[name]'`).join(', ')}`
 								);
 							}
 						});
@@ -506,7 +533,12 @@ function validateTemplate(template, locations) {
 				if (!Array.isArray(template.details[detail])) {
 					invalidParam.push(`template paramater '${detail}' must be an array`);
 				} else {
+					const uniqueNames = [];
+					const uniqueLabels = [];
+
 					template.details[detail].map((parameter, i) => {
+						uniqueNames.push(parameter['name']);
+						uniqueLabels.push(parameter['label']);
 						Object.keys(parameter).forEach((key) => {
 							if (!['name', 'type', 'label', 'description', 'defaultValue', 'validations', 'options'].includes(key)) {
 								invalidParam.push(`template paramater '${detail}[${i}].${key}' is not a valid parameter`);
@@ -515,20 +547,112 @@ function validateTemplate(template, locations) {
 								invalidParam.push(`template paramater '${detail}[${i}].${key}' must be a string with a value`);
 							}
 							const allowedTypes = ['array', 'string', 'color', 'url', 'integer', 'decimal', 'boolean', 'checkbox', 'toggle'];
-							if (key === 'type' && !allowedTypes.includes(parameter[key])) {
-								invalidParam.push(`template paramater '${detail}[${i}].${key}' must be one of allowed types: ${allowedTypes.join(', ')}`);
-							}
-							if (key === 'type' && parameter[key] === 'array') {
-								if (
-									!('options' in template.details[detail][i]) ||
-									!Array.isArray(template.details[detail][i]['options']) ||
-									template.details[detail][i]['options'].length === 0
-								) {
-									invalidParam.push(
-										`template paramater '${detail}[${i}].options' must be an array with at least 1 option when type: 'array' is used`
-									);
+							if (key === 'type') {
+								if (!allowedTypes.includes(parameter[key])) {
+									invalidParam.push(`template paramater '${detail}[${i}].${key}' must be one of allowed types: ${allowedTypes.join(', ')}`);
+								}
+								const { type, options, defaultValue, validations } = template.details[detail][i];
+								switch (parameter[key]) {
+									case 'array':
+										if (!options || !Array.isArray(options) || options.length === 0) {
+											invalidParam.push(
+												`template paramater '${detail}[${i}].options' must be an array with at least 1 option when type: 'array' is used`
+											);
+										}
+										if (defaultValue && !options?.includes(defaultValue)) {
+											invalidParam.push(`template paramater '${detail}[${i}].defaultValue' must be one of the options in 'options' array`);
+										}
+										if (validations) {
+											invalidParam.push(`template paramater '${detail}[${i}].validations' should not be used with type: 'array'`);
+										}
+										break;
+									case 'string':
+									case 'url':
+										if (validations) {
+											const { min, max, regex, regexExplain } = validations;
+											if (min && typeof min !== 'number') {
+												invalidParam.push(`template paramater '${detail}[${i}].validations.min' must be a number`);
+											}
+											if (max && typeof max !== 'number') {
+												invalidParam.push(`template paramater '${detail}[${i}].validations.max' must be a number`);
+											}
+											if (min && max && min > max) {
+												invalidParam.push(`template paramater '${detail}[${i}].validations.min' must be a number lower than 'validations.max'`);
+											}
+											if (regex && typeof regex !== 'string') {
+												invalidParam.push(`template paramater '${detail}[${i}].validations.regex' must be a string`);
+											}
+											if (regex && !regexExplain) {
+												invalidParam.push(`template paramater '${detail}[${i}].validations' When using regex, please also provide regexExplain`);
+											}
+											if (regexExplain && typeof regexExplain !== 'string') {
+												invalidParam.push(`template paramater '${detail}[${i}].validations.regexExplain' must be a string`);
+											}
+											if (defaultValue && validations.regex && !new RegExp(validations.regex).test(defaultValue)) {
+												invalidParam.push(`template paramater '${detail}[${i}].defaultValue' must match the regex pattern in 'validations.regex'`);
+											}
+											if (defaultValue && validations.min && defaultValue.length < validations.min && validations.min > 0) {
+												invalidParam.push(`template paramater '${detail}[${i}].defaultValue' must be at least ${validations.min} characters long`);
+											}
+											if (defaultValue && validations.max && defaultValue.length > validations.max && validations.max > 0) {
+												invalidParam.push(`template paramater '${detail}[${i}].defaultValue' must not exceed ${validations.max} characters long`);
+											}
+										}
+										break;
+									case 'color':
+										if (validations) {
+											invalidParam.push(`template paramater '${detail}[${i}].validations' should not be used with type: 'color'`);
+										}
+										break;
+									case 'integer':
+									case 'decimal':
+										if (validations) {
+											const { min, max, regex, regexExplain } = validations;
+											if (regex || regexExplain) {
+												invalidParam.push(
+													`template paramater '${detail}[${i}].validations.regex' or '${detail}[${i}].validations.regexExplain' should not be used with type: 'integer' or 'decimal'`
+												);
+											}
+											if (min && typeof min !== 'number') {
+												invalidParam.push(`template paramater '${detail}[${i}].validations.min' must be a number`);
+											}
+											if (max && typeof max !== 'number') {
+												invalidParam.push(`template paramater '${detail}[${i}].validations.max' must be a number`);
+											}
+											if (min && max && min > max) {
+												invalidParam.push(`template paramater '${detail}[${i}].validations.min' must be a number lower than 'validations.max'`);
+											}
+											if (defaultValue && (typeof defaultValue !== 'string' || isNaN(Number(defaultValue)))) {
+												invalidParam.push(`template paramater '${detail}[${i}].defaultValue' must be a string containing a number`);
+											}
+											if (defaultValue && validations.min && Number(defaultValue) < validations.min) {
+												invalidParam.push(`template paramater '${detail}[${i}].defaultValue' must be at least ${validations.min} (validations.min)`);
+											}
+											if (defaultValue && validations.max && Number(defaultValue) > validations.max) {
+												invalidParam.push(`template paramater '${detail}[${i}].defaultValue' must not exceed ${validations.max} (validations.max)`);
+											}
+										}
+										break;
+									case 'boolean':
+									case 'checkbox':
+									case 'toggle':
+										if (validations) {
+											invalidParam.push(
+												`template paramater '${detail}[${i}].validations' should not be used with type: 'boolean', 'checkbox', 'toggle'`
+											);
+										}
+										if (defaultValue && typeof defaultValue !== 'string' && !['true', '1', 'false', '0'].includes(defaultValue)) {
+											invalidParam.push(`template paramater '${detail}[${i}].defaultValue' must be a string containing 'true', '1', 'false', '0'`);
+										}
+										break;
+									default:
+										invalidParam.push(
+											`template paramater '${detail}[${i}].type' value of ${parameter[key]} is not a valid type. Must be one of ${allowedTypes.join(', ')}`
+										);
+										break;
 								}
 							}
+
 							if (key === 'validations') {
 								if (typeof parameter[key] !== 'object') {
 									invalidParam.push(`template paramater '${detail}[${i}].${key}' must be an object`);
@@ -554,6 +678,20 @@ function validateTemplate(template, locations) {
 							}
 						});
 					});
+
+					const duplicateParameterNames = uniqueNames.filter((location, index) => uniqueNames.indexOf(location) !== index);
+					if (duplicateParameterNames.length) {
+						invalidParam.push(
+							`template paramater '${detail}' contains duplicate parameter names: ${duplicateParameterNames.map((name) => `'${name}'`).join(', ')}`
+						);
+					}
+
+					const duplicateParameterLabels = uniqueLabels.filter((location, index) => uniqueLabels.indexOf(location) !== index);
+					if (duplicateParameterLabels.length) {
+						invalidParam.push(
+							`template paramater '${detail}' contains duplicate parameter labels: ${duplicateParameterLabels.map((label) => `'${label}'`).join(', ')}`
+						);
+					}
 				}
 				break;
 			default:
@@ -574,7 +712,7 @@ function validateTemplate(template, locations) {
 export async function syncBadgeTemplate(options) {
 	const { context } = options;
 	const { searchspring, repository } = context;
-	const [command, templateName] = options.args;
+	const [_, templateName] = options.args;
 	const { secretKey } = options.options;
 
 	if (!searchspring || !context.project || !context.project.path) {
@@ -588,16 +726,7 @@ export async function syncBadgeTemplate(options) {
 	}
 
 	const templates = await getTemplates(context.project.path);
-	const syncTemplates = templates.filter((template) => {
-		validateTemplate(template, locations);
-		if (templateName) {
-			if (template.details.name == templateName) {
-				return template;
-			}
-		} else {
-			return template;
-		}
-	});
+	const syncTemplates = templateName ? templates.filter((template) => template.details.name == templateName) : templates;
 
 	if (!syncTemplates.length && templateName != LOCATIONS_FILE) {
 		console.log(chalk.red(`Error: Template(s) not found.`));
@@ -605,7 +734,13 @@ export async function syncBadgeTemplate(options) {
 	}
 
 	const sync = async (template, secretKey) => {
+		// validate template agains remote locations (locations get validated and synced first)
+		const { locations } = await new ConfigApi(secretKey, options.dev).getBadgeLocations();
+		validateTemplate(template, locations);
+
+		// prevent sync if template matches remote template
 		const payload = buildBadgeTemplatePayload(template.details);
+		await wait(500);
 		const remoteTemplates = await new ConfigApi(secretKey, options.dev).getBadgeTemplates();
 		const remoteTemplate = remoteTemplates.badgeTemplates?.find((remoteTemplate) => remoteTemplate.tag == template.details.name);
 		let skipTemplateUpdate = false;
@@ -714,6 +849,11 @@ export async function syncBadgeTemplate(options) {
 			const { secretKey, siteId, name } = options.multipleSites[x];
 
 			console.log(`${chalk.white.bold(`${name} ${chalk.cyan(`(${siteId})`)}`)}`);
+
+			if ((locations && syncTemplates.length && !templateName) || templateName == LOCATIONS_FILE) {
+				await syncLocations(secretKey);
+				await wait(1000);
+			}
 			for (let i = 0; i < syncTemplates.length; i++) {
 				const template = syncTemplates[i];
 				console.log(`    synchronizing template ${i + 1} of ${syncTemplates.length}`);
@@ -721,24 +861,20 @@ export async function syncBadgeTemplate(options) {
 				await sync(template, secretKey);
 				await wait(500);
 			}
-			if ((locations && syncTemplates.length && !templateName) || templateName == LOCATIONS_FILE) {
-				await syncLocations(secretKey);
-				await wait(500);
-			}
 
 			if (x < options.multipleSites.length - 1) console.log();
 		}
 	} else {
 		console.log(`${chalk.white.bold(`${repository.name}`)}`);
+		if ((locations && syncTemplates.length && !templateName) || templateName == LOCATIONS_FILE) {
+			await syncLocations(secretKey);
+			await wait(1000);
+		}
 		for (let i = 0; i < syncTemplates.length; i++) {
 			const template = syncTemplates[i];
 			console.log(`    synchronizing template ${i + 1} of ${syncTemplates.length}`);
 			await sync(template, secretKey);
 			await wait(500);
-			if ((locations && syncTemplates.length && !templateName) || templateName == LOCATIONS_FILE) {
-				await syncLocations(secretKey);
-				await wait(500);
-			}
 		}
 	}
 }
@@ -750,7 +886,7 @@ export function generateTemplateSettings({ name, description, type }) {
 		label: `${pascalCase(name)} Badge`,
 		description: description || `${name} custom template`,
 		component: `${pascalCase(name)}`,
-		locations: ['left', 'right', 'callout'],
+		locations: ROOT_LOCATIONS,
 		value: {
 			enabled: true,
 		},
@@ -777,7 +913,7 @@ export async function getTemplates(dir) {
 				if (
 					typeof template.details == 'object' &&
 					template.details.type &&
-					template.details.type.startsWith(TEMPLATE_TYPE_BADGES) &&
+					template.details.type == `${TEMPLATE_TYPE_BADGES}/default` &&
 					template.details.type !== `${TEMPLATE_TYPE_BADGES}/locations`
 				) {
 					return template;
