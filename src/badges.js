@@ -338,6 +338,11 @@ function validateLocations(locations) {
 			if (!('tag' in location) || typeof location.tag !== 'string' || !location.tag) {
 				invalidLocationsParam.push(`Error: locations paramater 'left[${index}]' must have a 'tag' property`);
 			}
+			if (!location.tag.match(/^[a-zA-Z0-9_-]*$/)) {
+				invalidLocationsParam.push(
+					`Error: locations paramater 'left[${index}]' tag must be an alphanumeric string (underscore and dashes also supported)`
+				);
+			}
 			if (!('name' in location) || typeof location.name !== 'string' || !location.name) {
 				invalidLocationsParam.push(`Error: locations paramater 'left[${index}]' must have a 'name' property`);
 			}
@@ -345,6 +350,11 @@ function validateLocations(locations) {
 		right.map((location, index) => {
 			if (!('tag' in location) || typeof location.tag !== 'string' || !location.tag) {
 				invalidLocationsParam.push(`Error: locations paramater 'right[${index}]' must have a 'tag' property`);
+			}
+			if (!location.tag.match(/^[a-zA-Z0-9_-]*$/)) {
+				invalidLocationsParam.push(
+					`Error: locations paramater 'right[${index}]' tag must be an alphanumeric string (underscore and dashes also supported)`
+				);
 			}
 			if (!('name' in location) || typeof location.name !== 'string' || !location.name) {
 				invalidLocationsParam.push(`Error: locations paramater 'right[${index}]' must have a 'name' property`);
@@ -359,6 +369,11 @@ function validateLocations(locations) {
 		callout.map((location, index) => {
 			if (!('tag' in location) || typeof location.tag !== 'string' || !location.tag) {
 				invalidLocationsParam.push(`Error: locations paramater 'callout[${index}]' must have a 'tag' property`);
+			}
+			if (!location.tag.match(/^[a-zA-Z0-9_-]*$/)) {
+				invalidLocationsParam.push(
+					`Error: locations paramater 'callout[${index}]' tag must be an alphanumeric string (underscore and dashes also supported)`
+				);
 			}
 			if (!('name' in location) || typeof location.name !== 'string' || !location.name) {
 				invalidLocationsParam.push(`Error: locations paramater 'callout[${index}]' must have a 'name' property`);
@@ -552,7 +567,8 @@ function validateTemplate(template, locations) {
 								if (!allowedTypes.includes(parameter[key])) {
 									invalidParam.push(`template paramater '${detail}[${i}].${key}' must be one of allowed types: ${allowedTypes.join(', ')}`);
 								}
-								const { type, options, defaultValue, validations } = template.details[detail][i];
+								const { options, defaultValue, validations } = template.details[detail][i];
+								const { min, max, regex, regexExplain } = validations || {};
 								switch (parameter[key]) {
 									case 'array':
 										if (!options || !Array.isArray(options) || options.length === 0) {
@@ -570,7 +586,6 @@ function validateTemplate(template, locations) {
 									case 'string':
 									case 'url':
 										if (validations) {
-											const { min, max, regex, regexExplain } = validations;
 											if (min && typeof min !== 'number') {
 												invalidParam.push(`template paramater '${detail}[${i}].validations.min' must be a number`);
 											}
@@ -589,14 +604,14 @@ function validateTemplate(template, locations) {
 											if (regexExplain && typeof regexExplain !== 'string') {
 												invalidParam.push(`template paramater '${detail}[${i}].validations.regexExplain' must be a string`);
 											}
-											if (defaultValue && validations.regex && !new RegExp(validations.regex).test(defaultValue)) {
+											if (defaultValue && regex && !new RegExp(regex).test(defaultValue)) {
 												invalidParam.push(`template paramater '${detail}[${i}].defaultValue' must match the regex pattern in 'validations.regex'`);
 											}
-											if (defaultValue && validations.min && defaultValue.length < validations.min && validations.min > 0) {
-												invalidParam.push(`template paramater '${detail}[${i}].defaultValue' must be at least ${validations.min} characters long`);
+											if (defaultValue && min && defaultValue.length < min && min > 0) {
+												invalidParam.push(`template paramater '${detail}[${i}].defaultValue' must be at least ${min} characters long`);
 											}
-											if (defaultValue && validations.max && defaultValue.length > validations.max && validations.max > 0) {
-												invalidParam.push(`template paramater '${detail}[${i}].defaultValue' must not exceed ${validations.max} characters long`);
+											if (defaultValue && max && defaultValue.length > max && max > 0) {
+												invalidParam.push(`template paramater '${detail}[${i}].defaultValue' must not exceed ${max} characters long`);
 											}
 										}
 										break;
@@ -604,11 +619,21 @@ function validateTemplate(template, locations) {
 										if (validations) {
 											invalidParam.push(`template paramater '${detail}[${i}].validations' should not be used with type: 'color'`);
 										}
+										const rgbaMatch = /^rgba\((\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1}(\.\d{1,2})?)\)$/;
+										if (defaultValue && !new RegExp(rgbaMatch).test(defaultValue)) {
+											invalidParam.push(`template paramater '${detail}[${i}].defaultValue' must be a valid rgba color`);
+										}
 										break;
 									case 'integer':
+										if (min && min % 1 !== 0) {
+											invalidParam.push(`template paramater '${detail}[${i}].validations.min' must be an integer`);
+										}
+										if (max && max % 1 !== 0) {
+											invalidParam.push(`template paramater '${detail}[${i}].validations.max' must be an integer`);
+										}
+									// no break intentional
 									case 'decimal':
 										if (validations) {
-											const { min, max, regex, regexExplain } = validations;
 											if (regex || regexExplain) {
 												invalidParam.push(
 													`template paramater '${detail}[${i}].validations.regex' or '${detail}[${i}].validations.regexExplain' should not be used with type: 'integer' or 'decimal'`
@@ -626,11 +651,11 @@ function validateTemplate(template, locations) {
 											if (defaultValue && (typeof defaultValue !== 'string' || isNaN(Number(defaultValue)))) {
 												invalidParam.push(`template paramater '${detail}[${i}].defaultValue' must be a string containing a number`);
 											}
-											if (defaultValue && validations.min && Number(defaultValue) < validations.min) {
-												invalidParam.push(`template paramater '${detail}[${i}].defaultValue' must be at least ${validations.min} (validations.min)`);
+											if (defaultValue && min && Number(defaultValue) < min) {
+												invalidParam.push(`template paramater '${detail}[${i}].defaultValue' must be at least ${min} (validations.min)`);
 											}
-											if (defaultValue && validations.max && Number(defaultValue) > validations.max) {
-												invalidParam.push(`template paramater '${detail}[${i}].defaultValue' must not exceed ${validations.max} (validations.max)`);
+											if (defaultValue && max && Number(defaultValue) > max) {
+												invalidParam.push(`template paramater '${detail}[${i}].defaultValue' must not exceed ${max} (validations.max)`);
 											}
 										}
 										break;
