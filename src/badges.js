@@ -6,6 +6,7 @@ import { exit } from 'process';
 import { wait, copy, copyTransform, pascalCase, handleize } from './utils/index.js';
 import { ConfigApi } from './services/ConfigApi.js';
 import { buildLibrary } from './library.js';
+import { deepStrictEqual } from 'assert';
 
 const TEMPLATE_TYPE_BADGES = 'snap/badge';
 const DIR_EXCLUDE_LIST = ['node_modules', '.git'];
@@ -470,7 +471,7 @@ function validateTemplate(template, locations) {
 								}
 								const match = remoteLocations[section].find((locationEntry) => locationEntry.tag === name);
 								if (!match) {
-									invalidParam.push(`template paramater '${detail}' at index ${index} does not match any '${section}' location in ${LOCATIONS_FILE}`);
+									invalidParam.push(`template paramater '${detail}' at index ${index} does not match any '${section}' location`);
 								}
 							} else if (!ROOT_LOCATIONS.includes(location)) {
 								invalidParam.push(
@@ -734,7 +735,7 @@ export async function syncBadgeTemplate(options) {
 	}
 
 	const sync = async (template, secretKey) => {
-		// validate template agains remote locations (locations get validated and synced first)
+		// validate template against remote locations (locations get validated and synced first)
 		const { locations } = await new ConfigApi(secretKey, options.dev).getBadgeLocations();
 		validateTemplate(template, locations);
 
@@ -743,53 +744,46 @@ export async function syncBadgeTemplate(options) {
 		await wait(500);
 		const remoteTemplates = await new ConfigApi(secretKey, options.dev).getBadgeTemplates();
 		const remoteTemplate = remoteTemplates.badgeTemplates?.find((remoteTemplate) => remoteTemplate.tag == template.details.name);
-		let skipTemplateUpdate = false;
 		if (remoteTemplate) {
 			try {
 				// check if remote template already matches local template
-				const { name, description, snapComponent, labelConfig, locations } = remoteTemplate;
-				// object property order stored in db may differ than what's synced, map to match payload order for comparison below
-				const properties = JSON.parse(remoteTemplate.properties).map((remoteParameter) => {
-					return {
-						name: remoteParameter.name,
-						type: remoteParameter.type,
-						label: remoteParameter.label,
-						description: remoteParameter.description,
-						defaultValue: remoteParameter.defaultValue,
-						validations: remoteParameter.validations,
-						options: remoteParameter.options,
-					};
-				});
-				const templateMatchRemote =
-					payload.label === name &&
-					payload.description === description &&
-					payload.component === snapComponent &&
-					JSON.stringify(payload.value) === JSON.stringify(JSON.parse(labelConfig)) &&
-					JSON.stringify(payload.locations.sort()) === JSON.stringify(JSON.parse(locations).sort()) &&
-					JSON.stringify(payload.parameters) === JSON.stringify(properties);
+				const { name, properties, description, snapComponent, labelConfig, locations } = remoteTemplate;
+				const parsedLocations = JSON.parse(locations);
+				const parsedLabelConfig = JSON.parse(labelConfig);
+				const parsedProperties = JSON.parse(properties);
 
-				if (templateMatchRemote) {
+				try {
+					if (payload.label !== name) throw new Error('Template names differ');
+					if (payload.description !== description) throw new Error('Template desicriptions differ');
+					if (payload.component !== snapComponent) throw new Error('Template components differ');
+
+					deepStrictEqual(parsedLabelConfig, payload.value);
+					deepStrictEqual(parsedLocations, payload.locations);
+					deepStrictEqual(parsedProperties, payload.parameters);
+
 					console.log(chalk.green(`        ${template.details.name} - ${chalk.yellow(`no changes to sync`)}`));
-					skipTemplateUpdate = true;
+				} catch (err) {
+					if (options.dev) {
+						console.log(err);
+					}
+					try {
+						await wait(500);
+						const { message } = await new ConfigApi(secretKey, options.dev).putBadgeTemplate(payload);
+						if (message === 'success') {
+							console.log(chalk.green(`        ${template.details.name} - ${chalk.gray.italic('synced to remote')}`));
+						} else {
+							console.log(chalk.green(`        ${template.details.name} - ${chalk.red.italic(message)}`));
+							exit(1);
+						}
+					} catch (err) {
+						console.log(chalk.red(`        ${template.details.name}`));
+						console.log('        ', chalk.red(err));
+						exit(1);
+					}
 				}
 			} catch (e) {
 				console.log(chalk.red(`Error: Failed parse JSON from remote template ${remoteTemplate.tag}`));
 				console.log(e);
-				exit(1);
-			}
-		}
-		if (!skipTemplateUpdate) {
-			try {
-				await wait(500);
-				const { message } = await new ConfigApi(secretKey, options.dev).putBadgeTemplate(payload);
-				if (message === 'success') {
-					console.log(chalk.green(`        ${template.details.name} - ${chalk.gray.italic('synced to remote')}`));
-				} else {
-					console.log(chalk.green(`        ${template.details.name} - ${chalk.red.italic(message)}`));
-				}
-			} catch (err) {
-				console.log(chalk.red(`        ${template.details.name}`));
-				console.log('        ', chalk.red(err));
 				exit(1);
 			}
 		}
@@ -799,48 +793,39 @@ export async function syncBadgeTemplate(options) {
 		console.log(`    synchronizing locations`);
 		const locationsPayload = buildBadgeLocationsPayload(locations.details);
 		const remoteBadgeLocations = await new ConfigApi(secretKey, options.dev).getBadgeLocations();
-		let skipLocationsUpdate = false;
-		// Sync custom locations if locations.json file exists
+
+		// sync custom locations if locations.json file exists
 		if (remoteBadgeLocations.locations) {
 			try {
-				// check if remote locations already matches local locations
-				const localLeft = locationsPayload.left;
-				const localRight = locationsPayload.right;
-				const localCallout = locationsPayload.callout;
-
 				const remoteLocations = JSON.parse(remoteBadgeLocations.locations);
-				const remoteLeft = remoteLocations.left;
-				const remoteRight = remoteLocations.right;
-				const remoteCallout = remoteLocations.callout;
 
-				const locationsMatchRemote =
-					JSON.stringify(localLeft) === JSON.stringify(remoteLeft) &&
-					JSON.stringify(localRight) === JSON.stringify(remoteRight) &&
-					JSON.stringify(localCallout) === JSON.stringify(remoteCallout);
-				if (locationsMatchRemote) {
+				try {
+					deepStrictEqual(locationsPayload, remoteLocations);
 					console.log(chalk.green(`        ${LOCATIONS_FILE} - ${chalk.yellow(`no changes to sync`)}`));
-					skipLocationsUpdate = true;
+				} catch (err) {
+					try {
+						await wait(500);
+						const { message } = await new ConfigApi(secretKey, options.dev).putBadgeLocations(locationsPayload);
+						if (message === 'success') {
+							console.log(chalk.green(`        ${LOCATIONS_FILE} - ${chalk.gray.italic('synced to remote')}`));
+						} else {
+							console.log(chalk.green(`        ${LOCATIONS_FILE} - ${chalk.red.italic(message)}`));
+							exit(1);
+						}
+					} catch (err) {
+						console.log(chalk.red(`        ${LOCATIONS_FILE}`));
+						console.log('        ', chalk.red(err));
+						exit(1);
+					}
 				}
 			} catch (e) {
 				console.log(chalk.red(`Error: Failed parse JSON from remote locations`));
 				console.log(e);
 				exit(1);
 			}
-		}
-		if (!skipLocationsUpdate) {
-			try {
-				await wait(500);
-				const { message } = await new ConfigApi(secretKey, options.dev).putBadgeLocations(locationsPayload);
-				if (message === 'success') {
-					console.log(chalk.green(`        ${LOCATIONS_FILE} - ${chalk.gray.italic('synced to remote')}`));
-				} else {
-					console.log(chalk.green(`        ${LOCATIONS_FILE} - ${chalk.red.italic(message)}`));
-				}
-			} catch (err) {
-				console.log(chalk.red(`        ${LOCATIONS_FILE}`));
-				console.log('        ', chalk.red(err));
-				exit(1);
-			}
+		} else {
+			console.log(chalk.red(`Error: Failed to retrieve remote badge locations. The feature is likely not enabled.`));
+			exit(1);
 		}
 	};
 
@@ -983,7 +968,7 @@ export async function readTemplateSettings(filePath) {
 		return fileParsed;
 	} catch (err) {
 		console.log(chalk.red(`Error: invalid JSON in file: ${filePath}`));
-		return {};
+		exit(1);
 	}
 }
 
@@ -1028,7 +1013,6 @@ export async function findJsonFiles(dir) {
 
 export function buildBadgeLocationsPayload(template) {
 	return {
-		type: template.type,
 		left: template.left,
 		right: template.right,
 		callout: template.callout,
@@ -1049,15 +1033,22 @@ export function buildBadgeTemplatePayload(template) {
 		parameters:
 			template.parameters?.map((parameter) => {
 				// mapping to only include the necessary fields
-				return {
+				const data = {
 					name: parameter.name,
 					type: parameter.type,
 					label: parameter.label,
 					description: parameter.description,
-					defaultValue: parameter.defaultValue,
-					validations: parameter.validations,
-					options: parameter.options,
 				};
+				if (parameter.defaultValue) {
+					data.defaultValue = parameter.defaultValue;
+				}
+				if (parameter.options) {
+					data.options = parameter.options;
+				}
+				if (parameter.validations) {
+					data.validations = parameter.validations;
+				}
+				return data;
 			}) || [],
 	};
 }
