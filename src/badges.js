@@ -466,6 +466,8 @@ export function validateTemplate(template, locations) {
 								);
 							}
 						});
+					} else {
+						invalidParam.push(`Error: Failed to retrieve remote locations. Feature is likely not enabled.`);
 					}
 				}
 				break;
