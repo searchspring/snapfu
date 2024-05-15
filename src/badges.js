@@ -11,7 +11,7 @@ import { deepStrictEqual } from 'assert';
 const TEMPLATE_TYPE_BADGES = 'snap/badge';
 const DIR_EXCLUDE_LIST = ['node_modules', '.git'];
 const LOCATIONS_FILE = 'locations.json';
-const ROOT_LOCATIONS = ['left', 'right', 'callout'];
+export const ROOT_LOCATIONS = ['left', 'right', 'callout'];
 
 export async function initBadgeTemplate(options) {
 	const { context } = options;
@@ -318,7 +318,7 @@ export async function removeBadgeTemplate(options) {
 	}
 }
 
-function validateLocations(locations) {
+export function validateLocations(locations) {
 	const invalidLocationsParam = [];
 	const requiredLocationParams = ['type', ...ROOT_LOCATIONS];
 	requiredLocationParams.forEach((requiredParam) => {
@@ -326,62 +326,33 @@ function validateLocations(locations) {
 			invalidLocationsParam.push(`locations paramater '${requiredParam}' is required`);
 		}
 	});
-	const left = locations.details.left;
-	const right = locations.details.right;
-	const callout = locations.details.callout;
-	if (!Array.isArray(left) || !Array.isArray(right) || !left.length || !right.length) {
-		invalidLocationsParam.push(`Error: locations paramater 'left' and 'right' properties must be an array with at least 1 location each`);
-	} else if (left.length > 10 || right.length > 10) {
-		invalidLocationsParam.push(`Error: locations paramater 'left' or 'right' properties must not exceed 10 locations`);
-	} else {
-		left.map((location, index) => {
-			if (!('tag' in location) || typeof location.tag !== 'string' || !location.tag) {
-				invalidLocationsParam.push(`Error: locations paramater 'left[${index}]' must have a 'tag' property`);
-			}
-			if (!location.tag.match(/^[a-zA-Z0-9_-]*$/)) {
-				invalidLocationsParam.push(
-					`Error: locations paramater 'left[${index}]' tag must be an alphanumeric string (underscore and dashes also supported)`
-				);
-			}
-			if (!('name' in location) || typeof location.name !== 'string' || !location.name) {
-				invalidLocationsParam.push(`Error: locations paramater 'left[${index}]' must have a 'name' property`);
-			}
-		});
-		right.map((location, index) => {
-			if (!('tag' in location) || typeof location.tag !== 'string' || !location.tag) {
-				invalidLocationsParam.push(`Error: locations paramater 'right[${index}]' must have a 'tag' property`);
-			}
-			if (!location.tag.match(/^[a-zA-Z0-9_-]*$/)) {
-				invalidLocationsParam.push(
-					`Error: locations paramater 'right[${index}]' tag must be an alphanumeric string (underscore and dashes also supported)`
-				);
-			}
-			if (!('name' in location) || typeof location.name !== 'string' || !location.name) {
-				invalidLocationsParam.push(`Error: locations paramater 'right[${index}]' must have a 'name' property`);
-			}
-		});
-	}
-	if (!Array.isArray(callout) || !callout.length) {
-		invalidLocationsParam.push(`Error: locations paramater 'callout' must be an array with at least 1 location`);
-	} else if (callout.length > 10) {
-		invalidLocationsParam.push(`Error: locations paramater 'callout' must not exceed 10 locations`);
-	} else {
-		callout.map((location, index) => {
-			if (!('tag' in location) || typeof location.tag !== 'string' || !location.tag) {
-				invalidLocationsParam.push(`Error: locations paramater 'callout[${index}]' must have a 'tag' property`);
-			}
-			if (!location.tag.match(/^[a-zA-Z0-9_-]*$/)) {
-				invalidLocationsParam.push(
-					`Error: locations paramater 'callout[${index}]' tag must be an alphanumeric string (underscore and dashes also supported)`
-				);
-			}
-			if (!('name' in location) || typeof location.name !== 'string' || !location.name) {
-				invalidLocationsParam.push(`Error: locations paramater 'callout[${index}]' must have a 'name' property`);
-			}
-		});
-	}
 
-	const allLocations = [...left, ...right, ...callout];
+	ROOT_LOCATIONS.forEach((rootLocation) => {
+		const location = locations.details[rootLocation];
+		if (!Array.isArray(location) || !location.length) {
+			invalidLocationsParam.push(`Error: locations paramater '${rootLocation}' must be an array with at least 1 location`);
+		} else if (location.length > 10) {
+			invalidLocationsParam.push(`Error: locations paramater '${rootLocation}' must not exceed 10 locations`);
+		} else {
+			location.map((entry, index) => {
+				if (!('tag' in entry) || typeof entry.tag !== 'string' || !entry.tag) {
+					invalidLocationsParam.push(`Error: locations paramater '${rootLocation}[${index}]' must have a 'tag' property`);
+				}
+				if (!entry.tag.match(/^[a-zA-Z0-9_-]*$/)) {
+					invalidLocationsParam.push(
+						`Error: locations paramater '${rootLocation}[${index}]' tag must be an alphanumeric string (underscore and dashes also supported)`
+					);
+				}
+				if (!('name' in entry) || typeof entry.name !== 'string' || !entry.name) {
+					invalidLocationsParam.push(`Error: locations paramater '${rootLocation}[${index}]' must have a 'name' property`);
+				}
+			});
+		}
+	});
+
+	const allLocations = ROOT_LOCATIONS.reduce((acc, location) => {
+		return [...acc, ...(locations.details[location] || [])];
+	}, []);
 
 	const locationTags = allLocations.map((location) => location.tag);
 	const duplicateLocationTags = locationTags.filter((location, index) => locationTags.indexOf(location) !== index);
@@ -403,9 +374,10 @@ function validateLocations(locations) {
 		});
 		exit(1);
 	}
+	return true;
 }
 
-function validateTemplate(template, locations) {
+export function validateTemplate(template, locations) {
 	const requiredParams = ['type', 'name', 'label', 'component', 'locations'];
 	let invalidParam = [];
 	requiredParams.forEach((requiredParam) => {
@@ -505,10 +477,10 @@ function validateTemplate(template, locations) {
 				) {
 					invalidParam.push(`template paramater '${detail}' must be an object with boolean property 'enabled'`);
 				}
-				if ('validations' in template.details[detail] && typeof template.details[detail]['validations'] !== 'object') {
+				if (template.details[detail]['validations'] && typeof template.details[detail]['validations'] !== 'object') {
 					invalidParam.push(`template paramater '${detail}.validations' must be an object with properties min, max, regex and regexExplain`);
 				}
-				if ('validations' in template.details[detail]) {
+				if (template.details[detail]['validations']) {
 					if (
 						'min' in template.details[detail]['validations'] &&
 						(typeof template.details[detail]['validations']['min'] !== 'number' || template.details[detail]['validations']['min'] < 0)
@@ -733,6 +705,7 @@ function validateTemplate(template, locations) {
 		});
 		exit(1);
 	}
+	return true;
 }
 
 export async function syncBadgeTemplate(options) {
@@ -788,9 +761,6 @@ export async function syncBadgeTemplate(options) {
 
 					console.log(chalk.green(`        ${template.details.name} - ${chalk.yellow(`no changes to sync`)}`));
 				} catch (err) {
-					if (options.dev) {
-						console.log(err);
-					}
 					try {
 						await wait(500);
 						const { message } = await new ConfigApi(secretKey, options.dev).putBadgeTemplate(payload);
@@ -1037,14 +1007,13 @@ export async function findJsonFiles(dir) {
 }
 
 export function buildBadgeLocationsPayload(template) {
-	return {
-		left: template.left,
-		right: template.right,
-		callout: template.callout,
-	};
+	return ROOT_LOCATIONS.reduce((acc, location) => {
+		acc[location] = template[location];
+		return acc;
+	}, {});
 }
 export function buildBadgeTemplatePayload(template) {
-	return {
+	const payload = {
 		type: template.type,
 		name: template.name,
 		label: template.label || `${pascalCase(template.name)} Badge`,
@@ -1052,8 +1021,7 @@ export function buildBadgeTemplatePayload(template) {
 		component: template.component,
 		locations: template.locations,
 		value: {
-			enabled: typeof template.value.enabled === 'boolean' ? template.value.enabled : true,
-			validations: template.value.validations || null,
+			enabled: typeof template.value?.enabled === 'boolean' ? template.value.enabled : true,
 		},
 		parameters:
 			template.parameters?.map((parameter) => {
@@ -1076,4 +1044,8 @@ export function buildBadgeTemplatePayload(template) {
 				return data;
 			}) || [],
 	};
+	if (template.value?.validations) {
+		payload.value.validations = template.value.validations;
+	}
+	return payload;
 }
