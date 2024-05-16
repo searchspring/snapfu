@@ -167,7 +167,7 @@ describe('validateTemplate function', () => {
 		const template = {
 			details: mockTemplateSettings,
 		};
-		const result = validateTemplate(template);
+		const result = validateTemplate(template, JSON.stringify(mockLocations));
 		expect(result).toBe(true);
 
 		expect(mockConsoleLog).toHaveBeenCalledTimes(0);
