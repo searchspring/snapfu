@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.6.0](https://github.com/searchspring/snapfu/compare/v1.5.2...v1.6.0) (2024-05-16)
+
+
+### Features
+
+* **templates:** renaming all variables to include handleized one as 'class' ([f65b976](https://github.com/searchspring/snapfu/commit/f65b97627159b8f075c6dddba7dea12a8332196a))
+
 ### [1.5.2](https://github.com/searchspring/snapfu/compare/v1.5.1...v1.5.2) (2024-05-16)
 
 ### [1.5.1](https://github.com/searchspring/snapfu/compare/v1.5.0...v1.5.1) (2024-03-11)
