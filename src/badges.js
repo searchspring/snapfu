@@ -739,48 +739,49 @@ export async function syncBadgeTemplate(options) {
 		const { locations } = await new ConfigApi(secretKey, options.dev).getBadgeLocations();
 		validateTemplate(template, locations);
 
-		// prevent sync if template matches remote template
 		const payload = buildBadgeTemplatePayload(template.details);
 		await wait(500);
 		const remoteTemplates = await new ConfigApi(secretKey, options.dev).getBadgeTemplates();
 		const remoteTemplate = remoteTemplates.badgeTemplates?.find((remoteTemplate) => remoteTemplate.tag == template.details.name);
-		if (remoteTemplate) {
+		try {
+			if (!remoteTemplate) {
+				throw new Error('Remote template not found, syncing new template');
+			}
+			// prevent sync if template matches remote template
+			const { name, properties, description, snapComponent, labelConfig, locations } = remoteTemplate;
+			let parsedLocations, parsedLabelConfig, parsedProperties;
 			try {
-				// check if remote template already matches local template
-				const { name, properties, description, snapComponent, labelConfig, locations } = remoteTemplate;
-				const parsedLocations = JSON.parse(locations);
-				const parsedLabelConfig = JSON.parse(labelConfig);
-				const parsedProperties = JSON.parse(properties);
-
-				try {
-					if (payload.label !== name) throw new Error('Template names differ');
-					if (payload.description !== description) throw new Error('Template desicriptions differ');
-					if (payload.component !== snapComponent) throw new Error('Template components differ');
-
-					deepStrictEqual(parsedLabelConfig, payload.value);
-					deepStrictEqual(parsedLocations, payload.locations);
-					deepStrictEqual(parsedProperties, payload.parameters);
-
-					console.log(chalk.green(`        ${template.details.name} - ${chalk.yellow(`no changes to sync`)}`));
-				} catch (err) {
-					try {
-						await wait(500);
-						const { message } = await new ConfigApi(secretKey, options.dev).putBadgeTemplate(payload);
-						if (message === 'success') {
-							console.log(chalk.green(`        ${template.details.name} - ${chalk.gray.italic('synced to remote')}`));
-						} else {
-							console.log(chalk.green(`        ${template.details.name} - ${chalk.red.italic(message)}`));
-							exit(1);
-						}
-					} catch (err) {
-						console.log(chalk.red(`        ${template.details.name}`));
-						console.log('        ', chalk.red(err));
-						exit(1);
-					}
-				}
+				parsedLocations = JSON.parse(locations);
+				parsedLabelConfig = JSON.parse(labelConfig);
+				parsedProperties = JSON.parse(properties);
 			} catch (e) {
 				console.log(chalk.red(`Error: Failed parse JSON from remote template ${remoteTemplate.tag}`));
 				console.log(e);
+				exit(1);
+			}
+
+			if (payload.label !== name) throw new Error('Template names differ');
+			if (payload.description !== description) throw new Error('Template desicriptions differ');
+			if (payload.component !== snapComponent) throw new Error('Template components differ');
+
+			deepStrictEqual(parsedLabelConfig, payload.value);
+			deepStrictEqual(parsedLocations, payload.locations);
+			deepStrictEqual(parsedProperties, payload.parameters);
+
+			console.log(chalk.green(`        ${template.details.name} - ${chalk.yellow(`no changes to sync`)}`));
+		} catch (err) {
+			try {
+				await wait(500);
+				const { message } = await new ConfigApi(secretKey, options.dev).putBadgeTemplate(payload);
+				if (message === 'success') {
+					console.log(chalk.green(`        ${template.details.name} - ${chalk.gray.italic('synced to remote')}`));
+				} else {
+					console.log(chalk.green(`        ${template.details.name} - ${chalk.red.italic(message)}`));
+					exit(1);
+				}
+			} catch (err) {
+				console.log(chalk.red(`        ${template.details.name}`));
+				console.log('        ', chalk.red(err));
 				exit(1);
 			}
 		}
