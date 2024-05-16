@@ -1,13 +1,5 @@
-import {
-	timeout,
-	pascalCase,
-	buildTemplatePayload,
-	findJsonFiles,
-	readTemplateSettings,
-	writeTemplateFile,
-	getTemplates,
-	generateTemplateSettings,
-} from './recs';
+import { buildTemplatePayload, findJsonFiles, readTemplateSettings, writeTemplateFile, getTemplates, generateTemplateSettings } from './recs';
+import { pascalCase } from './utils/index.js';
 import tempDirectory from 'temp-dir';
 import fs from 'fs-extra';
 import path from 'path';
@@ -211,18 +203,5 @@ describe('pascalCase function', () => {
 	it('sets the first character to uppercase', async () => {
 		const uppered = pascalCase('testString');
 		expect(uppered).toBe('TestString');
-	});
-});
-
-describe('timeout function', () => {
-	it('waits for set amount of time', async () => {
-		const timeToWait = 500;
-
-		const now = Date.now();
-		await timeout(timeToWait);
-		const later = Date.now();
-
-		const timeBetween = later - now;
-		expect(timeBetween).toBeGreaterThanOrEqual(timeToWait);
 	});
 });
