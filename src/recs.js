@@ -111,7 +111,11 @@ export async function initTemplate(options) {
 			);
 
 			let options = { clobber: false };
-			const variables = { 'snapfu.variables.name': componentName };
+			const variables = {
+				'snapfu.variables.name': name,
+				'snapfu.variables.component': componentName,
+				'snapfu.variables.class': handleize(name),
+			};
 
 			options.transform = async (read, write, file) => {
 				await copyTransform(read, write, variables, file);
