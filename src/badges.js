@@ -733,9 +733,8 @@ export async function syncBadgeTemplate(options) {
 	const templates = await getTemplates(context.project.path);
 	const syncTemplates = templateName ? templates.filter((template) => template.details.name == templateName) : templates;
 
-	if (!syncTemplates.length && templateName != LOCATIONS_FILE) {
-		console.log(chalk.red(`Error: Template(s) not found.`));
-		return;
+	if (!syncTemplates.length) {
+		console.log(chalk.grey(`No templates found.\n`));
 	}
 
 	const sync = async (template, secretKey) => {
@@ -853,7 +852,7 @@ export async function syncBadgeTemplate(options) {
 		}
 	} else {
 		console.log(`${chalk.white.bold(`${repository.name}`)}`);
-		if ((locations && syncTemplates.length && !templateName) || templateName == LOCATIONS_FILE) {
+		if ((locations && !templateName) || templateName == LOCATIONS_FILE) {
 			await syncLocations(secretKey);
 			await wait(1000);
 		}
