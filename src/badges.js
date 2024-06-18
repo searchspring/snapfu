@@ -55,9 +55,21 @@ export async function initBadgeTemplate(options) {
 		},
 	]);
 
-	let answers2;
+	const type = answers1.type;
+	const componentOptions = library[searchspring.framework].components.badge[type];
+	let answers2 = await inquirer.prompt([
+		{
+			type: 'list',
+			name: 'badgeType',
+			message: `Please select the type of ${type} badge component to use:`,
+			choices: Object.keys(componentOptions),
+			default: 'default',
+		},
+	]);
+
+	let answers3;
 	if (!nameArg) {
-		answers2 = await inquirer.prompt([
+		answers3 = await inquirer.prompt([
 			{
 				type: 'input',
 				name: 'name',
@@ -69,10 +81,10 @@ export async function initBadgeTemplate(options) {
 		]);
 	}
 
-	const name = nameArg || answers2.name;
+	const name = nameArg || answers3.name;
 	const componentName = pascalCase(name);
 
-	const answers3 = await inquirer.prompt([
+	const answers4 = await inquirer.prompt([
 		{
 			type: 'input',
 			name: 'description',
@@ -91,14 +103,14 @@ export async function initBadgeTemplate(options) {
 
 	console.log(`\nInitializing template...`);
 
-	const answers = { ...answers1, ...answers2, ...answers3 };
+	const answers = { ...answers1, ...answers2, ...answers3, ...answers4 };
 
 	const description = answers && answers.description;
 	const templateDir = (answers && answers.directory) || templateDefaultDir;
 
 	try {
 		// copy over files for new component
-		const component = framework.components.badge[answers.type];
+		const component = framework.components.badge[answers.type][answers.badgeType];
 		if (component || !component.path || !component.files?.length) {
 			// create component template JSON descriptor file
 			await writeTemplateFile(
@@ -134,7 +146,7 @@ export async function initBadgeTemplate(options) {
 				let filePath;
 				const fileDetails = path.parse(name);
 
-				if (fileDetails.ext && fileDetails.name.toLowerCase() == answers.type.toLowerCase()) {
+				if (fileDetails.ext && fileDetails.name.toLowerCase() == answers.badgeType.toLowerCase()) {
 					// rename the file if it is not a directory AND it has a name matching the directory name (eg. default)
 					fileDetails.name = componentName;
 					delete fileDetails.base; // needed so that path.format utilizes name and ext

@@ -106,28 +106,47 @@ export const buildLibraryComponents = async (dir, options) => {
 			// parse contents of component category to get component details
 			const componentCategoryContents = await fsp.readdir(filePath);
 
-			for (const componentFile of componentCategoryContents) {
-				const componentFilePath = path.resolve(filePath, componentFile);
-				const componentFileStats = await statSync(componentFilePath);
-				if (componentFileStats.isDirectory()) {
-					// get contents and set files
+			for (const componentTypeFile of componentCategoryContents) {
+				const componentTypeFilePath = path.resolve(filePath, componentTypeFile);
+				const subDirStats = await statSync(componentTypeFilePath);
 
-					const componentContents = await fsp.readdir(componentFilePath);
-					// ['Default.jsx', 'Default.tsx', 'Default.scss']
-					// exclude files based on project type (javascript|typescript)
-					const filteredComponentContents = componentContents.filter((fileName) => {
-						if (options.context.project.type === 'typescript') {
-							return !(fileName.endsWith('.jsx') || fileName.endsWith('.js'));
-						} else {
-							return !(fileName.endsWith('.tsx') || fileName.endsWith('.ts'));
+				if (subDirStats.isDirectory()) {
+					const subDir = await fsp.readdir(componentTypeFilePath);
+
+					for (const componentFile of subDir) {
+						const componentFilePath = path.resolve(componentTypeFilePath, componentFile);
+						const componentFileStats = await statSync(componentTypeFilePath);
+
+						if (componentFileStats.isDirectory()) {
+							// get contents and set files
+							const componentContents = await fsp.readdir(componentFilePath);
+							// ['Default.jsx', 'Default.tsx', 'Default.scss']
+							// exclude files based on project type (javascript|typescript)
+							const filteredComponentContents = componentContents.filter((fileName) => {
+								if (options.context.project.type === 'typescript') {
+									return !(fileName.endsWith('.jsx') || fileName.endsWith('.js'));
+								} else {
+									return !(fileName.endsWith('.tsx') || fileName.endsWith('.ts'));
+								}
+							});
+
+							if (componentCategory[componentTypeFile]) {
+								componentCategory[componentTypeFile][componentFile] = {
+									path: componentFilePath,
+									label: componentFile,
+									files: filteredComponentContents,
+								};
+							} else {
+								componentCategory[componentTypeFile] = {
+									[componentFile]: {
+										path: componentFilePath,
+										label: componentFile,
+										files: filteredComponentContents,
+									},
+								};
+							}
 						}
-					});
-
-					componentCategory[componentFile] = {
-						path: componentFilePath,
-						label: componentFile,
-						files: filteredComponentContents,
-					};
+					}
 				}
 			}
 
