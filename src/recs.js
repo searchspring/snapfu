@@ -61,15 +61,21 @@ export async function initTemplate(options) {
 
 	const type = answers1.type;
 	const componentOptions = library[searchspring.framework].components.recommendation[type];
-	let answers2 = await inquirer.prompt([
-		{
-			type: 'list',
-			name: 'componentType',
-			message: `Please select the type of ${type} recommendation component to use:`,
-			choices: Object.keys(componentOptions),
-			default: 'default',
-		},
-	]);
+	let answers2;
+	const keys = Object.keys(componentOptions);
+	if (keys.length > 1) {
+		answers2 = await inquirer.prompt([
+			{
+				type: 'list',
+				name: 'componentType',
+				message: `Please select the type of ${type} recommendation component to use:`,
+				choices: Object.keys(componentOptions),
+				default: 'default',
+			},
+		]);
+	} else {
+		answers2 = { componentType: keys[0] };
+	}
 
 	let answers3;
 	if (!nameArg) {
@@ -105,17 +111,64 @@ export async function initTemplate(options) {
 		},
 	]);
 
-	console.log(`\nInitializing template...`);
-
 	const answers = { ...answers1, ...answers2, ...answers3, ...answers4 };
 
 	const description = answers && answers.description;
 	const templateDir = (answers && answers.directory) || templateDefaultDir;
+	const component = framework.components.recommendation[answers.type][answers.componentType];
+
+	if (component?.variables) {
+		answers.custom = {};
+
+		for (let i = 0; i < component.variables.length; i++) {
+			const v = component.variables[i];
+			let answr = await inquirer.prompt([
+				{
+					name: v.name,
+					type: v.type,
+					message: v.message,
+					choices: v.choices || undefined,
+					default: v.default || undefined,
+					validate: v.validate
+						? (input) => {
+								try {
+									const fn = new Function(`
+								var validation = ${v.validate}
+								return validation('${input}');
+							`);
+
+									const validationReturn = fn();
+
+									//native inquirer error msg
+									if (typeof validationReturn === 'string') {
+										return validationReturn;
+									}
+
+									return validationReturn;
+								} catch (e) {
+									console.log('\nInvalid validation function provided. This function may have a syntax error: \n', v.validate, '\n', e);
+									exit(1);
+								}
+							}
+						: undefined,
+				},
+			]);
+
+			if (v.choicesMap) {
+				answr = v.choicesMap[answr[v.name]];
+			} else {
+				answr = answr[v.name];
+			}
+
+			answers.custom[v.name] = answr;
+		}
+	}
 
 	try {
 		// copy over files for new component
-		const component = framework.components.recommendation[answers.type][answers.componentType];
 		if (component || !component.path || !component.files?.length) {
+			console.log(`\nInitializing template...`);
+
 			// create component template JSON descriptor file
 			await writeTemplateFile(
 				path.resolve(context.project.path, templateDir, `${componentName}.json`),
@@ -128,6 +181,12 @@ export async function initTemplate(options) {
 				'snapfu.variables.component': componentName,
 				'snapfu.variables.class': handleize(name),
 			};
+
+			if (answers.custom) {
+				Object.keys(answers.custom).forEach((key) => {
+					variables[`snapfu.variables.${key}`] = answers.custom[key];
+				});
+			}
 
 			options.transform = async (read, write, file) => {
 				await copyTransform(read, write, variables, file);

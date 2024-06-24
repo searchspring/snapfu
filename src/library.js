@@ -9,7 +9,7 @@ import { existsSync, mkdirSync, promises as fsp, statSync } from 'fs';
 import { exit } from 'process';
 import path from 'path';
 import chalk from 'chalk';
-
+import YAML from 'yaml';
 import { commandOutput } from './utils/index.js';
 
 export const setupLibraryRepo = async (options) => {
@@ -123,6 +123,10 @@ export const buildLibraryComponents = async (dir, options) => {
 							// ['Default.jsx', 'Default.tsx', 'Default.scss']
 							// exclude files based on project type (javascript|typescript)
 							const filteredComponentContents = componentContents.filter((fileName) => {
+								//exclude variable files
+								if (fileName.endsWith('.yaml')) {
+									return false;
+								}
 								if (options.context.project.type === 'typescript') {
 									return !(fileName.endsWith('.jsx') || fileName.endsWith('.js'));
 								} else {
@@ -130,21 +134,29 @@ export const buildLibraryComponents = async (dir, options) => {
 								}
 							});
 
-							if (componentCategory[componentTypeFile]) {
-								componentCategory[componentTypeFile][componentFile] = {
-									path: componentFilePath,
-									label: componentFile,
-									files: filteredComponentContents,
-								};
-							} else {
-								componentCategory[componentTypeFile] = {
-									[componentFile]: {
-										path: componentFilePath,
-										label: componentFile,
-										files: filteredComponentContents,
-									},
-								};
+							let componentDescriptorYaml = componentContents.filter((fileName) => fileName.endsWith('.yaml'));
+							let parsedComponentDescriptorYaml;
+							if (componentDescriptorYaml.length) {
+								try {
+									parsedComponentDescriptorYaml = YAML.parse(await fsp.readFile(`${componentFilePath}/${componentDescriptorYaml}`, 'utf8'));
+								} catch (err) {
+									console.log(chalk.red(`Failed to parse ${componentDescriptorYaml} contents...\n`));
+									console.log(err);
+									exit(1);
+								}
 							}
+
+							if (!componentCategory[componentTypeFile]) {
+								//initialize
+								componentCategory[componentTypeFile] = {};
+							}
+
+							componentCategory[componentTypeFile][componentFile] = {
+								path: componentFilePath,
+								label: componentFile,
+								files: filteredComponentContents,
+								variables: parsedComponentDescriptorYaml?.variables || undefined,
+							};
 						}
 					}
 				}

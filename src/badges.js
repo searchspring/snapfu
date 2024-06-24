@@ -57,15 +57,21 @@ export async function initBadgeTemplate(options) {
 
 	const type = answers1.type;
 	const componentOptions = library[searchspring.framework].components.badge[type];
-	let answers2 = await inquirer.prompt([
-		{
-			type: 'list',
-			name: 'badgeType',
-			message: `Please select the type of ${type} badge component to use:`,
-			choices: Object.keys(componentOptions),
-			default: 'default',
-		},
-	]);
+	let answers2;
+	const keys = Object.keys(componentOptions);
+	if (keys.length > 1) {
+		answers2 = await inquirer.prompt([
+			{
+				type: 'list',
+				name: 'badgeType',
+				message: `Please select the type of ${type} badge component to use:`,
+				choices: Object.keys(componentOptions),
+				default: 'default',
+			},
+		]);
+	} else {
+		answers2 = { badgeType: keys[0] };
+	}
 
 	let answers3;
 	if (!nameArg) {
