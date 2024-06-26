@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.7.0](https://github.com/searchspring/snapfu/compare/v1.6.0...v1.7.0) (2024-06-26)
+
+
+### Features
+
+* **patch:** add find-replace to patch functions ([a51928c](https://github.com/searchspring/snapfu/commit/a51928c5b86541312d4057df1c40b67877f891e5))
+
+
+### Bug Fixes
+
+* **badges:** updating sync function to allow syncing of locations without the existence of templates ([627fce6](https://github.com/searchspring/snapfu/commit/627fce6dce6ff96d08691f62e659950b5aee65ce))
+
 ## [1.6.0](https://github.com/searchspring/snapfu/compare/v1.5.2...v1.6.0) (2024-05-16)
 
 
