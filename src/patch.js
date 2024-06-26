@@ -8,6 +8,7 @@ import glob from 'glob';
 
 import { editJSON } from './patch/edit-json.js';
 import { editYAML } from './patch/edit-yaml.js';
+import { findReplace } from './patch/find-replace.js';
 import { cmp, copy, commandOutput, boxify, boxifyVersions } from './utils/index.js';
 
 export const setupPatchRepo = async (options) => {
@@ -311,6 +312,12 @@ const runPatch = async (options, patchFile) => {
 											console.log(`editing ${fileName}`);
 											await editYAML(options, fileName, changes);
 										}
+
+										break;
+									}
+									case 'find-replace': {
+										console.log(`editing ${fileName}`);
+										await findReplace(options, fileName, changes);
 
 										break;
 									}
