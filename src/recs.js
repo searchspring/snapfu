@@ -153,14 +153,7 @@ export async function initTemplate(options) {
 						: undefined,
 				},
 			]);
-
-			if (v.choicesMap) {
-				answr = v.choicesMap[answr[v.name]];
-			} else {
-				answr = answr[v.name];
-			}
-
-			answers.custom[v.name] = answr;
+			answers.custom[v.name] = answr[v.name];
 		}
 	}
 
