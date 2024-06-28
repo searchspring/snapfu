@@ -210,6 +210,7 @@ export async function cli(args) {
 			break;
 		}
 
+		case 'badge':
 		case 'badges': {
 			function showTemplateHelp() {
 				help({ command: 'help', args: ['badges'] });
