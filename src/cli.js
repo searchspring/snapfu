@@ -61,6 +61,7 @@ async function parseArgumentsIntoOptions(rawArgs) {
 	// drop out if not logged in for certain commands
 	const userCommands = ['init', 'badges', 'recs', 'recommendation', 'recommendations', 'secret', 'secrets', 'logout', 'whoami', 'org-access'];
 	const secretCommands = ['badges', 'recs', 'recommendation', 'recommendations', 'secret', 'secrets'];
+	const templatesRestrictedCommands = ['recs', 'recommendation', 'recommendations'];
 
 	const loggedIn = user && user.token;
 	const secretOptions = args['--secrets-ci'] || secretKey;
@@ -69,6 +70,9 @@ async function parseArgumentsIntoOptions(rawArgs) {
 		console.log(chalk.yellow(`Login is required. Please login.`));
 		console.log(chalk.grey(`\n\tsnapfu login\n`));
 		exit(1);
+	} else if (context.project.distribution == 'SnapTemplates' && templatesRestrictedCommands.includes(command)) {
+		console.log(chalk.yellow(`The '${command}' command is not supported when using SnapTemplates.`));
+		exit(0);
 	} else if (secretCommands.includes(command) && (loggedIn || secretOptions)) {
 		const getSecretKeyFromCLI = (siteId) => {
 			try {
