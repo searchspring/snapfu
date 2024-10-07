@@ -73,20 +73,33 @@ export async function getProject(dir) {
 			const parsedContents = JSON.parse(contents);
 
 			// determine project codebase
-			// if index.ts exists, assume typescript
+			// if index.ts or index.tsx exists, assume typescript
 			let type = 'javascript';
+			let distribution = 'Snap';
 			if (parsedContents.searchspring) {
 				try {
 					// check for ts
-					await fsp.stat(path.join(path.dirname(packageFile), 'src', 'index.ts'));
+					const file = path.join(path.dirname(packageFile), 'src', 'index.ts');
+					await fsp.stat(file);
 					type = 'typescript';
+
+					const contents = await fsp.readFile(file, 'utf8');
+					if (contents.includes('new SnapTemplates(')) {
+						distribution = 'SnapTemplates';
+					}
 				} catch (err) {
 					// check for tsx
 					try {
-						await fsp.stat(path.join(path.dirname(packageFile), 'src', 'index.tsx'));
+						const file = path.join(path.dirname(packageFile), 'src', 'index.tsx');
+						await fsp.stat(file);
 						type = 'typescript';
+
+						const contents = await fsp.readFile(file, 'utf8');
+						if (contents.includes('new SnapTemplates(')) {
+							distribution = 'SnapTemplates';
+						}
 					} catch (err) {
-						// do nothing
+						// do nothing because it is likely a JS project
 					}
 				}
 			}
@@ -95,6 +108,7 @@ export async function getProject(dir) {
 				path: path.dirname(packageFile),
 				dirname: path.basename(path.dirname(packageFile)),
 				type,
+				distribution,
 				packageJSON: parsedContents,
 			};
 
