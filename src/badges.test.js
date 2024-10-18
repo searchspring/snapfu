@@ -328,16 +328,8 @@ describe('writeTemplateFile function', () => {
 
 describe('readTemplateSettings function', () => {
 	it('returns empty when invalid file path provided', async () => {
-		const mockExit = jest.spyOn(process, 'exit').mockImplementation((number) => {
-			throw new Error('process.exit: ' + number);
-		});
-
-		await expect(async () => {
-			const contents = await readTemplateSettings('some/path');
-		}).rejects.toThrow();
-
-		expect(mockExit).toHaveBeenCalledWith(1);
-		mockExit.mockRestore();
+		const contents = await readTemplateSettings('some/path');
+		expect(contents).toStrictEqual({});
 	});
 
 	it('returns contents of json file', async () => {
