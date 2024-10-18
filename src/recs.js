@@ -441,7 +441,7 @@ ${invalidParam}
 	});
 
 	if (!syncTemplates.length) {
-		console.log(chalk.red(`Error: Template(s) not found.`));
+		console.log(chalk.grey(`No templates found.\n`));
 		return;
 	}
 

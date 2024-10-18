@@ -753,6 +753,7 @@ export async function syncBadgeTemplate(options) {
 
 	if (!syncTemplates.length) {
 		console.log(chalk.grey(`No templates found.\n`));
+		return;
 	}
 
 	const sync = async (template, secretKey) => {
@@ -987,7 +988,7 @@ export async function readTemplateSettings(filePath) {
 		return fileParsed;
 	} catch (err) {
 		console.log(chalk.red(`Error: invalid JSON in file: ${filePath}`));
-		exit(1);
+		return {};
 	}
 }
 
