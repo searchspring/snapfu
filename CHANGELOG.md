@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.8.0](https://github.com/searchspring/snapfu/compare/v1.7.1...v1.8.0) (2024-10-18)
+
+
+### Features
+
+* add snap distribution to context object ([3885719](https://github.com/searchspring/snapfu/commit/38857198606939582b660635e196d63d9f8bdc50))
+
+
+### Bug Fixes
+
+* exit without error when no badge templates to sync ([2c9eace](https://github.com/searchspring/snapfu/commit/2c9eacebe1dd74fceb357a67c72b0878c85f42a4))
+
 ### [1.7.1](https://github.com/searchspring/snapfu/compare/v1.7.0...v1.7.1) (2024-07-05)
 
 ## [1.7.0](https://github.com/searchspring/snapfu/compare/v1.6.0...v1.7.0) (2024-06-26)
