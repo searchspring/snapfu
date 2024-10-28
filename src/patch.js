@@ -239,11 +239,18 @@ export const applyPatch = async (options, patch) => {
 
 	// filter files based on distribution
 	dirFiles = dirFiles.filter((file) => {
-		const commonFiles = [`maintenance.${framework}.${patch}.yml`, `patch.${framework}.${patch}.yml`];
+		const commonFiles = [
+			`maintenance.${framework}.${patch}.yml`,
+			`maintenance.${framework}.${patch}.yaml`,
+			`patch.${framework}.${patch}.yml`,
+			`patch.${framework}.${patch}.yaml`,
+		];
 		const specificFile =
-			distribution === 'templates' ? `maintenance.${framework}.snapTemplates.${patch}.yml` : `maintenance.${framework}.snap.${patch}.yml`;
+			distribution === 'templates'
+				? [`maintenance.${framework}.snapTemplates.${patch}.yml`, `maintenance.${framework}.snapTemplates.${patch}.yaml`]
+				: [`maintenance.${framework}.snap.${patch}.yml`, `maintenance.${framework}.snap.${patch}.yaml`];
 
-		return [...commonFiles, specificFile].includes(file);
+		return [...commonFiles, ...specificFile].includes(file);
 	});
 
 	// execute the filtered files
