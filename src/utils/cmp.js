@@ -1,6 +1,12 @@
 export const cmp = (a, b) => {
 	const pa = a.split('.');
 	const pb = b.split('.');
+
+	// custom patch version if not standard versioning (eg 0.33.0-1)
+	if (pa.length !== 3 || pb.length !== 3) {
+		return 0;
+	}
+
 	for (let i = 0; i < 3; i++) {
 		const na = Number(pa[i]);
 		const nb = Number(pb[i]);
