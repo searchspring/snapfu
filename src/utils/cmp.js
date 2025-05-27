@@ -4,7 +4,7 @@ export const cmp = (a, b) => {
 
 	// custom patch version if not standard versioning (eg 0.33.0-1)
 	if (pa.length !== 3 || pb.length !== 3) {
-		return 0;
+		return a.localeCompare(b);
 	}
 
 	for (let i = 0; i < 3; i++) {
