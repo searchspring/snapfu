@@ -90,7 +90,7 @@ export const getVersions = async (options, startingAt, endingAt) => {
 		const patchVersions = await fsp.readdir(path.join(frameworkPath));
 		for (const file of patchVersions) {
 			const filePath = path.resolve(frameworkPath, file);
-			const fileStats = await statSync(filePath);
+			const fileStats = await fsp.stat(filePath);
 			if (fileStats.isDirectory()) {
 				versions.push(file);
 			}
@@ -110,8 +110,12 @@ export const getVersions = async (options, startingAt, endingAt) => {
 };
 
 export const getCustomPatchVersions = async (options) => {
-	// ~/.searchspring/snapfu-patches/custom/{version}
-	const frameworkPath = path.join(options.config.patches.dir, 'custom');
+	const { context } = options;
+	const { searchspring } = context;
+	const { framework } = searchspring || {};
+
+	// ~/.searchspring/snapfu-patches/custom/{framework}/{version}
+	const frameworkPath = path.join(options.config.patches.dir, 'custom', framework);
 	const patchDirExists = existsSync(frameworkPath);
 	let versions = [];
 
@@ -119,7 +123,7 @@ export const getCustomPatchVersions = async (options) => {
 		const patchVersions = await fsp.readdir(path.join(frameworkPath));
 		for (const file of patchVersions) {
 			const filePath = path.resolve(frameworkPath, file);
-			const fileStats = await statSync(filePath);
+			const fileStats = await fsp.stat(filePath);
 			if (fileStats.isDirectory()) {
 				versions.push(file);
 			}
@@ -220,7 +224,7 @@ export const applyPatches = async (options, skipUpdate = false) => {
 	// apply patches one at a time
 	for (const patch of patches) {
 		console.log(chalk.cyan.bold(`\n${patch}`));
-		await applyPatch(options, patch);
+		await applyPatch(options, patch, isCustomPatch);
 	}
 
 	// modify package.json with finalVersion number
@@ -236,7 +240,7 @@ export const applyPatches = async (options, skipUpdate = false) => {
 	console.log(chalk.cyan(boxify(` ${'patching complete'} `, `site updated to ${finalVersion}`)));
 };
 
-export const applyPatch = async (options, patch) => {
+export const applyPatch = async (options, patch, isCustomPatch) => {
 	const { context } = options;
 	const { searchspring } = context;
 	const { framework } = searchspring || {};
@@ -256,7 +260,7 @@ export const applyPatch = async (options, patch) => {
 
 	// copy patch files into ./patch directory in project
 	await fsp.mkdir(projectPatchDir);
-	const patchDir = path.join(options.config.patches.dir, framework, patch);
+	const patchDir = path.join(options.config.patches.dir, isCustomPatch ? 'custom' : '', framework, patch);
 	await copy(patchDir, projectPatchDir, { clobber: true });
 
 	// read the dir and log contents
