@@ -109,6 +109,27 @@ export const getVersions = async (options, startingAt, endingAt) => {
 	return versions;
 };
 
+export const getCustomPatchVersions = async (options) => {
+	// ~/.searchspring/snapfu-patches/custom/{version}
+	const frameworkPath = path.join(options.config.patches.dir, 'custom');
+	const patchDirExists = existsSync(frameworkPath);
+	let versions = [];
+
+	if (patchDirExists) {
+		const patchVersions = await fsp.readdir(path.join(frameworkPath));
+		for (const file of patchVersions) {
+			const filePath = path.resolve(frameworkPath, file);
+			const fileStats = await statSync(filePath);
+			if (fileStats.isDirectory()) {
+				versions.push(file);
+			}
+		}
+		versions.sort(cmp);
+	}
+
+	return versions;
+};
+
 export const applyPatches = async (options, skipUpdate = false) => {
 	if (!skipUpdate) await setupPatchRepo(options);
 
@@ -129,6 +150,8 @@ export const applyPatches = async (options, skipUpdate = false) => {
 	}
 
 	const availablePatches = await getVersions(options);
+	const availableCustomPatches = await getCustomPatchVersions(options);
+	let isCustomPatch = false;
 
 	// verify requested version
 	const versionMatch = /^^\w?(\d+\.\d+\.\d+)$/.exec(versionApply);
@@ -144,6 +167,9 @@ export const applyPatches = async (options, skipUpdate = false) => {
 			console.log(`Patch version ${filteredVersionApply} does not exist.`);
 			exit(1);
 		}
+	} else if (availableCustomPatches.includes(versionApply)) {
+		// custom patch
+		isCustomPatch = true;
 	} else if (!versionApply) {
 		console.log(chalk.yellow(`\nPatch version not provided.`));
 		await listPatches(options, true);
@@ -155,7 +181,12 @@ export const applyPatches = async (options, skipUpdate = false) => {
 
 	let patches;
 	try {
-		patches = await getVersions(options, projectVersion, filteredVersionApply);
+		if (isCustomPatch) {
+			// custom patches don't follow standard versioning, and are one-off patches
+			patches = [versionApply];
+		} else {
+			patches = await getVersions(options, projectVersion, filteredVersionApply);
+		}
 		if (patches.length == 0) {
 			console.log(`\n${chalk.bold('Nothing to patch.')}`);
 			if (!filteredVersionApply) console.log(chalk.cyan('Project is on latest version.'));
@@ -195,7 +226,11 @@ export const applyPatches = async (options, skipUpdate = false) => {
 
 	// modify package.json with finalVersion number
 	console.log(chalk.blue(`\nfinalizing patch...`));
-	await editJSON(options, 'package.json', [{ update: { properties: { searchspring: { version: finalVersion } } } }]);
+
+	// custom patches should not update the package.json version
+	if (!isCustomPatch) {
+		await editJSON(options, 'package.json', [{ update: { properties: { searchspring: { version: finalVersion } } } }]);
+	}
 
 	// patching complete
 	console.log();
