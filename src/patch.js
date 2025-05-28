@@ -90,7 +90,7 @@ export const getVersions = async (options, startingAt, endingAt) => {
 		const patchVersions = await fsp.readdir(path.join(frameworkPath));
 		for (const file of patchVersions) {
 			const filePath = path.resolve(frameworkPath, file);
-			const fileStats = await statSync(filePath);
+			const fileStats = await fsp.stat(filePath);
 			if (fileStats.isDirectory()) {
 				versions.push(file);
 			}
@@ -103,6 +103,30 @@ export const getVersions = async (options, startingAt, endingAt) => {
 
 		if (endingAt) {
 			versions = versions.filter((version) => cmp(version, endingAt) <= 0);
+		}
+	}
+
+	return versions;
+};
+
+export const getCustomPatchVersions = async (options) => {
+	const { context } = options;
+	const { searchspring } = context;
+	const { framework } = searchspring || {};
+
+	// ~/.searchspring/snapfu-patches/custom/{framework}/{version}
+	const frameworkPath = path.join(options.config.patches.dir, 'custom', framework);
+	const patchDirExists = existsSync(frameworkPath);
+	let versions = [];
+
+	if (patchDirExists) {
+		const patchVersions = await fsp.readdir(path.join(frameworkPath));
+		for (const file of patchVersions) {
+			const filePath = path.resolve(frameworkPath, file);
+			const fileStats = await fsp.stat(filePath);
+			if (fileStats.isDirectory()) {
+				versions.push(file);
+			}
 		}
 	}
 
@@ -129,6 +153,8 @@ export const applyPatches = async (options, skipUpdate = false) => {
 	}
 
 	const availablePatches = await getVersions(options);
+	const availableCustomPatches = await getCustomPatchVersions(options);
+	let isCustomPatch = false;
 
 	// verify requested version
 	const versionMatch = /^^\w?(\d+\.\d+\.\d+)$/.exec(versionApply);
@@ -144,6 +170,9 @@ export const applyPatches = async (options, skipUpdate = false) => {
 			console.log(`Patch version ${filteredVersionApply} does not exist.`);
 			exit(1);
 		}
+	} else if (availableCustomPatches.includes(versionApply)) {
+		// custom patch
+		isCustomPatch = true;
 	} else if (!versionApply) {
 		console.log(chalk.yellow(`\nPatch version not provided.`));
 		await listPatches(options, true);
@@ -155,7 +184,12 @@ export const applyPatches = async (options, skipUpdate = false) => {
 
 	let patches;
 	try {
-		patches = await getVersions(options, projectVersion, filteredVersionApply);
+		if (isCustomPatch) {
+			// custom patches don't follow standard versioning, and are one-off patches
+			patches = [versionApply];
+		} else {
+			patches = await getVersions(options, projectVersion, filteredVersionApply);
+		}
 		if (patches.length == 0) {
 			console.log(`\n${chalk.bold('Nothing to patch.')}`);
 			if (!filteredVersionApply) console.log(chalk.cyan('Project is on latest version.'));
@@ -190,19 +224,23 @@ export const applyPatches = async (options, skipUpdate = false) => {
 	// apply patches one at a time
 	for (const patch of patches) {
 		console.log(chalk.cyan.bold(`\n${patch}`));
-		await applyPatch(options, patch);
+		await applyPatch(options, patch, isCustomPatch);
 	}
 
 	// modify package.json with finalVersion number
 	console.log(chalk.blue(`\nfinalizing patch...`));
-	await editJSON(options, 'package.json', [{ update: { properties: { searchspring: { version: finalVersion } } } }]);
+
+	// custom patches should not update the package.json version
+	if (!isCustomPatch) {
+		await editJSON(options, 'package.json', [{ update: { properties: { searchspring: { version: finalVersion } } } }]);
+	}
 
 	// patching complete
 	console.log();
 	console.log(chalk.cyan(boxify(` ${'patching complete'} `, `site updated to ${finalVersion}`)));
 };
 
-export const applyPatch = async (options, patch) => {
+export const applyPatch = async (options, patch, isCustomPatch) => {
 	const { context } = options;
 	const { searchspring } = context;
 	const { framework } = searchspring || {};
@@ -222,7 +260,7 @@ export const applyPatch = async (options, patch) => {
 
 	// copy patch files into ./patch directory in project
 	await fsp.mkdir(projectPatchDir);
-	const patchDir = path.join(options.config.patches.dir, framework, patch);
+	const patchDir = path.join(options.config.patches.dir, isCustomPatch ? 'custom' : '', framework, patch);
 	await copy(patchDir, projectPatchDir, { clobber: true });
 
 	// read the dir and log contents
