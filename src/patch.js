@@ -124,7 +124,6 @@ export const getCustomPatchVersions = async (options) => {
 				versions.push(file);
 			}
 		}
-		versions.sort(cmp);
 	}
 
 	return versions;
