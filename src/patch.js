@@ -294,7 +294,15 @@ const runPatch = async (options, patchFile) => {
 
 	console.log(chalk.blue(`${path.basename(patchFile)}...`));
 
-	const { steps } = patchContents;
+	const { steps, runInAction } = patchContents;
+
+	// skip running the steps in the patch file if running in the updater and patch file has runInAction flag
+	if (options.options.updater && runInAction === true) {
+		console.log(chalk.blue(`${path.basename(patchFile)}... skipping due to runInAction`));
+		// adds a new line to README.md so that the updater can create a branch
+		await commandOutput(`echo "" >> README.md`);
+		return;
+	}
 
 	// steps supported (file, run);
 	for (const step of steps) {

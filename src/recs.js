@@ -362,6 +362,7 @@ export async function removeTemplate(options) {
 		} catch (err) {
 			process.stdout.write(chalk.red.italic(' - archived failed'));
 			console.log('        ', chalk.red(err));
+			exit(1);
 		}
 
 		await wait(500);

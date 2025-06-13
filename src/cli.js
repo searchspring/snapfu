@@ -30,6 +30,7 @@ async function parseArgumentsIntoOptions(rawArgs) {
 			{
 				'--dev': Boolean,
 				'--ci': Boolean,
+				'--updater': Boolean,
 				'--secret-key': String,
 				'--secrets-ci': String,
 			},
@@ -195,6 +196,7 @@ async function parseArgumentsIntoOptions(rawArgs) {
 			secretKey,
 			secrets: args['--secrets-ci'],
 			ci: args['--ci'],
+			updater: args['--updater'],
 		},
 		context,
 		multipleSites,
@@ -358,7 +360,12 @@ export async function cli(args) {
 
 			switch (command) {
 				case 'apply':
-					await applyPatches(options, options.options.ci);
+					if (options.options.ci && options.options.secrets) {
+						// ran in the action and patches should be pulled
+						await applyPatches(options, false);
+					} else {
+						await applyPatches(options, options.options.ci);
+					}
 					break;
 
 				case 'list':
