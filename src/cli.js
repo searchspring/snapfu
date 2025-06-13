@@ -360,7 +360,7 @@ export async function cli(args) {
 
 			switch (command) {
 				case 'apply':
-					if (options.options.ci && options.options.secrets) {
+					if (options.options.ci && (options.options.secrets || options.options.secretKey)) {
 						// ran in the action and patches should be pulled
 						await applyPatches(options, false);
 					} else {
