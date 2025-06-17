@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.9.2](https://github.com/searchspring/snapfu/compare/v1.9.1...v1.9.2) (2025-06-13)
+
+
+### Bug Fixes
+
+* fix custom patchApply logic ([e41a895](https://github.com/searchspring/snapfu/commit/e41a8957abf8c7289d40217763dc87b53e93847c))
+
+### [1.9.1](https://github.com/searchspring/snapfu/compare/v1.9.0...v1.9.1) (2025-06-13)
+
+## [1.9.0](https://github.com/searchspring/snapfu/compare/v1.8.0...v1.9.0) (2025-05-28)
+
+
+### Features
+
+* add support for custom patches ([e0a1080](https://github.com/searchspring/snapfu/commit/e0a108073e783f1ce081aeed75a0479f1b188ccf))
+
+
+### Bug Fixes
+
+* custom patches not being applied ([30516d5](https://github.com/searchspring/snapfu/commit/30516d5140e61e6738a8b573740fc0e21f49e574))
+* remove cmp from custom patches ([06adb9f](https://github.com/searchspring/snapfu/commit/06adb9f67209652e75e8097b889bfc4d35a75ec9))
+
 ## [1.8.0](https://github.com/searchspring/snapfu/compare/v1.7.1...v1.8.0) (2024-10-18)
 
 
