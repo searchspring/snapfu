@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.9.9](https://github.com/searchspring/snapfu/compare/v1.9.8...v1.9.9) (2025-06-24)
+
+
+### Bug Fixes
+
+* create creds.json file if it does not exist ([0e3b983](https://github.com/searchspring/snapfu/commit/0e3b9838073458d6adb9e84c3257f494bd9ba45f))
+
 ### [1.9.8](https://github.com/searchspring/snapfu/compare/v1.9.7...v1.9.8) (2025-06-24)
 
 ### [1.9.7](https://github.com/searchspring/snapfu/compare/v1.9.6...v1.9.7) (2025-06-24)
