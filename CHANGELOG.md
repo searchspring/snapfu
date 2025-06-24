@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.9.10](https://github.com/searchspring/snapfu/compare/v1.9.9...v1.9.10) (2025-06-24)
+
+
+### Bug Fixes
+
+* ci flag should bypass login requirement ([7a33de4](https://github.com/searchspring/snapfu/commit/7a33de493ab78d7ca3dd415b9ffbd122092dbd90))
+
 ### [1.9.9](https://github.com/searchspring/snapfu/compare/v1.9.8...v1.9.9) (2025-06-24)
 
 
