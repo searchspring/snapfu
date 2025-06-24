@@ -107,7 +107,7 @@ export const auth = {
 		return new Promise((resolve, reject) => {
 			let credsLocation = path.join(dir, '/creds.json');
 			if (!fs.existsSync(credsLocation)) {
-				reject('creds not found');
+				fs.writeFileSync(credsLocation, JSON.stringify({ keys: {} }));
 			}
 			let creds = fs.readFileSync(credsLocation, 'utf8');
 			if (!creds) {
