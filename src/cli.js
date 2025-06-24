@@ -67,14 +67,14 @@ async function parseArgumentsIntoOptions(rawArgs) {
 	const loggedIn = user && user.token;
 	const secretOptions = args['--secrets-ci'] || secretKey;
 
-	if (userCommands.includes(command) && !(loggedIn || secretOptions)) {
+	if (userCommands.includes(command) && !(loggedIn || secretOptions || args['--ci'])) {
 		console.log(chalk.yellow(`Login is required. Please login.`));
 		console.log(chalk.grey(`\n\tsnapfu login\n`));
 		exit(1);
 	} else if (context.project.distribution == 'SnapTemplates' && templatesRestrictedCommands.includes(command)) {
 		console.log(chalk.yellow(`The '${command}' command is not supported when using SnapTemplates.`));
 		exit(0);
-	} else if (secretCommands.includes(command) && (loggedIn || secretOptions)) {
+	} else if (secretCommands.includes(command) && (loggedIn || secretOptions || args['--ci'])) {
 		const getSecretKeyFromCLI = (siteId) => {
 			try {
 				const secrets = JSON.parse(args['--secrets-ci']);
