@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.9.6](https://github.com/searchspring/snapfu/compare/v1.9.5...v1.9.6) (2025-06-24)
+
 ### [1.9.5](https://github.com/searchspring/snapfu/compare/v1.9.4...v1.9.5) (2025-06-24)
 
 ### [1.9.4](https://github.com/searchspring/snapfu/compare/v1.9.3...v1.9.4) (2025-06-24)
