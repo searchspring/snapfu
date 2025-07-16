@@ -365,7 +365,7 @@ export const init = async (options) => {
 			const scaffoldVariables = {
 				'snapfu.name': answers.name,
 				'snapfu.siteId': answers.siteId,
-				'snapfu.author': user.name,
+				'snapfu.author': user.name || user.login,
 				'snapfu.framework': answers.framework,
 			};
 
