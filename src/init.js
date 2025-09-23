@@ -402,10 +402,6 @@ export const init = async (options) => {
 				dir,
 			});
 
-			// set tag and branch protection rules
-			await setTagProtection(options, { organization: answers.organization, name: answers.name });
-			await setBranchProtection(options, { organization: answers.organization, name: answers.name });
-
 			if (dir != cwd()) {
 				console.log(`The ${chalk.blue(folderName)} directory has been created and initialized from ${chalk.blue(`${answers.scaffold}`)}.`);
 				console.log(`Get started by installing package dependencies and creating a branch:`);
@@ -420,96 +416,6 @@ export const init = async (options) => {
 		console.log(chalk.red(err));
 		exit(1);
 	}
-};
-
-export const setTagProtection = async function (options, details) {
-	const pattern = '*';
-	const { user } = options;
-
-	let octokit = new Octokit({
-		auth: user.token,
-		request: {
-			fetch: fetch,
-		},
-	});
-
-	const { organization, name } = details;
-
-	if (!options.dev && organization && name) {
-		console.log(`Setting tag protection for ${organization}/${name}...`);
-
-		try {
-			// create tag protection rule repository
-			const tagProtectionResponse = await octokit.rest.repos.createTagProtection({
-				owner: organization,
-				repo: name,
-				pattern,
-			});
-
-			if (tagProtectionResponse?.status === 201) {
-				console.log(chalk.green(`created tag protection rule '${pattern}'`));
-			} else {
-				throw new Error('tag not created');
-			}
-		} catch (err) {
-			console.log(chalk.red(`failed to set tag protection rule '${pattern}'`));
-		}
-	} else {
-		console.log(chalk.yellow('skipping creation of tag protection'));
-	}
-	console.log(); // new line spacing
-};
-
-export const setBranchProtection = async function (options, details) {
-	const { user } = options;
-
-	let octokit = new Octokit({
-		auth: user.token,
-		request: {
-			fetch: fetch,
-		},
-	});
-
-	const { organization, name } = details;
-
-	if (!options.dev && organization && name) {
-		console.log(`Setting branch protection for ${DEFAULT_BRANCH} in ${organization}/${name}...`);
-
-		try {
-			// create branch protection rule for 'production' branch
-			const branchProtectionResponse = await octokit.rest.repos.updateBranchProtection({
-				owner: organization,
-				repo: name,
-				branch: DEFAULT_BRANCH,
-				required_status_checks: {
-					strict: false,
-					checks: [
-						{
-							context: 'Snap Action',
-						},
-					],
-				},
-				enforce_admins: true,
-				required_pull_request_reviews: {
-					dismiss_stale_reviews: true,
-					required_approving_review_count: 0,
-				},
-				restrictions: null,
-			});
-
-			if (branchProtectionResponse && branchProtectionResponse.status === 200) {
-				console.log(chalk.green(`created branch protection for ${DEFAULT_BRANCH}`));
-			} else {
-				console.log(chalk.red(`failed to create branch protection rule`));
-			}
-		} catch (err) {
-			console.log(chalk.red(`failed to create branch protection rule`));
-			console.log(chalk.red(err));
-		}
-	} else {
-		console.log(chalk.yellow('skipping creation of branch protection'));
-	}
-	console.log(); // new line spacing
 };
 
 export const setRepoSecret = async function (options, details) {
