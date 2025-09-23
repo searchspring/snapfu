@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.9.14](https://github.com/searchspring/snapfu/compare/v1.9.13...v1.9.14) (2025-09-23)
+
+
+### Bug Fixes
+
+* remove branch and tag protection from init ([bb69f58](https://github.com/searchspring/snapfu/commit/bb69f58ff3cb6a748a904e878e6d399b3fb89f6f))
+
 ### [1.9.13](https://github.com/searchspring/snapfu/compare/v1.9.12...v1.9.13) (2025-06-25)
 
 ### [1.9.12](https://github.com/searchspring/snapfu/compare/v1.9.11...v1.9.12) (2025-06-25)
