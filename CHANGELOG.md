@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.10.0](https://github.com/searchspring/snapfu/compare/v1.9.14...v1.10.0) (2025-09-29)
+
+
+### Features
+
+* add branch ruleset to init ([f448418](https://github.com/searchspring/snapfu/commit/f4484187b78998cfda0f5fd480a0088932a85f97))
+
 ### [1.9.14](https://github.com/searchspring/snapfu/compare/v1.9.13...v1.9.14) (2025-09-23)
 
 
