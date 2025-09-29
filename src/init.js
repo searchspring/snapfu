@@ -402,6 +402,8 @@ export const init = async (options) => {
 				dir,
 			});
 
+			await setBranchProtection(options, { organization: answers.organization, name: answers.name });
+
 			if (dir != cwd()) {
 				console.log(`The ${chalk.blue(folderName)} directory has been created and initialized from ${chalk.blue(`${answers.scaffold}`)}.`);
 				console.log(`Get started by installing package dependencies and creating a branch:`);
@@ -416,6 +418,88 @@ export const init = async (options) => {
 		console.log(chalk.red(err));
 		exit(1);
 	}
+};
+
+export const setBranchProtection = async function (options, details) {
+	const { user } = options;
+
+	let octokit = new Octokit({
+		auth: user.token,
+		request: {
+			fetch: fetch,
+		},
+	});
+
+	const { organization, name } = details;
+
+	if (!options.dev && organization && name) {
+		console.log(`Setting branch protection for ${DEFAULT_BRANCH} in ${organization}/${name}...`);
+
+		try {
+			// create branch protection rule for 'production' branch
+			const branchProtectionResponse = await octokit.rest.repos.createRepoRuleset({
+				owner: organization,
+				repo: name,
+				name: 'Production',
+				target: 'branch',
+				enforcement: 'active',
+				conditions: {
+					ref_name: {
+						exclude: [],
+						include: [`refs/heads/${DEFAULT_BRANCH}`],
+					},
+				},
+				rules: [
+					{
+						type: 'required_status_checks',
+						parameters: {
+							strict_required_status_checks_policy: false,
+							do_not_enforce_on_create: false,
+							required_status_checks: [
+								{
+									context: 'Snap Action',
+								},
+							],
+						},
+					},
+					{
+						type: 'deletion',
+					},
+					{
+						type: 'pull_request',
+						parameters: {
+							required_approving_review_count: 0,
+							dismiss_stale_reviews_on_push: true,
+							require_code_owner_review: false,
+							require_last_push_approval: false,
+							required_review_thread_resolution: true,
+							automatic_copilot_code_review_enabled: true,
+							allowed_merge_methods: ['merge', 'squash', 'rebase'],
+						},
+					},
+					{
+						type: 'copilot_code_review',
+						parameters: {
+							review_on_push: false,
+							review_draft_pull_requests: false,
+						},
+					},
+				],
+			});
+
+			if (branchProtectionResponse && branchProtectionResponse.status === 201) {
+				console.log(chalk.green(`created branch protection for ${DEFAULT_BRANCH}`));
+			} else {
+				console.log(chalk.red(`failed to create branch protection rule`));
+			}
+		} catch (err) {
+			console.log(chalk.red(`failed to create branch protection rule`));
+			console.log(chalk.red(err));
+		}
+	} else {
+		console.log(chalk.yellow('skipping creation of branch protection'));
+	}
+	console.log(); // new line spacing
 };
 
 export const setRepoSecret = async function (options, details) {
