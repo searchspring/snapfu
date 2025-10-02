@@ -21,7 +21,7 @@ export class ConfigApi {
 	}
 
 	getHost(siteId = '') {
-		if (siteId && siteId.startsWith('at')) {
+		if (this.host !== ATHOS_API_HOST && siteId && siteId.startsWith('at')) {
 			return ATHOS_API_HOST;
 		}
 		return this.host;
