@@ -32,8 +32,8 @@ describe('listen for callback', () => {
 });
 
 describe('create github oauth url', () => {
-	function getUrl(isDev) {
-		let oauthUrl = github.createOauthUrl({ isDev: isDev });
+	function getUrl(dev) {
+		let oauthUrl = github.createOauthUrl({ dev });
 		return new URL(oauthUrl);
 	}
 	it('dev mode', () => {

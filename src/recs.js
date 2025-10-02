@@ -282,7 +282,7 @@ export async function listTemplates(options) {
 		let smcManaged;
 
 		const list = async (secretKey, siteId = '', name = '') => {
-			const remoteTemplates = await new ConfigApi(secretKey, options.dev).getTemplates();
+			const remoteTemplates = await new ConfigApi(secretKey, options).getTemplates({ siteId });
 
 			console.log(`${chalk.whiteBright(`Active Remote Templates (SMC) - ${name} ${chalk.cyan(`(${siteId})`)}`)}`);
 
@@ -351,12 +351,12 @@ export async function removeTemplate(options) {
 
 	const payload = { name: templateName, branch: branchName };
 
-	const remove = async (secretKey) => {
+	const remove = async (secretKey, siteId) => {
 		try {
 			// using fancy terminal output replacement
 			process.stdout.write(`${chalk.green(`        ${templateName}`)} ${chalk.blue(`[${branchName}]`)}`);
 
-			await new ConfigApi(secretKey, options.dev).archiveTemplate(payload);
+			await new ConfigApi(secretKey, options).archiveTemplate({ payload, siteId });
 
 			process.stdout.write(chalk.gray.italic(' - archived in remote ') + '\n');
 		} catch (err) {
@@ -373,12 +373,12 @@ export async function removeTemplate(options) {
 			const { secretKey, siteId, name } = options.multipleSites[i];
 
 			console.log(`${chalk.white.bold(`${name} ${chalk.cyan(`(${siteId})`)}`)}`);
-			await remove(secretKey);
+			await remove(secretKey, siteId);
 		}
 	} else {
 		const { secretKey } = options.options;
 		console.log(`${chalk.white.bold(`${repository.name}`)}`);
-		await remove(secretKey);
+		await remove(secretKey, options.context.searchspring.siteId);
 	}
 }
 
@@ -452,7 +452,7 @@ ${invalidParam}
 		return;
 	}
 
-	const sync = async (template, secretKey) => {
+	const sync = async (template, secretKey, siteId) => {
 		const payload = buildTemplatePayload(template.details, { branch: branchName, framework: searchspring.framework });
 
 		if (payload.name && !payload.name.match(/^[a-zA-Z0-9_-]*$/)) {
@@ -461,7 +461,7 @@ ${invalidParam}
 		}
 
 		try {
-			await new ConfigApi(secretKey, options.dev).putTemplate(payload);
+			await new ConfigApi(secretKey, options).putTemplate({ payload, siteId });
 			console.log(
 				chalk.green(`        ${template.details.name}`),
 				chalk.blue(`[${branchName}]`),
@@ -488,7 +488,7 @@ ${invalidParam}
 				const template = syncTemplates[i];
 				console.log(`    synchronizing template ${i + 1} of ${syncTemplates.length}`);
 
-				await sync(template, secretKey);
+				await sync(template, secretKey, siteId);
 			}
 
 			if (x < options.multipleSites.length - 1) console.log();
@@ -498,7 +498,7 @@ ${invalidParam}
 		for (let i = 0; i < syncTemplates.length; i++) {
 			const template = syncTemplates[i];
 			console.log(`    synchronizing template ${i + 1} of ${syncTemplates.length}`);
-			await sync(template, secretKey);
+			await sync(template, secretKey, options.context.searchspring.siteId);
 		}
 	}
 }

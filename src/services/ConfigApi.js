@@ -1,6 +1,7 @@
 import fetch from 'node-fetch';
 
 export const API_HOST = 'https://smc-config-api.kube.searchspring.io';
+export const ATHOS_API_HOST = 'https://smc-config-api.kube.athoscommerce.io';
 export const DEV_API_HOST = 'http://localhost:9999';
 
 export class ConfigApi {
@@ -8,17 +9,26 @@ export class ConfigApi {
 	userAgent = '';
 	secretKey = '';
 
-	constructor(secretKey, dev) {
+	constructor(secretKey, options = {}) {
 		this.secretKey = secretKey || '';
 
-		if (dev) {
+		if (options.dev) {
 			this.host = DEV_API_HOST;
+		}
+		if (options.zone === 'athos') {
+			this.host = ATHOS_API_HOST;
 		}
 	}
 
-	async validateSite(siteId) {
-		const apiPath = `${this.host}/api/customer/${siteId}/verifyKey`;
+	getHost(siteId = '') {
+		if (siteId && siteId.startsWith('at')) {
+			return ATHOS_API_HOST;
+		}
+		return this.host;
+	}
 
+	async validateSite({ siteId }) {
+		const apiPath = `${this.getHost(siteId)}/api/customer/${siteId}/verifyKey`;
 		const response = await fetch(apiPath, {
 			method: 'GET',
 			headers: {
@@ -31,8 +41,8 @@ export class ConfigApi {
 		return await this.handleResponse(response, 'validateSite');
 	}
 
-	async getTemplates() {
-		const apiPath = `${this.host}/api/recsTemplates`;
+	async getTemplates({ siteId }) {
+		const apiPath = `${this.getHost(siteId)}/api/recsTemplates`;
 
 		const response = await fetch(apiPath, {
 			method: 'GET',
@@ -46,8 +56,8 @@ export class ConfigApi {
 		return await this.handleResponse(response, 'getTemplates');
 	}
 
-	async getBadgeLocations() {
-		const apiPath = `${this.host}/api/badgeLocations`;
+	async getBadgeLocations({ siteId }) {
+		const apiPath = `${this.getHost(siteId)}/api/badgeLocations`;
 
 		const response = await fetch(apiPath, {
 			method: 'GET',
@@ -61,8 +71,8 @@ export class ConfigApi {
 		return await this.handleResponse(response, 'getBadgeLocations');
 	}
 
-	async getBadgeTemplates() {
-		const apiPath = `${this.host}/api/badgeTemplates`;
+	async getBadgeTemplates({ siteId }) {
+		const apiPath = `${this.getHost(siteId)}/api/badgeTemplates`;
 
 		const response = await fetch(apiPath, {
 			method: 'GET',
@@ -76,8 +86,8 @@ export class ConfigApi {
 		return await this.handleResponse(response, 'getBadgeTemplates');
 	}
 
-	async putTemplate(payload) {
-		const apiPath = `${this.host}/api/recsTemplate`;
+	async putTemplate({ payload, siteId }) {
+		const apiPath = `${this.getHost(siteId)}/api/recsTemplate`;
 
 		const response = await fetch(apiPath, {
 			method: 'PUT',
@@ -92,8 +102,8 @@ export class ConfigApi {
 		return await this.handleResponse(response, 'putTemplate');
 	}
 
-	async putBadgeLocations(payload) {
-		const apiPath = `${this.host}/api/badgeLocations`;
+	async putBadgeLocations({ payload, siteId }) {
+		const apiPath = `${this.getHost(siteId)}/api/badgeLocations`;
 
 		const response = await fetch(apiPath, {
 			method: 'PUT',
@@ -108,8 +118,8 @@ export class ConfigApi {
 		return await this.handleResponse(response, 'putBadgeLocations');
 	}
 
-	async putBadgeTemplate(payload) {
-		const apiPath = `${this.host}/api/badgeTemplate`;
+	async putBadgeTemplate({ payload, siteId }) {
+		const apiPath = `${this.getHost(siteId)}/api/badgeTemplate`;
 
 		const response = await fetch(apiPath, {
 			method: 'PUT',
@@ -124,8 +134,8 @@ export class ConfigApi {
 		return await this.handleResponse(response, 'putBadgeTemplate');
 	}
 
-	async archiveTemplate(payload) {
-		const apiPath = `${this.host}/api/recsTemplate`;
+	async archiveTemplate({ payload, siteId }) {
+		const apiPath = `${this.getHost(siteId)}/api/recsTemplate`;
 
 		const response = await fetch(apiPath, {
 			method: 'DELETE',
@@ -139,8 +149,8 @@ export class ConfigApi {
 
 		return await this.handleResponse(response, 'archiveTemplate');
 	}
-	async archiveBadgeTemplate(payload) {
-		const apiPath = `${this.host}/api/badgeTemplate`;
+	async archiveBadgeTemplate({ payload, siteId }) {
+		const apiPath = `${this.getHost(siteId)}/api/badgeTemplate`;
 
 		const response = await fetch(apiPath, {
 			method: 'DELETE',
