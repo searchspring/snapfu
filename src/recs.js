@@ -282,6 +282,10 @@ export async function listTemplates(options) {
 		let smcManaged;
 
 		const list = async (secretKey, siteId = '', name = '') => {
+			if (!secretKey) {
+				console.log(chalk.red('Unable to list remote template due to missing secretKey'));
+				return;
+			}
 			const remoteTemplates = await new ConfigApi(secretKey, options).getTemplates({ siteId });
 
 			console.log(`${chalk.whiteBright(`Active Remote Templates (SMC) - ${name} ${chalk.cyan(`(${siteId})`)}`)}`);
@@ -356,6 +360,10 @@ export async function removeTemplate(options) {
 			// using fancy terminal output replacement
 			process.stdout.write(`${chalk.green(`        ${templateName}`)} ${chalk.blue(`[${branchName}]`)}`);
 
+			if (!secretKey) {
+				console.log(chalk.red('Unable to archive remote template due to missing secretKey'));
+				return;
+			}
 			await new ConfigApi(secretKey, options).archiveTemplate({ payload, siteId });
 
 			process.stdout.write(chalk.gray.italic(' - archived in remote ') + '\n');
@@ -453,6 +461,10 @@ ${invalidParam}
 	}
 
 	const sync = async (template, secretKey, siteId) => {
+		if (!secretKey) {
+			console.log(chalk.red('Unable to sync remote template due to missing secretKey'));
+			return;
+		}
 		const payload = buildTemplatePayload(template.details, { branch: branchName, framework: searchspring.framework });
 
 		if (payload.name && !payload.name.match(/^[a-zA-Z0-9_-]*$/)) {
@@ -462,13 +474,7 @@ ${invalidParam}
 
 		try {
 			await new ConfigApi(secretKey, options).putTemplate({ payload, siteId });
-			console.log(
-				chalk.green(`        ${template.details.name}`),
-				chalk.blue(`[${branchName}]`),
-				chalk.gray.italic(
-					`(https://manage.searchspring.net/management/product-recs-templates/template-version-edit?template_name=${payload.name}__${branchName})`
-				)
-			);
+			console.log(chalk.green(`        ${template.details.name}`), chalk.blue(`[${branchName}]`));
 		} catch (err) {
 			console.log(chalk.red(`        ${template.details.name}`), chalk.blue(`[${branchName}]`));
 			console.log('        ', chalk.red(err));
