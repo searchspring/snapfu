@@ -26,6 +26,18 @@ const mockPackage = {
 	},
 };
 
+const mockSnapTemplatesPackage = {
+	version: '1.2.3',
+	searchspring: {
+		version: '0.0.1',
+		siteId: 'ga9kq2',
+		framework: 'preact',
+		distribution: 'templates',
+		platform: 'shopify',
+		tags: ['markets'],
+	},
+};
+
 const mockPatch = {
 	version: 'x.x.x',
 	description: 'a mock patch',
@@ -52,6 +64,97 @@ const mockPatch = {
 			},
 		},
 	],
+};
+
+const mockMaintenancePatch = {
+	version: 'x.x.x',
+	description: 'a mock patch',
+	steps: [
+		{
+			run: 'echo "patching maintenance patch..."',
+		},
+		{
+			files: {
+				'package.json': {
+					action: 'edit-json',
+					changes: [
+						{
+							update: {
+								properties: {
+									searchspring: {
+										tags: ['maintenance'],
+									},
+								},
+							},
+						},
+					],
+				},
+			},
+		},
+	],
+};
+
+const mockSnapPatch = {
+	version: 'x.x.x',
+	description: 'a mock patch',
+	steps: [
+		{
+			run: 'echo "patching snap only patch..."',
+		},
+		{
+			files: {
+				'package.json': {
+					action: 'edit-json',
+					changes: [
+						{
+							update: {
+								properties: {
+									searchspring: {
+										tags: ['snap'],
+									},
+								},
+							},
+						},
+					],
+				},
+			},
+		},
+	],
+};
+
+const mockSnapTemplatesPatch = {
+	version: 'x.x.x',
+	description: 'a mock patch',
+	steps: [
+		{
+			run: 'echo "patching snap templates only patch..."',
+		},
+		{
+			files: {
+				'package.json': {
+					action: 'edit-json',
+					changes: [
+						{
+							update: {
+								properties: {
+									searchspring: {
+										tags: ['snapTemplates'],
+									},
+								},
+							},
+						},
+					],
+				},
+			},
+		},
+	],
+};
+
+const mockPatchData = {
+	patch: mockPatch,
+	maintenance: mockMaintenancePatch,
+	snap: mockSnapPatch,
+	snapTemplates: mockSnapTemplatesPatch,
 };
 
 const mockPatches = {
@@ -88,11 +191,26 @@ beforeAll(async () => {
 			const patchDirPath = path.join(mockPatchesDir, framework, version);
 			fs.mkdirsSync(patchDirPath, true);
 
-			// create mock patch file for each patch version
+			// create mock patch files for each patch version
 			const patchPath = path.join(patchDirPath, `patch.${framework}.${version}.yaml`);
 			const patchContents = JSON.parse(JSON.stringify(mockPatch));
 			patchContents.version = version;
 			await fsp.writeFile(patchPath, YAML.stringify(patchContents));
+
+			// maintenance file
+			const maintenancePath = path.join(patchDirPath, `maintenance.${framework}.${version}.yaml`);
+			const maintenanceContents = JSON.parse(JSON.stringify(mockMaintenancePatch));
+			maintenanceContents.version = version;
+			await fsp.writeFile(maintenancePath, YAML.stringify(maintenanceContents));
+
+			// disbribution maintenance files
+			const distributions = ['snap', 'snapTemplates'];
+			for (let distribution of distributions) {
+				const distributionMaintenancePath = path.join(patchDirPath, `maintenance.${framework}.${distribution}.${version}.yaml`);
+				const distributionMaintenanceContents = JSON.parse(JSON.stringify(mockPatchData[distribution]));
+				distributionMaintenanceContents.version = version;
+				await fsp.writeFile(distributionMaintenancePath, YAML.stringify(distributionMaintenanceContents));
+			}
 		}
 	}
 });
@@ -375,7 +493,7 @@ describe('applyPatches', () => {
 
 		const contents = await fsp.readFile(packageJSONPath, 'utf8');
 		const parsed = JSON.parse(contents);
-		expect(parsed.searchspring.tags).toStrictEqual([...mockPackage.searchspring.tags, 'patched']);
+		expect(parsed.searchspring.tags).toStrictEqual([...mockPackage.searchspring.tags, 'maintenance', 'snap', 'patched']);
 		expect(parsed.searchspring.version).toBe(version);
 		expect(logHistory.includes('patching...\n')).toBe(true);
 
@@ -415,7 +533,55 @@ describe('applyPatches', () => {
 		const contents = await fsp.readFile(packageJSONPath, 'utf8');
 		const parsed = JSON.parse(contents);
 
-		expect(parsed.searchspring.tags).toStrictEqual([...mockPackage.searchspring.tags, ...mockPatches.preact.map((p) => 'patched')]);
+		expect(parsed.searchspring.tags).toStrictEqual([
+			...mockPackage.searchspring.tags,
+			...mockPatches.preact.flatMap((p) => ['maintenance', 'snap', 'patched']),
+		]);
+		expect(parsed.searchspring.version).toBe(mockPatches.preact[mockPatches.preact.length - 1]);
+	});
+
+	it('will apply distribution specific maintenance', async () => {
+		// modify package json for templates project
+		packageJSONPath = path.join(projectDir, 'package.json');
+		await fsp.writeFile(packageJSONPath, JSON.stringify(mockSnapTemplatesPackage));
+
+		const options = {
+			config: {
+				searchspringDir: path.join(homeDir, '/.searchspring'),
+				patches: {
+					dir: mockPatchesDir,
+					repoName: 'snapfu-patches',
+					repoUrl: 'git@github.com:searchspring/snapfu-patches.git',
+				},
+			},
+			context: {
+				searchspring: {
+					siteId: 'abc123',
+					framework: 'preact',
+					distribution: 'templates',
+				},
+				project: {
+					// version: '0.0.1',
+					path: projectDir,
+				},
+				projectVersion: '0.0.1',
+			},
+			options: {
+				ci: true,
+			},
+			dev: false,
+			command: 'patch',
+			args: ['apply', 'latest'],
+		};
+
+		await applyPatches(options, true);
+		const contents = await fsp.readFile(packageJSONPath, 'utf8');
+		const parsed = JSON.parse(contents);
+
+		expect(parsed.searchspring.tags).toStrictEqual([
+			...mockSnapTemplatesPackage.searchspring.tags,
+			...mockPatches.preact.flatMap((p) => ['maintenance', 'snapTemplates', 'patched']),
+		]);
 		expect(parsed.searchspring.version).toBe(mockPatches.preact[mockPatches.preact.length - 1]);
 	});
 });

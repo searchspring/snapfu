@@ -234,9 +234,13 @@ export async function listBadgeTemplates(options) {
 			console.log();
 		}
 		const list = async (secretKey, siteId = '', name = '') => {
-			const remoteTemplates = await new ConfigApi(secretKey, options.dev).getBadgeTemplates();
+			if (!secretKey) {
+				console.log(chalk.red('Unable to list remote badge template due to missing secretKey'));
+				return;
+			}
+			const remoteTemplates = await new ConfigApi(secretKey, options).getBadgeTemplates({ siteId });
 			await wait(500);
-			const remoteLocations = await new ConfigApi(secretKey, options.dev).getBadgeLocations();
+			const remoteLocations = await new ConfigApi(secretKey, options).getBadgeLocations({ siteId });
 
 			console.log(`${chalk.whiteBright(`Active Remote Templates (SMC) - ${name} ${chalk.cyan(`(${siteId})`)}`)}`);
 
@@ -307,12 +311,16 @@ export async function removeBadgeTemplate(options) {
 
 	const payload = { name: templateName };
 
-	const remove = async (secretKey) => {
+	const remove = async (secretKey, siteId) => {
 		try {
 			// using fancy terminal output replacement
 			process.stdout.write(`${chalk.green(`        ${templateName}`)} - `);
 
-			const { message } = await new ConfigApi(secretKey, options.dev).archiveBadgeTemplate(payload);
+			if (!secretKey) {
+				console.log(chalk.red('Unable to archive remote badge template due to missing secretKey'));
+				return;
+			}
+			const { message } = await new ConfigApi(secretKey, options).archiveBadgeTemplate({ payload, siteId });
 			if (message === 'success') {
 				console.log(chalk.gray.italic('archived in remote'));
 			} else {
@@ -329,13 +337,13 @@ export async function removeBadgeTemplate(options) {
 			const { secretKey, siteId, name } = options.multipleSites[i];
 
 			console.log(`${chalk.white.bold(`${name} ${chalk.cyan(`(${siteId})`)}`)}`);
-			await remove(secretKey);
+			await remove(secretKey, siteId);
 			await wait(500);
 		}
 	} else {
 		const { secretKey } = options.options;
 		console.log(`${chalk.white.bold(`${repository.name}`)}`);
-		await remove(secretKey);
+		await remove(secretKey, options.context.searchspring.siteId);
 		await wait(500);
 	}
 }
@@ -756,14 +764,18 @@ export async function syncBadgeTemplate(options) {
 		return;
 	}
 
-	const sync = async (template, secretKey) => {
+	const sync = async (template, secretKey, siteId) => {
+		if (!secretKey) {
+			console.log(chalk.red('Unable to sync remote badge template due to missing secretKey'));
+			return;
+		}
 		// validate template against remote locations (locations get validated and synced first)
-		const { locations } = await new ConfigApi(secretKey, options.dev).getBadgeLocations();
+		const { locations } = await new ConfigApi(secretKey, options).getBadgeLocations({ siteId });
 		validateTemplate(template, locations);
 
 		const payload = buildBadgeTemplatePayload(template.details);
 		await wait(500);
-		const remoteTemplates = await new ConfigApi(secretKey, options.dev).getBadgeTemplates();
+		const remoteTemplates = await new ConfigApi(secretKey, options).getBadgeTemplates({ siteId });
 		const remoteTemplate = remoteTemplates.badgeTemplates?.find((remoteTemplate) => remoteTemplate.tag == template.details.name);
 		try {
 			if (!remoteTemplate) {
@@ -794,7 +806,7 @@ export async function syncBadgeTemplate(options) {
 		} catch (err) {
 			try {
 				await wait(500);
-				const { message } = await new ConfigApi(secretKey, options.dev).putBadgeTemplate(payload);
+				const { message } = await new ConfigApi(secretKey, options).putBadgeTemplate({ payload, siteId });
 				if (message === 'success') {
 					console.log(chalk.green(`        ${template.details.name} - ${chalk.gray.italic('synced to remote')}`));
 				} else {
@@ -809,10 +821,14 @@ export async function syncBadgeTemplate(options) {
 		}
 	};
 
-	const syncLocations = async (secretKey) => {
+	const syncLocations = async (secretKey, siteId) => {
+		if (!secretKey) {
+			console.log(chalk.red('Unable to sync remote badge locations due to missing secretKey'));
+			return;
+		}
 		console.log(`    synchronizing locations`);
 		const locationsPayload = buildBadgeLocationsPayload(locations.details);
-		const remoteBadgeLocations = await new ConfigApi(secretKey, options.dev).getBadgeLocations();
+		const remoteBadgeLocations = await new ConfigApi(secretKey, options).getBadgeLocations({ siteId });
 
 		// sync custom locations if locations.json file exists
 		if (remoteBadgeLocations.locations) {
@@ -825,7 +841,7 @@ export async function syncBadgeTemplate(options) {
 				} catch (err) {
 					try {
 						await wait(500);
-						const { message } = await new ConfigApi(secretKey, options.dev).putBadgeLocations(locationsPayload);
+						const { message } = await new ConfigApi(secretKey, options).putBadgeLocations({ payload: locationsPayload, siteId });
 						if (message === 'success') {
 							console.log(chalk.green(`        ${LOCATIONS_FILE} - ${chalk.gray.italic('synced to remote')}`));
 						} else {
@@ -856,14 +872,14 @@ export async function syncBadgeTemplate(options) {
 			console.log(`${chalk.white.bold(`${name} ${chalk.cyan(`(${siteId})`)}`)}`);
 
 			if ((locations && syncTemplates.length && !templateName) || templateName == LOCATIONS_FILE) {
-				await syncLocations(secretKey);
+				await syncLocations(secretKey, siteId);
 				await wait(1000);
 			}
 			for (let i = 0; i < syncTemplates.length; i++) {
 				const template = syncTemplates[i];
 				console.log(`    synchronizing template ${i + 1} of ${syncTemplates.length}`);
 
-				await sync(template, secretKey);
+				await sync(template, secretKey, siteId);
 				await wait(500);
 			}
 
@@ -872,13 +888,13 @@ export async function syncBadgeTemplate(options) {
 	} else {
 		console.log(`${chalk.white.bold(`${repository.name}`)}`);
 		if ((locations && !templateName) || templateName == LOCATIONS_FILE) {
-			await syncLocations(secretKey);
+			await syncLocations(secretKey, options.context.searchspring.siteId);
 			await wait(1000);
 		}
 		for (let i = 0; i < syncTemplates.length; i++) {
 			const template = syncTemplates[i];
 			console.log(`    synchronizing template ${i + 1} of ${syncTemplates.length}`);
-			await sync(template, secretKey);
+			await sync(template, secretKey, options.context.searchspring.siteId);
 			await wait(500);
 		}
 	}

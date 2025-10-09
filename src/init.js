@@ -248,7 +248,7 @@ export const init = async (options) => {
 
 			// validate siteId and secretKey
 			try {
-				await new ConfigApi(answers.secretKey, options.dev).validateSite(answers.siteId);
+				await new ConfigApi(answers.secretKey, options).validateSite({ siteId: answers.siteId });
 			} catch (err) {
 				console.log(chalk.red('\nSite verification failed.'));
 				console.log(chalk.red(err));

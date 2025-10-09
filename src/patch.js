@@ -243,7 +243,7 @@ export const applyPatches = async (options, skipUpdate = false) => {
 export const applyPatch = async (options, patch, isCustomPatch) => {
 	const { context } = options;
 	const { searchspring } = context;
-	const { framework } = searchspring || {};
+	const { framework, distribution } = searchspring || {};
 
 	// copy over patch files into ./patch of the project directory
 
@@ -264,17 +264,37 @@ export const applyPatch = async (options, patch, isCustomPatch) => {
 	await copy(patchDir, projectPatchDir, { clobber: true });
 
 	// read the dir and log contents
-	const dirFiles = await fsp.readdir(projectPatchDir);
+	let dirFiles = await fsp.readdir(projectPatchDir);
 
-	// execute .yaml files (maintenance first if found, followed by patch)
+	// default sort is the order we want to execute the files in
+	// [
+	//  'maintenance.${framework}.${version}.yml',
+	//  'maintenance.${framework}.snap.${version}.yml',
+	//  'maintenance.${framework}.snapTemplates.${version}.yml',
+	//  'patch.${framework}.${version}.yml'
+	// ]
 	dirFiles.sort();
+
+	// filter files based on distribution
+	dirFiles = dirFiles.filter((file) => {
+		const commonFiles = [
+			`maintenance.${framework}.${patch}.yml`,
+			`maintenance.${framework}.${patch}.yaml`,
+			`patch.${framework}.${patch}.yml`,
+			`patch.${framework}.${patch}.yaml`,
+		];
+		const specificFile =
+			distribution === 'templates'
+				? [`maintenance.${framework}.snapTemplates.${patch}.yml`, `maintenance.${framework}.snapTemplates.${patch}.yaml`]
+				: [`maintenance.${framework}.snap.${patch}.yml`, `maintenance.${framework}.snap.${patch}.yaml`];
+
+		return [...commonFiles, ...specificFile].includes(file);
+	});
+
+	// execute the filtered files
 	for (const file of dirFiles) {
 		const filePath = path.resolve(projectPatchDir, file);
-
-		if (filePath.includes(`patch/patch.${framework}`) || filePath.includes(`patch/maintenance.${framework}`)) {
-			// run patch file
-			await runPatch(options, filePath);
-		}
+		await runPatch(options, filePath);
 	}
 
 	// clean up (remove ./patch)

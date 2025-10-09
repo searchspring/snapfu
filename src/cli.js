@@ -29,6 +29,7 @@ async function parseArgumentsIntoOptions(rawArgs) {
 		args = arg(
 			{
 				'--dev': Boolean,
+				'--zone': String,
 				'--ci': Boolean,
 				'--updater': Boolean,
 				'--secret-key': String,
@@ -190,6 +191,7 @@ async function parseArgumentsIntoOptions(rawArgs) {
 		},
 		user,
 		dev: args['--dev'] || false,
+		zone: args['--zone'],
 		command,
 		args: args._.slice(1),
 		options: {

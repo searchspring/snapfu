@@ -9,7 +9,7 @@ import chalk from 'chalk';
 import os from 'os';
 
 export const login = async (options, opener, port) => {
-	let uri = github.createOauthUrl({ isDev: options.dev });
+	let uri = github.createOauthUrl(options);
 	let receivedUrl = auth.listenForCallback(port | 3827);
 
 	if (!opener) {
@@ -38,9 +38,11 @@ export const orgAccess = async (options, opener) => {
 
 export const github = {
 	scopes: 'user:email,repo',
-	createOauthUrl: (config) => {
-		let clientId = config.isDev ? 'e02c8965ff92aa84b6ee' : '5df635731e7fa3513c1d';
-		let redirectUrl = config.isDev ? 'http://localhost:3000' : 'https://token.kube.searchspring.io';
+	createOauthUrl: (options) => {
+		let clientId = options.dev ? 'e02c8965ff92aa84b6ee' : '5df635731e7fa3513c1d';
+		let redirectUrl = options.dev ? 'http://localhost:3000' : 'https://token.kube.searchspring.io';
+		// TODO: when token.kube.athoscommerce.io is available, update redirectUrl (or always use it since app config callback can only be a single url)
+		// let redirectUrl = options.dev ? 'http://localhost:3000' : options.zone === 'athos' ? 'https://token.kube.athoscommerce.io' : 'https://token.kube.searchspring.io';
 		return `https://github.com/login/oauth/authorize?response_type=token&scope=${escape(github.scopes)}&client_id=${clientId}&redirect_uri=${escape(
 			redirectUrl
 		)}`;
