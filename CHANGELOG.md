@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.11.0](https://github.com/searchspring/snapfu/compare/v1.10.0...v1.11.0) (2025-10-09)
+
+
+### Features
+
+* add support for executing specific patches based on project distribution ([94d7fba](https://github.com/searchspring/snapfu/commit/94d7fba56dd64e9973f37423c4705dd94643b4bf))
+* athos support ([a9fce35](https://github.com/searchspring/snapfu/commit/a9fce355ecf97b720d349614a0af737c32af3fe1))
+
+
+### Bug Fixes
+
+* getHost fix options.zone ([a526ddb](https://github.com/searchspring/snapfu/commit/a526ddb7e60a6362aeac057fd7ec1d0152a59e5e))
+* remove smc link reference, catch missing secretKeys ([e3323f7](https://github.com/searchspring/snapfu/commit/e3323f7c9963ffb79d705304a3ea6376237b7394))
+
 ## [1.10.0](https://github.com/searchspring/snapfu/compare/v1.9.14...v1.10.0) (2025-09-29)
 
 
