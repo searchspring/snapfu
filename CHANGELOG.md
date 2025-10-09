@@ -2,6 +2,52 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.10.0](https://github.com/searchspring/snapfu/compare/v1.9.14...v1.10.0) (2025-09-29)
+
+
+### Features
+
+* add branch ruleset to init ([f448418](https://github.com/searchspring/snapfu/commit/f4484187b78998cfda0f5fd480a0088932a85f97))
+
+### [1.9.14](https://github.com/searchspring/snapfu/compare/v1.9.13...v1.9.14) (2025-09-23)
+
+
+### Bug Fixes
+
+* remove branch and tag protection from init ([bb69f58](https://github.com/searchspring/snapfu/commit/bb69f58ff3cb6a748a904e878e6d399b3fb89f6f))
+
+### [1.9.13](https://github.com/searchspring/snapfu/compare/v1.9.12...v1.9.13) (2025-06-25)
+
+### [1.9.12](https://github.com/searchspring/snapfu/compare/v1.9.11...v1.9.12) (2025-06-25)
+
+### [1.9.11](https://github.com/searchspring/snapfu/compare/v1.9.10...v1.9.11) (2025-06-25)
+
+### [1.9.10](https://github.com/searchspring/snapfu/compare/v1.9.9...v1.9.10) (2025-06-24)
+
+
+### Bug Fixes
+
+* ci flag should bypass login requirement ([7a33de4](https://github.com/searchspring/snapfu/commit/7a33de493ab78d7ca3dd415b9ffbd122092dbd90))
+
+### [1.9.9](https://github.com/searchspring/snapfu/compare/v1.9.8...v1.9.9) (2025-06-24)
+
+
+### Bug Fixes
+
+* create creds.json file if it does not exist ([0e3b983](https://github.com/searchspring/snapfu/commit/0e3b9838073458d6adb9e84c3257f494bd9ba45f))
+
+### [1.9.8](https://github.com/searchspring/snapfu/compare/v1.9.7...v1.9.8) (2025-06-24)
+
+### [1.9.7](https://github.com/searchspring/snapfu/compare/v1.9.6...v1.9.7) (2025-06-24)
+
+### [1.9.6](https://github.com/searchspring/snapfu/compare/v1.9.5...v1.9.6) (2025-06-24)
+
+### [1.9.5](https://github.com/searchspring/snapfu/compare/v1.9.4...v1.9.5) (2025-06-24)
+
+### [1.9.4](https://github.com/searchspring/snapfu/compare/v1.9.3...v1.9.4) (2025-06-24)
+
+### [1.9.3](https://github.com/searchspring/snapfu/compare/v1.9.2...v1.9.3) (2025-06-24)
+
 ### [1.9.2](https://github.com/searchspring/snapfu/compare/v1.9.1...v1.9.2) (2025-06-13)
 
 

@@ -248,7 +248,7 @@ export const init = async (options) => {
 
 			// validate siteId and secretKey
 			try {
-				await new ConfigApi(answers.secretKey, options.dev).validateSite(answers.siteId);
+				await new ConfigApi(answers.secretKey, options).validateSite({ siteId: answers.siteId });
 			} catch (err) {
 				console.log(chalk.red('\nSite verification failed.'));
 				console.log(chalk.red(err));
@@ -402,8 +402,6 @@ export const init = async (options) => {
 				dir,
 			});
 
-			// set tag and branch protection rules
-			await setTagProtection(options, { organization: answers.organization, name: answers.name });
 			await setBranchProtection(options, { organization: answers.organization, name: answers.name });
 
 			if (dir != cwd()) {
@@ -420,44 +418,6 @@ export const init = async (options) => {
 		console.log(chalk.red(err));
 		exit(1);
 	}
-};
-
-export const setTagProtection = async function (options, details) {
-	const pattern = '*';
-	const { user } = options;
-
-	let octokit = new Octokit({
-		auth: user.token,
-		request: {
-			fetch: fetch,
-		},
-	});
-
-	const { organization, name } = details;
-
-	if (!options.dev && organization && name) {
-		console.log(`Setting tag protection for ${organization}/${name}...`);
-
-		try {
-			// create tag protection rule repository
-			const tagProtectionResponse = await octokit.rest.repos.createTagProtection({
-				owner: organization,
-				repo: name,
-				pattern,
-			});
-
-			if (tagProtectionResponse?.status === 201) {
-				console.log(chalk.green(`created tag protection rule '${pattern}'`));
-			} else {
-				throw new Error('tag not created');
-			}
-		} catch (err) {
-			console.log(chalk.red(`failed to set tag protection rule '${pattern}'`));
-		}
-	} else {
-		console.log(chalk.yellow('skipping creation of tag protection'));
-	}
-	console.log(); // new line spacing
 };
 
 export const setBranchProtection = async function (options, details) {
@@ -477,27 +437,57 @@ export const setBranchProtection = async function (options, details) {
 
 		try {
 			// create branch protection rule for 'production' branch
-			const branchProtectionResponse = await octokit.rest.repos.updateBranchProtection({
+			const branchProtectionResponse = await octokit.rest.repos.createRepoRuleset({
 				owner: organization,
 				repo: name,
-				branch: DEFAULT_BRANCH,
-				required_status_checks: {
-					strict: false,
-					checks: [
-						{
-							context: 'Snap Action',
+				name: 'Production',
+				target: 'branch',
+				enforcement: 'active',
+				conditions: {
+					ref_name: {
+						exclude: [],
+						include: [`refs/heads/${DEFAULT_BRANCH}`],
+					},
+				},
+				rules: [
+					{
+						type: 'required_status_checks',
+						parameters: {
+							strict_required_status_checks_policy: false,
+							do_not_enforce_on_create: false,
+							required_status_checks: [
+								{
+									context: 'Snap Action',
+								},
+							],
 						},
-					],
-				},
-				enforce_admins: true,
-				required_pull_request_reviews: {
-					dismiss_stale_reviews: true,
-					required_approving_review_count: 0,
-				},
-				restrictions: null,
+					},
+					{
+						type: 'deletion',
+					},
+					{
+						type: 'pull_request',
+						parameters: {
+							required_approving_review_count: 0,
+							dismiss_stale_reviews_on_push: true,
+							require_code_owner_review: false,
+							require_last_push_approval: false,
+							required_review_thread_resolution: true,
+							automatic_copilot_code_review_enabled: true,
+							allowed_merge_methods: ['merge', 'squash', 'rebase'],
+						},
+					},
+					{
+						type: 'copilot_code_review',
+						parameters: {
+							review_on_push: false,
+							review_draft_pull_requests: false,
+						},
+					},
+				],
 			});
 
-			if (branchProtectionResponse && branchProtectionResponse.status === 200) {
+			if (branchProtectionResponse && branchProtectionResponse.status === 201) {
 				console.log(chalk.green(`created branch protection for ${DEFAULT_BRANCH}`));
 			} else {
 				console.log(chalk.red(`failed to create branch protection rule`));
