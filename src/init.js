@@ -14,6 +14,7 @@ import { ConfigApi } from './services/ConfigApi.js';
 import YAML from 'yaml';
 
 export const DEFAULT_BRANCH = 'production';
+const TEMPLATES_SCAFFOLD_NAME_IDENTIFIER = '-templates';
 
 export const createDir = (dir) => {
 	return new Promise((resolutionFunc, rejectionFunc) => {
@@ -46,455 +47,445 @@ export const init = async (options) => {
 			console.log(chalk.yellow(`A parameter was not provided to the init command. The current working directory will be initialized.`));
 		}
 
-		let octokit;
+		const octokit = new Octokit({
+			auth: user.token,
+			request: {
+				fetch: fetch,
+			},
+		});
+
 		let orgs = [];
-		let snapfuScaffoldRepos = [];
-
 		if (isLoggedIn) {
-			octokit = new Octokit({
-				auth: user.token,
-				request: {
-					fetch: fetch,
-				},
-			});
-
 			orgs = await octokit.orgs.listForAuthenticatedUser().then(({ data }) => {
 				return data.map((org) => {
 					return org.login;
 				});
 			});
-
-			const fetchScaffoldRepos = async () => {
-				// using search modifiers - https://docs.github.com/en/search-github/searching-on-github/searching-for-repositories
-				const searchOrgs = orgs
-					.concat(user.login)
-					.concat('searchspring')
-					.map((org) => `org:${org}`);
-
-				let page = 0;
-				let per_page = 100;
-				let repos = [];
-				let response;
-				do {
-					page++;
-					response = await octokit.rest.search.repos({
-						q: `snapfu-scaffold-+archived:false+${searchOrgs.join('+')}`,
-						per_page,
-						page,
-					});
-
-					response.data?.items?.map((repo) => {
-						repos.push(repo);
-					});
-				} while (response.data?.items.length == per_page);
-				return repos.filter((repo) => repo.name.startsWith(`snapfu-scaffold-`));
-			};
-
-			snapfuScaffoldRepos = await fetchScaffoldRepos();
 		}
 
-		if (isLoggedIn && !snapfuScaffoldRepos?.length) {
-			console.log(chalk.red('failed to fetch scaffolds...'));
-		} else {
-			let questions1 = [
-				{
-					type: 'list',
-					name: 'framework',
-					message: "Please choose the framework you'd like to use:",
-					choices: ['preact'],
-					default: 'preact',
+		const fetchScaffoldRepos = async () => {
+			// using search modifiers - https://docs.github.com/en/search-github/searching-on-github/searching-for-repositories
+			const searchOrgs = orgs
+				.concat(user.login)
+				.concat('searchspring')
+				.map((org) => `org:${org}`);
+
+			let page = 0;
+			let per_page = 100;
+			let repos = [];
+			let response;
+			do {
+				page++;
+				response = await octokit.rest.search.repos({
+					q: `snapfu-scaffold-+archived:false+${searchOrgs.join('+')}`,
+					per_page,
+					page,
+				});
+
+				response.data?.items?.map((repo) => {
+					repos.push(repo);
+				});
+			} while (response.data?.items.length == per_page);
+			return repos.filter((repo) => repo.name.startsWith(`snapfu-scaffold-`));
+		};
+
+		const snapfuScaffoldRepos = await fetchScaffoldRepos();
+
+		if (!snapfuScaffoldRepos?.length) {
+			console.log(chalk.red('Failed to fetch scaffolds. Please try again later or contact Athos support for assistance.'));
+			exit(1);
+		}
+
+		let questions1 = [
+			{
+				type: 'list',
+				name: 'framework',
+				message: "Please choose the framework you'd like to use:",
+				choices: ['preact'],
+				default: 'preact',
+			},
+			{
+				type: 'list',
+				name: 'distribution',
+				message: 'Would you like to use Snap or Snap Templates?',
+				when: () => {
+					// TODO: remove when templates scaffolds exist
+					return snapfuScaffoldRepos.some((repo) => repo.name.includes(TEMPLATES_SCAFFOLD_NAME_IDENTIFIER));
 				},
-			];
+				choices: ['Snap', 'Snap Templates'],
+				default: 'Snap',
+			},
+		];
 
-			const answers1 = await inquirer.prompt(questions1);
+		const answers1 = await inquirer.prompt(questions1);
 
-			// Step 2: Choose scaffold
-			let scaffoldRepos = [];
-			let scaffolds = {};
+		// filter scaffolds based on framework and distribution
+		let availableScaffolds = snapfuScaffoldRepos.filter((repo) => repo.name.startsWith(`snapfu-scaffold-${answers1.framework}`));
+		if (answers1.distribution === 'Snap Templates') {
+			availableScaffolds = snapfuScaffoldRepos.filter((repo) => repo.name.includes(TEMPLATES_SCAFFOLD_NAME_IDENTIFIER));
+		} else {
+			availableScaffolds = snapfuScaffoldRepos.filter((repo) => !repo.name.includes(TEMPLATES_SCAFFOLD_NAME_IDENTIFIER));
+		}
 
-			if (isLoggedIn && snapfuScaffoldRepos?.length) {
-				// filter out repos that apply to the framework
-				scaffoldRepos = snapfuScaffoldRepos
-					.filter((repo) => repo.name.startsWith(`snapfu-scaffold-${answers1.framework}`))
-					.map((repo) => repo.full_name)
-					.sort();
+		const scaffolds = availableScaffolds
+			.map((repo) => repo.full_name)
+			.sort()
+			.reduce((acc, fullName) => {
+				const [owner, repo] = fullName.split('/');
+				acc[repo] = {
+					repo,
+					owner,
+					ssh: `git@github.com:${fullName}.git`,
+					http: `https://github.com/${fullName}`,
+				};
+				return acc;
+			}, {});
 
-				// map repos
-				scaffoldRepos.forEach((repository) => {
-					const [owner, repo] = repository.split('/');
+		// add additional custom scaffolds (snapfu.json advanced user)
+		if (isLoggedIn && user?.settings?.scaffolds?.repositories?.length) {
+			// add separator for clear delimiting
+			const capitalizedFramework = answers1.framework.charAt(0).toUpperCase() + answers1.framework.slice(1);
 
+			availableScaffolds.unshift(new inquirer.Separator(`Snapfu ${capitalizedFramework} Scaffolds`));
+			availableScaffolds.push(new inquirer.Separator('Custom Scaffolds'));
+
+			// loop through custom repos and add to scaffoldRepos list and scaffolds mapping
+			user.settings.scaffolds.repositories.forEach((url) => {
+				// supporting HTTP only list for now
+				const split = url.split('/');
+
+				if (split.length > 2) {
+					const repo = split[split.length - 1];
+					const owner = split[split.length - 2];
+					const repository = `${owner}/${repo}`;
+
+					availableScaffolds.push(repository);
 					scaffolds[repository] = {
 						repo,
 						owner,
 						ssh: `git@github.com:${repository}.git`,
-						http: `https://github.com/${repository}`,
+						http: url,
 					};
-				});
-
-				if (user?.settings?.scaffolds?.repositories?.length) {
-					// add separator for clear delimiting
-					const capitalizedFramework = answers1.framework.charAt(0).toUpperCase() + answers1.framework.slice(1);
-
-					scaffoldRepos.unshift(new inquirer.Separator(`Snapfu ${capitalizedFramework} Scaffolds`));
-					scaffoldRepos.push(new inquirer.Separator('Custom Scaffolds'));
-
-					// loop through custom repos and add to scaffoldRepos list and scaffolds mapping
-					user.settings.scaffolds.repositories.forEach((url) => {
-						// supporting HTTP only list for now
-						const split = url.split('/');
-
-						if (split.length > 2) {
-							const repo = split[split.length - 1];
-							const owner = split[split.length - 2];
-							const repository = `${owner}/${repo}`;
-
-							scaffoldRepos.push(repository);
-
-							scaffolds[repository] = {
-								repo,
-								owner,
-								ssh: `git@github.com:${repository}.git`,
-								http: url,
-							};
-						}
-					});
 				}
-			} else {
-				// Fallback for when not logged in - use default scaffold
-				scaffoldRepos = [`snapfu-scaffold-${answers1.framework}`];
-				scaffolds[`snapfu-scaffold-${answers1.framework}`] = {
-					repo: `snapfu-scaffold-${answers1.framework}`,
-					owner: 'searchspring',
-					ssh: `git@github.com:searchspring/snapfu-scaffold-${answers1.framework}.git`,
-					http: `https://github.com/searchspring/snapfu-scaffold-${answers1.framework}`,
-				};
-			}
+			});
+		}
 
-			const questions2 = [
-				{
-					type: 'list',
-					name: 'scaffold',
-					message: "Please choose the scaffold you'd like to use:",
-					choices: scaffoldRepos,
-					default: `snapfu-scaffold-${answers1.framework}`,
-				},
-			];
+		const questions2 = [
+			{
+				type: 'list',
+				name: 'scaffold',
+				message: "Please choose the scaffold you'd like to use:",
+				choices: availableScaffolds,
+				default: `snapfu-scaffold-${answers1.framework}`,
+			},
+		];
 
-			const answers2 = await inquirer.prompt(questions2);
+		const answers2 = await inquirer.prompt(questions2);
 
-			// scaffold reference
-			const scaffold = scaffolds[answers2.scaffold];
-			if (!scaffold) {
-				console.log(chalk.red(`Failed to find the selected scaffold ${answers2.scaffold}...\n`));
+		const scaffold = scaffolds[answers2.scaffold];
+		if (!scaffold) {
+			console.log(chalk.red(`Failed to find the selected scaffold ${answers2.scaffold}...\n Please report this issue to Athos support.`));
+			exit(1);
+		}
+
+		// fetch scaffold configuration if available
+		try {
+			const contentResponse = await octokit.rest.repos.getContent({
+				owner: scaffold.owner,
+				repo: scaffold.repo,
+				path: 'snapfu.config.yml',
+			});
+
+			try {
+				const buffer = new Buffer.from(contentResponse.data.content, 'base64');
+				const fileContents = buffer.toString('ascii');
+				scaffold.advanced = YAML.parse(fileContents);
+			} catch (err) {
+				console.log(chalk.red(`Failed to parse snapfu.config.yml contents...\n Please report this issue to Athos support.`));
 				exit(1);
 			}
+		} catch {
+			// do nothing - no advanced configuration available
+		}
 
-			// Fetch scaffold configuration if logged in
-			if (isLoggedIn && octokit) {
-				try {
-					const contentResponse = await octokit.rest.repos.getContent({
-						owner: scaffold.owner,
-						repo: scaffold.repo,
-						path: 'snapfu.config.yml',
-					});
-
-					try {
-						const buffer = new Buffer.from(contentResponse.data.content, 'base64');
-						const fileContents = buffer.toString('ascii');
-						scaffold.advanced = YAML.parse(fileContents);
-					} catch (err) {
-						console.log(chalk.red(`Failed to parse snapfu.config.yml contents...\n`));
-						exit(1);
-					}
-				} catch (err) {
-					if (err.status !== 404) {
-						console.log(chalk.red(`Failed to fetch snapfu.config.yml...\n`));
-						exit(1);
-					}
+		// ask follow up scaffold questions (if they exist)
+		if (scaffold.advanced?.variables?.length) {
+			let advancedQuestions = [];
+			scaffold.advanced.variables.forEach((variable) => {
+				if (variable.name && variable.type && variable.message) {
+					// remove the value
+					delete variable.value;
+					advancedQuestions.push(variable);
 				}
-			}
+			});
 
-			// Step 3: Ask follow up scaffold questions (if they exist)
-			if (scaffold.advanced?.variables?.length) {
-				let advancedQuestions = [];
-				scaffold.advanced.variables.forEach((variable) => {
-					if (variable.name && variable.type && variable.message) {
-						// remove the value
-						delete variable.value;
-						advancedQuestions.push(variable);
-					}
-				});
+			scaffold.answers = await inquirer.prompt(advancedQuestions);
+		}
 
-				scaffold.answers = await inquirer.prompt(advancedQuestions);
-			}
+		// ask for siteId (as this is used as a snapfu variable when copying over scaffold)
+		const questions3 = [
+			{
+				type: 'input',
+				name: 'siteId',
+				message: 'Please enter the siteId as found in the SMC console (a1b2c3):',
+				validate: (input) => {
+					return input && input.length > 0 && /^[0-9a-z]{6}$/.test(input);
+				},
+			},
+		];
+		const answers3 = await inquirer.prompt(questions3);
 
-			// Step 4: Ask for siteId (as this is used as a snapfu variable when copying over scaffold)
-			const questions3 = [
+		let useGitHubRepo = false;
+		let repositoryAnswers = {};
+
+		const githubQuestions = [
+			{
+				type: 'confirm',
+				name: 'useGitHubRepo',
+				message: 'Would you like to create a GitHub repository? (requires login)',
+				when: () => {
+					return isLoggedIn;
+				},
+				default: useGitHubRepo,
+			},
+		];
+
+		const githubAnswers = await inquirer.prompt(githubQuestions);
+		useGitHubRepo = githubAnswers.useGitHubRepo;
+
+		if (useGitHubRepo) {
+			const repoQuestions = [
 				{
 					type: 'input',
-					name: 'siteId',
-					message: 'Please enter the siteId as found in the SMC console (a1b2c3):',
+					name: 'name',
 					validate: (input) => {
-						return input && input.length > 0 && /^[0-9a-z]{6}$/.test(input);
+						return input && input.length > 0;
+					},
+					message: 'Please choose the name of this repository:',
+					default: path.basename(dir),
+				},
+				{
+					type: 'list',
+					name: 'organization',
+					message: 'Please choose which github organization to create this repository in:',
+					choices: orgs.concat(user.login),
+					default: 'searchspring-implementations',
+					when: () => {
+						return orgs && orgs.length > 0;
 					},
 				},
 			];
-			const answers3 = await inquirer.prompt(questions3);
 
-			let useGitHubRepo = false;
-			let repositoryAnswers = {};
+			repositoryAnswers = await inquirer.prompt(repoQuestions);
 
-			const githubQuestions = [
-				{
-					type: 'confirm',
-					name: 'useGitHubRepo',
-					message: 'Would you like to create a GitHub repository? (requires login)',
-					default: false,
-				},
-			];
-
-			const githubAnswers = await inquirer.prompt(githubQuestions);
-			useGitHubRepo = githubAnswers.useGitHubRepo;
-
-			if (useGitHubRepo) {
-				if (!isLoggedIn) {
-					console.log(chalk.yellow('You must be logged in to create a GitHub repository. Please run "snapfu login" first.'));
-					useGitHubRepo = false;
-				} else {
-					const repoQuestions = [
-						{
-							type: 'input',
-							name: 'name',
-							validate: (input) => {
-								return input && input.length > 0;
-							},
-							message: 'Please choose the name of this repository:',
-							default: path.basename(dir),
+			// Ask for secretKey if org is implementations
+			if (repositoryAnswers.organization === 'searchspring-implementations') {
+				const secretQuestions = [
+					{
+						type: 'input',
+						name: 'secretKey',
+						message: 'Please enter the secretKey as found in the SMC console (32 characters):',
+						validate: (input) => {
+							return input && input.length > 0 && /^[0-9a-zA-Z]{32}$/.test(input);
 						},
+					},
+				];
+				const secretAnswers = await inquirer.prompt(secretQuestions);
+				repositoryAnswers.secretKey = secretAnswers.secretKey;
+			}
+		}
+
+		// combined answers
+		const answers = { ...answers1, ...answers2, ...answers3, ...repositoryAnswers };
+
+		// validate siteId and secretKey
+		if (answers.secretKey) {
+			try {
+				await new ConfigApi(answers.secretKey, options).validateSite({ siteId: answers.siteId });
+			} catch (err) {
+				console.log(chalk.red('\nSite verification failed.'));
+				console.log(chalk.red(err));
+				exit(1);
+			}
+		}
+
+		// create local directory
+		let folderName = await createDir(dir);
+
+		if (useGitHubRepo) {
+			// set organization to user.login when answer is undefined (question never asked)
+			answers.organization = answers.organization || user.login;
+
+			// determine if using org or userspace
+			let creationMethod = answers.organization == user.login ? 'createForAuthenticatedUser' : 'createInOrg';
+
+			if (options.dev) {
+				console.log(chalk.blueBright('\nSkipping new repo creation...'));
+			} else {
+				// create the remote repo
+				console.log(`\nCreating repository...`);
+				let exists = false;
+
+				await octokit.repos[creationMethod]({
+					org: answers.organization,
+					name: answers.name,
+					private: true,
+					auto_init: true,
+				})
+					.then(() => console.log(chalk.cyan(`${answers.organization}/${answers.name}\n`)))
+					.then(async () => {
+						// giving github some time
+						await wait(1000);
+
+						// getting default branch name
+						const response = await octokit.repos.get({
+							owner: answers.organization,
+							repo: answers.name,
+						});
+
+						const { default_branch } = response.data;
+
+						if (default_branch !== DEFAULT_BRANCH) {
+							console.log(`Renaming default branch ${chalk.cyan(default_branch)} to ${chalk.cyan(DEFAULT_BRANCH)}\n`);
+							await octokit.repos.renameBranch({
+								owner: answers.organization,
+								repo: answers.name,
+								branch: default_branch,
+								new_name: DEFAULT_BRANCH,
+							});
+						}
+					})
+					.catch((err) => {
+						if (!err.message.includes('already exists')) {
+							console.log(chalk.red(err.message));
+							exit(1);
+						} else {
+							console.log(chalk.yellow('*** WARNING *** repository already exists\n'));
+							exists = true;
+						}
+					});
+
+				if (exists) {
+					let question3 = [
 						{
-							type: 'list',
-							name: 'organization',
-							message: 'Please choose which github organization to create this repository in:',
-							choices: orgs.concat(user.login),
-							default: 'searchspring-implementations',
-							when: () => {
-								return orgs && orgs.length > 0;
-							},
+							type: 'confirm',
+							name: 'continue',
+							message: 'Do you want to continue? This may overwrite existing files in the repo.',
+							default: false,
 						},
 					];
 
-					repositoryAnswers = await inquirer.prompt(repoQuestions);
+					let question4 = [
+						{
+							type: 'confirm',
+							name: 'sure',
+							message: 'Are you SURE? This may overwrite existing files in the repo.',
+							default: false,
+						},
+					];
 
-					// Step 5c: Ask for secretKey if org is implementations
-					if (repositoryAnswers.organization === 'searchspring-implementations') {
-						const secretQuestions = [
-							{
-								type: 'input',
-								name: 'secretKey',
-								message: 'Please enter the secretKey as found in the SMC console (32 characters):',
-								validate: (input) => {
-									return input && input.length > 0 && /^[0-9a-zA-Z]{32}$/.test(input);
-								},
-							},
-						];
-						const secretAnswers = await inquirer.prompt(secretQuestions);
-						repositoryAnswers.secretKey = secretAnswers.secretKey;
-					}
-				}
-			}
-
-			// combined answers
-			const answers = { ...answers1, ...answers2, ...answers3, ...repositoryAnswers };
-
-			// validate siteId and secretKey
-			if (answers.secretKey) {
-				try {
-					await new ConfigApi(answers.secretKey, options).validateSite({ siteId: answers.siteId });
-				} catch (err) {
-					console.log(chalk.red('\nSite verification failed.'));
-					console.log(chalk.red(err));
-					exit(1);
-				}
-			}
-
-			// create local directory
-			let folderName = await createDir(dir);
-
-			if (useGitHubRepo && octokit) {
-				// set organization to user.login when answer is undefined (question never asked)
-				answers.organization = answers.organization || user.login;
-
-				// determine if using org or userspace
-				let creationMethod = answers.organization == user.login ? 'createForAuthenticatedUser' : 'createInOrg';
-
-				if (options.dev) {
-					console.log(chalk.blueBright('\nSkipping new repo creation...'));
-				} else {
-					// create the remote repo
-					console.log(`\nCreating repository...`);
-					let exists = false;
-
-					await octokit.repos[creationMethod]({
-						org: answers.organization,
-						name: answers.name,
-						private: true,
-						auto_init: true,
-					})
-						.then(() => console.log(chalk.cyan(`${answers.organization}/${answers.name}\n`)))
-						.then(async () => {
-							// giving github some time
-							await wait(1000);
-
-							// getting default branch name
-							const response = await octokit.repos.get({
-								owner: answers.organization,
-								repo: answers.name,
-							});
-
-							const { default_branch } = response.data;
-
-							if (default_branch !== DEFAULT_BRANCH) {
-								console.log(`Renaming default branch ${chalk.cyan(default_branch)} to ${chalk.cyan(DEFAULT_BRANCH)}\n`);
-								const response2 = await octokit.repos.renameBranch({
-									owner: answers.organization,
-									repo: answers.name,
-									branch: default_branch,
-									new_name: DEFAULT_BRANCH,
-								});
-							}
-						})
-						.catch((err) => {
-							if (!err.message.includes('already exists')) {
-								console.log(chalk.red(err.message));
-								exit(1);
-							} else {
-								console.log(chalk.yellow('*** WARNING *** repository already exists\n'));
-								exists = true;
-							}
-						});
-
-					if (exists) {
-						let question3 = [
-							{
-								type: 'confirm',
-								name: 'continue',
-								message: 'Do you want to continue? This may overwrite existing files in the repo.',
-								default: false,
-							},
-						];
-
-						let question4 = [
-							{
-								type: 'confirm',
-								name: 'sure',
-								message: 'Are you SURE? This may overwrite existing files in the repo.',
-								default: false,
-							},
-						];
-
-						const answers3 = await inquirer.prompt(question3);
-						if (answers3.continue) {
-							const answers4 = await inquirer.prompt(question4);
-							if (!answers4.sure) {
-								console.log(chalk.yellow('aborting...\n'));
-								exit(1);
-							}
-						} else {
+					const answers3 = await inquirer.prompt(question3);
+					if (answers3.continue) {
+						const answers4 = await inquirer.prompt(question4);
+						if (!answers4.sure) {
 							console.log(chalk.yellow('aborting...\n'));
 							exit(1);
 						}
-
-						// new line
-						console.log();
+					} else {
+						console.log(chalk.yellow('aborting...\n'));
+						exit(1);
 					}
+
+					// new line
+					console.log();
 				}
 			}
+		}
 
-			if (useGitHubRepo && isLoggedIn && !options.dev) {
-				// newly create repo URLs
-				const creationMethod = answers.organization == user.login ? 'createForAuthenticatedUser' : 'createInOrg';
-				const repoUrlSSH = `git@github.com:${creationMethod == 'createInOrg' ? answers.organization : user.login}/${answers.name}.git`;
-				const repoUrlHTTP = `https://${user.login}@github.com/${creationMethod == 'createInOrg' ? answers.organization : user.login}/${answers.name}`;
+		if (useGitHubRepo && isLoggedIn && !options.dev) {
+			// newly create repo URLs
+			const creationMethod = answers.organization == user.login ? 'createForAuthenticatedUser' : 'createInOrg';
+			const repoUrlSSH = `git@github.com:${creationMethod == 'createInOrg' ? answers.organization : user.login}/${answers.name}.git`;
+			const repoUrlHTTP = `https://${user.login}@github.com/${creationMethod == 'createInOrg' ? answers.organization : user.login}/${answers.name}`;
 
-				try {
-					console.log(`Cloning repository via SSH...`);
-					await cloneAndCopyRepo(repoUrlSSH, dir, false);
-					console.log(`${chalk.cyan(repoUrlSSH)}\n`);
-				} catch (err) {
-					console.log(`SSH authentication failed. Cloning repository via HTTPS...`);
-					await cloneAndCopyRepo(repoUrlHTTP, dir, false);
-					console.log(`${chalk.cyan(repoUrlHTTP)}\n`);
-				}
+			try {
+				console.log(`Cloning repository via SSH...`);
+				await cloneAndCopyRepo(repoUrlSSH, dir, false);
+				console.log(`${chalk.cyan(repoUrlSSH)}\n`);
+			} catch (err) {
+				console.log(`SSH authentication failed. Cloning repository via HTTPS...`);
+				await cloneAndCopyRepo(repoUrlHTTP, dir, false);
+				console.log(`${chalk.cyan(repoUrlHTTP)}\n`);
 			}
+		}
 
-			const scaffoldVariables = {
-				'snapfu.name': answers.name || path.basename(dir),
-				'snapfu.siteId': answers.siteId,
-				'snapfu.author': user?.name || 'Unknown',
-				'snapfu.framework': answers.framework,
-			};
+		const scaffoldVariables = {
+			'snapfu.name': answers.name,
+			'snapfu.siteId': answers.siteId,
+			'snapfu.author': user?.name || 'Unknown',
+			'snapfu.framework': answers.framework,
+		};
 
-			// add advanced scaffold variables
-			if (scaffold.answers) {
-				Object.keys(scaffold.answers).forEach((key) => {
-					const value = scaffold.answers[key];
-					scaffoldVariables[`snapfu.variables.${key}`] = value;
+		// add advanced scaffold variables
+		if (scaffold.answers) {
+			Object.keys(scaffold.answers).forEach((key) => {
+				const value = scaffold.answers[key];
+				scaffoldVariables[`snapfu.variables.${key}`] = value;
+			});
+		}
+
+		try {
+			console.log(`Cloning scaffolding into ${dir} via SSH...`);
+			await cloneAndCopyRepo(scaffold.ssh, dir, true, scaffoldVariables);
+			console.log(`${chalk.cyan(scaffold.ssh)}\n`);
+		} catch (err) {
+			console.log(`SSH authentication failed. Cloning scaffolding into ${dir} via HTTPS...`);
+			await cloneAndCopyRepo(scaffold.http, dir, true, scaffoldVariables);
+			console.log(`${chalk.cyan(scaffold.http)}\n`);
+		}
+
+		// waiting here due to copyPromise function resolving before scaffold is actually copied
+		// TODO: look into why ncp does not like our filtering (does not resolve promise in callback)
+		// wait...
+		await wait(1000);
+
+		// save secretKey mapping to creds.json
+		if (answers.secretKey) {
+			await auth.saveSecretKey(answers.secretKey, answers.siteId, options.config.searchspringDir);
+		}
+
+		// Set repository secret and branch protection
+		if (useGitHubRepo && isLoggedIn) {
+			if (answers.secretKey) {
+				await setRepoSecret(options, {
+					siteId: answers.siteId,
+					secretKey: answers.secretKey,
+					organization: answers.organization,
+					name: answers.name,
+					dir,
 				});
 			}
 
-			try {
-				console.log(`Cloning scaffolding into ${dir} via SSH...`);
-				await cloneAndCopyRepo(scaffold.ssh, dir, true, scaffoldVariables);
-				console.log(`${chalk.cyan(scaffold.ssh)}\n`);
-			} catch (err) {
-				console.log(`SSH authentication failed. Cloning scaffolding into ${dir} via HTTPS...`);
-				await cloneAndCopyRepo(scaffold.http, dir, true, scaffoldVariables);
-				console.log(`${chalk.cyan(scaffold.http)}\n`);
-			}
+			await setBranchProtection(options, { organization: answers.organization, name: answers.name });
+		}
 
-			// waiting here due to copyPromise function resolving before scaffold is actually copied
-			// TODO: look into why ncp does not like our filtering (does not resolve promise in callback)
-			// wait...
-			await wait(1000);
-
-			// save secretKey mapping to creds.json
-			if (answers.secretKey) {
-				await auth.saveSecretKey(answers.secretKey, answers.siteId, options.config.searchspringDir);
-			}
-
-			// Set repository secret and branch protection
-			if (useGitHubRepo && isLoggedIn) {
-				if (answers.secretKey) {
-					await setRepoSecret(options, {
-						siteId: answers.siteId,
-						secretKey: answers.secretKey,
-						organization: answers.organization,
-						name: answers.name,
-						dir,
-					});
-				}
-
-				await setBranchProtection(options, { organization: answers.organization, name: answers.name });
-			}
-
-			if (dir != cwd()) {
-				console.log(`The ${chalk.blue(folderName)} directory has been created and initialized from ${chalk.blue(`${answers.scaffold}`)}.`);
-				if (useGitHubRepo) {
-					console.log(`Get started by installing package dependencies and creating a branch:`);
-					console.log(chalk.grey(`\n\tcd ${folderName} && npm install && git checkout -b development\n`));
-				} else {
-					console.log(`Get started by installing package dependencies:`);
-					console.log(chalk.grey(`\n\tcd ${folderName} && npm install\n`));
-				}
+		if (dir != cwd()) {
+			console.log(`The ${chalk.blue(folderName)} directory has been created and initialized from ${chalk.blue(`${answers.scaffold}`)}.`);
+			if (useGitHubRepo) {
+				console.log(`Get started by installing package dependencies and creating a branch:`);
+				console.log(chalk.grey(`\n\tcd ${folderName} && npm install && git checkout -b development\n`));
 			} else {
-				console.log(`Current working directory has been initialized from ${chalk.blue(`${answers.scaffold}`)}.`);
-				if (useGitHubRepo) {
-					console.log(`Get started by installing package dependencies and creating a branch:`);
-					console.log(chalk.grey(`\n\tnpm install && git checkout -b development\n`));
-				} else {
-					console.log(`Get started by installing package dependencies:`);
-					console.log(chalk.grey(`\n\tnpm install\n`));
-				}
+				console.log(`Get started by installing package dependencies:`);
+				console.log(chalk.grey(`\n\tcd ${folderName} && npm install\n`));
+			}
+		} else {
+			console.log(`Current working directory has been initialized from ${chalk.blue(`${answers.scaffold}`)}.`);
+			if (useGitHubRepo) {
+				console.log(`Get started by installing package dependencies and creating a branch:`);
+				console.log(chalk.grey(`\n\tnpm install && git checkout -b development\n`));
+			} else {
+				console.log(`Get started by installing package dependencies:`);
+				console.log(chalk.grey(`\n\tnpm install\n`));
 			}
 		}
 	} catch (err) {
@@ -515,7 +506,7 @@ export const setBranchProtection = async function (options, details) {
 
 	const { organization, name } = details;
 
-	if (!options.dev && organization && name) {
+	if (!options.dev && organization === 'searchspring-implementations' && name) {
 		console.log(`Setting branch protection for ${DEFAULT_BRANCH} in ${organization}/${name}...`);
 
 		try {
@@ -579,8 +570,6 @@ export const setBranchProtection = async function (options, details) {
 			console.log(chalk.red(`failed to create branch protection rule`));
 			console.log(chalk.red(err));
 		}
-	} else {
-		console.log(chalk.yellow('skipping creation of branch protection'));
 	}
 	console.log(); // new line spacing
 };
