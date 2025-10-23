@@ -50,7 +50,7 @@ export const setSecretKey = async (options) => {
 
 	try {
 		try {
-			await new ConfigApi(secretKey, options.dev).validateSite(siteId);
+			await new ConfigApi(secretKey, options).validateSite({ siteId });
 		} catch (err) {
 			console.log(chalk.red('Verification of siteId and secretKey failed.'));
 			console.log(chalk.red(err));
@@ -78,8 +78,13 @@ export const checkSecretKey = async (options) => {
 	const verify = async (secretKey, siteId, name) => {
 		if (secretKey) {
 			try {
-				await new ConfigApi(secretKey, options.dev).validateSite(siteId);
+				await new ConfigApi(secretKey, options).validateSite({ siteId });
 				console.log(chalk.green(`Verification of siteId and secretKey complete for ${name}`));
+
+				if (options.options.ci) {
+					console.log(chalk.green(`Saving secretKey for ${name} in ${options.config.searchspringDir}`));
+					await auth.saveSecretKey(secretKey, siteId, options.config.searchspringDir);
+				}
 			} catch (err) {
 				console.log(chalk.red(`Verification of siteId and secretKey failed for ${name}`));
 				console.log(chalk.red(err));

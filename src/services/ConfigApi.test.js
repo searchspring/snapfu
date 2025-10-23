@@ -1,4 +1,4 @@
-import { ConfigApi, API_HOST, DEV_API_HOST } from './ConfigApi';
+import { ConfigApi, API_HOST, DEV_API_HOST, ATHOS_API_HOST } from './ConfigApi';
 
 jest.mock('node-fetch');
 import fetch from 'node-fetch';
@@ -15,10 +15,18 @@ describe('ConfigApi Class', () => {
 	});
 
 	it('can be constructed for development usage', () => {
-		const api = new ConfigApi('', true);
+		const api = new ConfigApi('', { dev: true });
 
 		expect(api).toBeDefined();
 		expect(api.host).toBe(DEV_API_HOST);
+		expect(api.userAgent).toBe('');
+		expect(api.secretKey).toBe('');
+	});
+	it('can be constructed for athos usage', () => {
+		const api = new ConfigApi('', { zone: 'athos' });
+
+		expect(api).toBeDefined();
+		expect(api.host).toBe(ATHOS_API_HOST);
 		expect(api.userAgent).toBe('');
 		expect(api.secretKey).toBe('');
 	});
@@ -41,9 +49,9 @@ describe('ConfigApi Class', () => {
 			const siteId = 'abc123';
 			const secretKey = 'secret';
 
-			const api = new ConfigApi(secretKey, true);
+			const api = new ConfigApi(secretKey, { dev: true });
 
-			const response = await api.validateSite(siteId);
+			const response = await api.validateSite({ siteId });
 
 			expect(fetch).toHaveBeenCalledTimes(1);
 			expect(fetch).toHaveBeenCalledWith(`${DEV_API_HOST}/api/customer/${siteId}/verifyKey`, {
@@ -69,9 +77,9 @@ describe('ConfigApi Class', () => {
 				const siteId = 'abc123';
 				const secretKey = 'invalidsecret';
 
-				const api = new ConfigApi(secretKey, true);
+				const api = new ConfigApi(secretKey, { dev: true });
 
-				await expect(api.validateSite(siteName, siteId)).rejects.toThrow();
+				await expect(api.validateSite({ siteId })).rejects.toThrow();
 			}
 
 			fetch.mockRestore();
@@ -87,9 +95,9 @@ describe('ConfigApi Class', () => {
 			const siteId = 'abc123';
 			const secretKey = 'secret';
 
-			const api = new ConfigApi(secretKey, true);
+			const api = new ConfigApi(secretKey, { dev: true });
 
-			const response = await api.getTemplates();
+			const response = await api.getTemplates({ siteId });
 
 			expect(fetch).toHaveBeenCalledTimes(1);
 			expect(fetch).toHaveBeenCalledWith(`${DEV_API_HOST}/api/recsTemplates`, {
@@ -114,7 +122,7 @@ describe('ConfigApi Class', () => {
 
 				const secretKey = 'invalidsecret';
 
-				const api = new ConfigApi(secretKey, true);
+				const api = new ConfigApi(secretKey, { dev: true });
 
 				await expect(api.getTemplates()).rejects.toThrow();
 			}
@@ -130,14 +138,14 @@ describe('ConfigApi Class', () => {
 
 			const secretKey = 'secret';
 
-			const api = new ConfigApi(secretKey, true);
+			const api = new ConfigApi(secretKey, { dev: true });
 
 			const payload = {
 				name: 'fakename',
 				body: 'fakebody',
 			};
 
-			const response = await api.putTemplate(payload);
+			const response = await api.putTemplate({ payload });
 
 			expect(fetch).toHaveBeenCalledTimes(1);
 			expect(fetch).toHaveBeenCalledWith(`${DEV_API_HOST}/api/recsTemplate`, {
@@ -163,7 +171,7 @@ describe('ConfigApi Class', () => {
 
 				const secretKey = 'invalidsecret';
 
-				const api = new ConfigApi(secretKey, true);
+				const api = new ConfigApi(secretKey, { dev: true });
 
 				await expect(api.putTemplate()).rejects.toThrow();
 			}
@@ -179,14 +187,14 @@ describe('ConfigApi Class', () => {
 
 			const secretKey = 'secret';
 
-			const api = new ConfigApi(secretKey, true);
+			const api = new ConfigApi(secretKey, { dev: true });
 
 			const payload = {
 				name: 'fakename',
 				body: 'fakebody',
 			};
 
-			const response = await api.archiveTemplate(payload);
+			const response = await api.archiveTemplate({ payload });
 
 			expect(fetch).toHaveBeenCalledTimes(1);
 			expect(fetch).toHaveBeenCalledWith(`${DEV_API_HOST}/api/recsTemplate`, {
@@ -212,7 +220,7 @@ describe('ConfigApi Class', () => {
 
 				const secretKey = 'invalidsecret';
 
-				const api = new ConfigApi(secretKey, true);
+				const api = new ConfigApi(secretKey, { dev: true });
 
 				await expect(api.archiveTemplate()).rejects.toThrow();
 			}
