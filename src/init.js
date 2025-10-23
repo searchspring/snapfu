@@ -422,7 +422,7 @@ export const init = async (options) => {
 		const scaffoldVariables = {
 			'snapfu.name': answers.name || path.basename(dir),
 			'snapfu.siteId': answers.siteId,
-			'snapfu.author': user?.name || 'Unknown',
+			'snapfu.author': user?.name || user.login || 'Unknown',
 			'snapfu.framework': answers.framework,
 		};
 
