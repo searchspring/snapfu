@@ -423,7 +423,7 @@ export const init = async (options) => {
 			'snapfu.name': answers.name || path.basename(dir),
 			'snapfu.siteId': answers.siteId,
 			'snapfu.author': user?.name || 'Unknown',
-			'snapfu.framework': answers.framework + answers.distribution === 'Snap Templates' ? TEMPLATES_SCAFFOLD_NAME_IDENTIFIER : '',
+			'snapfu.framework': answers.framework,
 		};
 
 		// add advanced scaffold variables
