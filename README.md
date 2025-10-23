@@ -27,12 +27,6 @@ Creates a new snap project (optional directory)
 snapfu init <directory>
 ```
 
-This command will:
-- Download scaffolding files
-- Create and initialize a repository in the Github organization you selected
-- Populate a Github secret with the provided `secretKey`
-
-You will need your `siteId` and `secretKey` from the SMC before you run this command.
 
 ### `badges` - Badge template management
 Manage badge templates for your project
