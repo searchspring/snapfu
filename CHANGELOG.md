@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.12.0](https://github.com/searchspring/snapfu/compare/v1.11.0...v1.12.0) (2025-10-23)
+
+
+### Features
+
+* add prompt for Snap Templates vs Snap ([209d399](https://github.com/searchspring/snapfu/commit/209d3999a3746d5e2c9c8d795f4c7c36de630c4e))
+* remove login requirement for init command and make repo creation optional ([2050f2b](https://github.com/searchspring/snapfu/commit/2050f2b5ece50096788829795444beceadd4c54f))
+
+
+### Bug Fixes
+
+* **init:** adding a fallback to the author for when the user.name is undefined ([1432f63](https://github.com/searchspring/snapfu/commit/1432f6316ea1a8cf4360141ed9a883b56ae5f520))
+
+
+### Docs
+
+* update README.md ([8ecc596](https://github.com/searchspring/snapfu/commit/8ecc5968e8edf24aae3edfdcd4db1d90164a8dea))
+
 ## [1.11.0](https://github.com/searchspring/snapfu/compare/v1.10.0...v1.11.0) (2025-10-09)
 
 
