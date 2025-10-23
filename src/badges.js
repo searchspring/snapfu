@@ -236,6 +236,7 @@ export async function listBadgeTemplates(options) {
 		const list = async (secretKey, siteId = '', name = '') => {
 			if (!secretKey) {
 				console.log(chalk.red('Unable to list remote badge template due to missing secretKey'));
+				console.log(chalk.grey(`\n\tsnapfu secrets add\n`));
 				return;
 			}
 			const remoteTemplates = await new ConfigApi(secretKey, options).getBadgeTemplates({ siteId });
@@ -318,6 +319,7 @@ export async function removeBadgeTemplate(options) {
 
 			if (!secretKey) {
 				console.log(chalk.red('Unable to archive remote badge template due to missing secretKey'));
+				console.log(chalk.grey(`\n\tsnapfu secrets add\n`));
 				return;
 			}
 			const { message } = await new ConfigApi(secretKey, options).archiveBadgeTemplate({ payload, siteId });
@@ -767,6 +769,7 @@ export async function syncBadgeTemplate(options) {
 	const sync = async (template, secretKey, siteId) => {
 		if (!secretKey) {
 			console.log(chalk.red('Unable to sync remote badge template due to missing secretKey'));
+			console.log(chalk.grey(`\n\tsnapfu secrets add\n`));
 			return;
 		}
 		// validate template against remote locations (locations get validated and synced first)
@@ -824,6 +827,7 @@ export async function syncBadgeTemplate(options) {
 	const syncLocations = async (secretKey, siteId) => {
 		if (!secretKey) {
 			console.log(chalk.red('Unable to sync remote badge locations due to missing secretKey'));
+			console.log(chalk.grey(`\n\tsnapfu secrets add\n`));
 			return;
 		}
 		console.log(`    synchronizing locations`);

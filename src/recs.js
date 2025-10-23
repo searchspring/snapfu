@@ -267,7 +267,7 @@ export async function listTemplates(options) {
 					console.log(`    ${chalk.white(`${type.charAt(0).toUpperCase() + type.slice(1)} Templates`)}`);
 					// loop through each template and log details
 					typeTemplates.map((template) => {
-						console.log(`        ${chalk.green(template.details.name)} ${chalk.blue(`[${repository.branch}]`)}`);
+						console.log(`        ${chalk.green(template.details.name)} ${repository.branch ? chalk.blue(`[${repository.branch}]`) : ''}`);
 					});
 				}
 			});
@@ -284,6 +284,7 @@ export async function listTemplates(options) {
 		const list = async (secretKey, siteId = '', name = '') => {
 			if (!secretKey) {
 				console.log(chalk.red('Unable to list remote template due to missing secretKey'));
+				console.log(chalk.grey(`\n\tsnapfu secrets add\n`));
 				return;
 			}
 			const remoteTemplates = await new ConfigApi(secretKey, options).getTemplates({ siteId });
@@ -362,6 +363,7 @@ export async function removeTemplate(options) {
 
 			if (!secretKey) {
 				console.log(chalk.red('Unable to archive remote template due to missing secretKey'));
+				console.log(chalk.grey(`\n\tsnapfu secrets add\n`));
 				return;
 			}
 			await new ConfigApi(secretKey, options).archiveTemplate({ payload, siteId });
@@ -463,6 +465,7 @@ ${invalidParam}
 	const sync = async (template, secretKey, siteId) => {
 		if (!secretKey) {
 			console.log(chalk.red('Unable to sync remote template due to missing secretKey'));
+			console.log(chalk.grey(`\n\tsnapfu secrets add\n`));
 			return;
 		}
 		const payload = buildTemplatePayload(template.details, { branch: branchName, framework: searchspring.framework });
