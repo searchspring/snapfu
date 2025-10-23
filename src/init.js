@@ -1,6 +1,6 @@
 import os from 'os';
 import { exit, cwd } from 'process';
-import { readdirSync, readFileSync, existsSync, mkdirSync, promises as fs } from 'fs';
+import { readdirSync, existsSync, mkdirSync, promises as fs } from 'fs';
 import path from 'path';
 import chalk from 'chalk';
 import { Octokit } from '@octokit/rest';
@@ -242,11 +242,11 @@ export const init = async (options) => {
 			{
 				type: 'confirm',
 				name: 'useGitHubRepo',
-				message: 'Would you like to create a GitHub repository? (requires login)',
+				message: 'Would you like to create a GitHub repository?',
 				when: () => {
 					return isLoggedIn;
 				},
-				default: useGitHubRepo,
+				default: true,
 			},
 		];
 
@@ -420,10 +420,10 @@ export const init = async (options) => {
 		}
 
 		const scaffoldVariables = {
-			'snapfu.name': answers.name,
+			'snapfu.name': answers.name || path.basename(dir),
 			'snapfu.siteId': answers.siteId,
 			'snapfu.author': user?.name || 'Unknown',
-			'snapfu.framework': answers.framework,
+			'snapfu.framework': answers.framework + answers.distribution === 'Snap Templates' ? TEMPLATES_SCAFFOLD_NAME_IDENTIFIER : '',
 		};
 
 		// add advanced scaffold variables
