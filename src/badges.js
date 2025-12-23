@@ -833,7 +833,6 @@ export async function syncBadgeTemplate(options) {
 		console.log(`    synchronizing locations`);
 		const locationsPayload = buildBadgeLocationsPayload(locations.details);
 		const remoteBadgeLocations = await new ConfigApi(secretKey, options).getBadgeLocations({ siteId });
-		console.log(remoteBadgeLocations);
 
 		// sync custom locations if locations.json file exists
 		if (remoteBadgeLocations.locations) {
