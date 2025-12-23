@@ -761,7 +761,7 @@ export async function syncBadgeTemplate(options) {
 	const templates = await getTemplates(context.project.path);
 	const syncTemplates = templateName ? templates.filter((template) => template.details.name == templateName) : templates;
 
-	if (!syncTemplates.length) {
+	if (!syncTemplates.length && templateName != LOCATIONS_FILE) {
 		console.log(chalk.grey(`No templates found.\n`));
 		return;
 	}
@@ -833,6 +833,7 @@ export async function syncBadgeTemplate(options) {
 		console.log(`    synchronizing locations`);
 		const locationsPayload = buildBadgeLocationsPayload(locations.details);
 		const remoteBadgeLocations = await new ConfigApi(secretKey, options).getBadgeLocations({ siteId });
+		console.log(remoteBadgeLocations);
 
 		// sync custom locations if locations.json file exists
 		if (remoteBadgeLocations.locations) {
