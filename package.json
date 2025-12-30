@@ -46,8 +46,9 @@
 		"yaml": "^2.4.1"
 	},
 	"devDependencies": {
-		"@babel/plugin-transform-runtime": "^7.24.0",
-		"@babel/preset-env": "^7.24.0",
+		"@babel/plugin-transform-runtime": "^7.28.5",
+		"@babel/preset-env": "^7.28.5",
+		"@babel/runtime": "^7.28.4",
 		"@searchspring/prettier": "^1.0.2",
 		"cz-conventional-changelog": "^3.3.0",
 		"find-free-port": "^2.0.0",
