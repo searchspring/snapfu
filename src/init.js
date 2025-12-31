@@ -424,6 +424,7 @@ export const init = async (options) => {
 			'snapfu.siteId': answers.siteId,
 			'snapfu.author': user?.name || user.login || 'Unknown',
 			'snapfu.framework': answers.framework,
+			'snapfu.managed': answers.organization === 'searchspring-implementations' ? true : false,
 		};
 
 		// add advanced scaffold variables
