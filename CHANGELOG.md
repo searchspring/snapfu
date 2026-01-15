@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.13.0](https://github.com/searchspring/snapfu/compare/v1.12.1...v1.13.0) (2026-01-15)
+
+
+### Features
+
+* **init:** adding new variable for "managed" usage in initiator ([668356d](https://github.com/searchspring/snapfu/commit/668356d9cdcadbf9b391073b14840a9d60099424))
+
+
+### Bug Fixes
+
+* ability to sync locations.json without custom badge templates ([2724cfb](https://github.com/searchspring/snapfu/commit/2724cfb2c8f9ea4d27195a3cc6dda197bb103d3a))
+* cleanup ([acaaa6c](https://github.com/searchspring/snapfu/commit/acaaa6c9bbe19144c551e57a21d0f8564cc33f73))
+
 ### [1.12.1](https://github.com/searchspring/snapfu/compare/v1.12.0...v1.12.1) (2025-12-30)
 
 ## [1.12.0](https://github.com/searchspring/snapfu/compare/v1.11.0...v1.12.0) (2025-10-23)
