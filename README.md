@@ -150,7 +150,7 @@ snapfu help [<command>]
 
 ## Deployment
 
-This tool integrates with the Searchspring build and deploy process. In order to take advantage of this you must have access to the `searchspring-implementations` Github organization and select it during init command. (Requires login & invitation to the organization upon request).
+This tool integrates with the Searchspring build and deploy process. In order to take advantage of this you must have access to the `snap-implementations` Github organization and select it during init command. (Requires login & invitation to the organization upon request).
 
 The tool uses Github actions to copy files to our AWS S3 backed CDN (Cloudfront).
 

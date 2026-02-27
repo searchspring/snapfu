@@ -269,7 +269,7 @@ export const init = async (options) => {
 					name: 'organization',
 					message: 'Please choose which github organization to create this repository in:',
 					choices: orgs.concat(user.login),
-					default: 'searchspring-implementations',
+					default: 'snap-implementations',
 					when: () => {
 						return orgs && orgs.length > 0;
 					},
@@ -279,7 +279,7 @@ export const init = async (options) => {
 			repositoryAnswers = await inquirer.prompt(repoQuestions);
 
 			// Ask for secretKey if org is implementations
-			if (repositoryAnswers.organization === 'searchspring-implementations') {
+			if (repositoryAnswers.organization === 'snap-implementations') {
 				const secretQuestions = [
 					{
 						type: 'input',
@@ -424,7 +424,7 @@ export const init = async (options) => {
 			'snapfu.siteId': answers.siteId,
 			'snapfu.author': user?.name || user.login || 'Unknown',
 			'snapfu.framework': answers.framework,
-			'snapfu.managed': answers.organization === 'searchspring-implementations' ? true : false,
+			'snapfu.managed': answers.organization === 'snap-implementations' ? true : false,
 		};
 
 		// add advanced scaffold variables
@@ -507,7 +507,7 @@ export const setBranchProtection = async function (options, details) {
 
 	const { organization, name } = details;
 
-	if (!options.dev && organization === 'searchspring-implementations' && name) {
+	if (!options.dev && organization === 'snap-implementations' && name) {
 		console.log(`Setting branch protection for ${DEFAULT_BRANCH} in ${organization}/${name}...`);
 
 		try {
@@ -548,7 +548,6 @@ export const setBranchProtection = async function (options, details) {
 							require_code_owner_review: false,
 							require_last_push_approval: false,
 							required_review_thread_resolution: true,
-							automatic_copilot_code_review_enabled: true,
 							allowed_merge_methods: ['merge', 'squash', 'rebase'],
 						},
 					},

@@ -15,7 +15,7 @@ steps:
             changes:
                 - update:
                     path: ['jobs', 'publish' 'runs-on']
-                    value: ${{ (startsWith(github.head_ref, 'update/') || startsWith(github.ref_name, 'update/') || startsWith(github.head_ref, 'revert/') || startsWith(github.ref_name, 'revert/') || (github.ref_name == github.event.repository.master_branch && (contains(github.event.head_commit.message,'from searchspring-implementations/update/') || contains(github.event.head_commit.message,'from searchspring-implementations/revert/')))) && 'self-hosted' || 'ubuntu-latest' }}
+                    value: ${{ (startsWith(github.head_ref, 'update/') || startsWith(github.ref_name, 'update/') || startsWith(github.head_ref, 'revert/') || startsWith(github.ref_name, 'revert/') || (github.ref_name == github.event.repository.master_branch && (contains(github.event.head_commit.message,'from snap-implementations/update/') || contains(github.event.head_commit.message,'from snap-implementations/revert/')))) && 'self-hosted' || 'ubuntu-latest' }}
                     
                 - update:
                     path: ['jobs', 'Publish', 'timeout-minutes']
@@ -841,7 +841,7 @@ describe('editYAML function', () => {
 			const parsed = YAML.parse(contents);
 
 			const expectedContents = getMockDeploy();
-			(expectedContents.jobs.Publish.things = expectedContents.jobs.Publish.things.concat(newTags)), expect(parsed).toStrictEqual(expectedContents);
+			((expectedContents.jobs.Publish.things = expectedContents.jobs.Publish.things.concat(newTags)), expect(parsed).toStrictEqual(expectedContents));
 		});
 
 		it('can use `update` to prepend to an existing array with an array', async () => {
@@ -893,7 +893,7 @@ describe('editYAML function', () => {
 			const parsed = YAML.parse(contents);
 
 			const expectedContents = getMockDeploy();
-			(expectedContents.jobs.Publish.steps = expectedContents.jobs.Publish.steps.concat(newStep)), expect(parsed).toStrictEqual(expectedContents);
+			((expectedContents.jobs.Publish.steps = expectedContents.jobs.Publish.steps.concat(newStep)), expect(parsed).toStrictEqual(expectedContents));
 		});
 
 		it('can use `update` to select an array index within the path', async () => {
