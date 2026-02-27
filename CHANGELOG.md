@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.14.0](https://github.com/searchspring/snapfu/compare/v1.13.0...v1.14.0) (2026-02-27)
+
+
+### Features
+
+* **init:** adjust implmenetations organization name ([9d5d3fb](https://github.com/searchspring/snapfu/commit/9d5d3fb7f7f74cfa7a2ca23da1ca9daf148f1c69))
+
 ## [1.13.0](https://github.com/searchspring/snapfu/compare/v1.12.1...v1.13.0) (2026-01-15)
 
 
