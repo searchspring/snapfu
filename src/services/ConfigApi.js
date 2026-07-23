@@ -12,16 +12,16 @@ export class ConfigApi {
 	constructor(secretKey, options = {}) {
 		this.secretKey = secretKey || '';
 
-		if (options.dev) {
-			this.host = DEV_API_HOST;
-		}
 		if (options.zone === 'athos') {
 			this.host = ATHOS_API_HOST;
+		}
+		if (options.dev) {
+			this.host = DEV_API_HOST;
 		}
 	}
 
 	getHost(siteId = '') {
-		if (this.host !== ATHOS_API_HOST && siteId && siteId.startsWith('at')) {
+		if (this.host !== ATHOS_API_HOST && this.host !== DEV_API_HOST && siteId && siteId.startsWith('at')) {
 			return ATHOS_API_HOST;
 		}
 		return this.host;
@@ -199,7 +199,7 @@ export class ConfigApi {
 			if (message) {
 				return { message };
 			} else {
-				throw new Error(err);
+				throw new Error(`Unhandled response (status ${response.status})`);
 			}
 		}
 	}
