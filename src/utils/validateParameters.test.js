@@ -43,13 +43,32 @@ describe('validateTemplateParameters function', () => {
 		expect(errors).toStrictEqual([`template paramater 'customDetail' must be an array`]);
 	});
 
+	it('requires name, label and description on every parameter', () => {
+		const errors = validateTemplateParameters([{ type: 'string' }]);
+		expect(errors).toStrictEqual([
+			`template paramater 'parameters[0].name' is required`,
+			`template paramater 'parameters[0].label' is required`,
+			`template paramater 'parameters[0].description' is required`,
+		]);
+	});
+
+	it('does not report duplicates for parameters missing name or label', () => {
+		const errors = validateTemplateParameters([{ description: 'first' }, { description: 'second' }]);
+		expect(errors).toStrictEqual([
+			`template paramater 'parameters[0].name' is required`,
+			`template paramater 'parameters[0].label' is required`,
+			`template paramater 'parameters[1].name' is required`,
+			`template paramater 'parameters[1].label' is required`,
+		]);
+	});
+
 	it('rejects unknown parameter keys', () => {
-		const errors = validateTemplateParameters([{ name: 'title', label: 'Title', unknown: 'key' }]);
+		const errors = validateTemplateParameters([{ name: 'title', label: 'Title', description: 'the title', unknown: 'key' }]);
 		expect(errors).toStrictEqual([`template paramater 'parameters[0].unknown' is not a valid parameter`]);
 	});
 
 	it('rejects invalid parameter types', () => {
-		const errors = validateTemplateParameters([{ name: 'title', type: 'blah', label: 'Title' }]);
+		const errors = validateTemplateParameters([{ name: 'title', type: 'blah', label: 'Title', description: 'the title' }]);
 		expect(errors).toContain(`template paramater 'parameters[0].type' must be one of allowed types: ${ALLOWED_PARAMETER_TYPES.join(', ')}`);
 	});
 
@@ -106,21 +125,23 @@ describe('validateTemplateParameters function', () => {
 	it('reports an error instead of throwing when validations is not an object', () => {
 		const invalidValidations = ['foo', 123, true, null];
 		invalidValidations.forEach((validations) => {
-			const errors = validateTemplateParameters([{ name: 'title', type: 'string', label: 'Title', validations }]);
+			const errors = validateTemplateParameters([{ name: 'title', type: 'string', label: 'Title', description: 'the title', validations }]);
 			expect(errors).toStrictEqual([`template paramater 'parameters[0].validations' must be an object`]);
 		});
 	});
 
 	it('rejects boolean, checkbox and toggle defaultValues that are not boolean-like strings', () => {
 		['boolean', 'checkbox', 'toggle'].forEach((type) => {
-			const errors = validateTemplateParameters([{ name: 'enabled', type, label: 'Enabled', defaultValue: 'blah' }]);
+			const errors = validateTemplateParameters([{ name: 'enabled', type, label: 'Enabled', description: 'enable the thing', defaultValue: 'blah' }]);
 			expect(errors).toStrictEqual([`template paramater 'parameters[0].defaultValue' must be a string containing 'true', '1', 'false', '0'`]);
 		});
 	});
 
 	it('accepts boolean-like string defaultValues', () => {
 		['true', '1', 'false', '0'].forEach((defaultValue) => {
-			const errors = validateTemplateParameters([{ name: 'enabled', type: 'toggle', label: 'Enabled', defaultValue }]);
+			const errors = validateTemplateParameters([
+				{ name: 'enabled', type: 'toggle', label: 'Enabled', description: 'enable the thing', defaultValue },
+			]);
 			expect(errors).toStrictEqual([]);
 		});
 	});
@@ -131,6 +152,7 @@ describe('validateTemplateParameters function', () => {
 				name: 'title',
 				type: 'string',
 				label: 'Title',
+				description: 'the title',
 				defaultValue: 'abc',
 				validations: { regex: '^[0-9]+$', regexExplain: 'numbers only' },
 			},
@@ -139,7 +161,9 @@ describe('validateTemplateParameters function', () => {
 	});
 
 	it('requires regexExplain when regex is used', () => {
-		const errors = validateTemplateParameters([{ name: 'title', type: 'string', label: 'Title', validations: { regex: '^[0-9]+$' } }]);
+		const errors = validateTemplateParameters([
+			{ name: 'title', type: 'string', label: 'Title', description: 'the title', validations: { regex: '^[0-9]+$' } },
+		]);
 		expect(errors).toStrictEqual([
 			`template paramater 'parameters[0].validations' When using regex, please also provide regexExplain`,
 			`template paramater 'parameters[0].validations' When using regex, please also provide regexExplain`,
@@ -148,29 +172,35 @@ describe('validateTemplateParameters function', () => {
 
 	it('validates string defaultValue length against min and max', () => {
 		const tooShort = validateTemplateParameters([
-			{ name: 'title', type: 'string', label: 'Title', defaultValue: 'hi', validations: { min: 5, max: 10 } },
+			{ name: 'title', type: 'string', label: 'Title', description: 'the title', defaultValue: 'hi', validations: { min: 5, max: 10 } },
 		]);
 		expect(tooShort).toStrictEqual([`template paramater 'parameters[0].defaultValue' must be at least 5 characters long`]);
 
 		const tooLong = validateTemplateParameters([
-			{ name: 'title', type: 'string', label: 'Title', defaultValue: 'hello world!', validations: { min: 1, max: 10 } },
+			{ name: 'title', type: 'string', label: 'Title', description: 'the title', defaultValue: 'hello world!', validations: { min: 1, max: 10 } },
 		]);
 		expect(tooLong).toStrictEqual([`template paramater 'parameters[0].defaultValue' must not exceed 10 characters long`]);
 	});
 
 	it('validates color defaultValue is a valid rgba color', () => {
-		const errors = validateTemplateParameters([{ name: 'color', type: 'color', label: 'Color', defaultValue: 'blue' }]);
+		const errors = validateTemplateParameters([{ name: 'color', type: 'color', label: 'Color', description: 'the color', defaultValue: 'blue' }]);
 		expect(errors).toStrictEqual([`template paramater 'parameters[0].defaultValue' must be a valid rgba color`]);
 	});
 
 	it('rejects validations on color parameters', () => {
-		const errors = validateTemplateParameters([{ name: 'color', type: 'color', label: 'Color', validations: { min: 1 } }]);
+		const errors = validateTemplateParameters([{ name: 'color', type: 'color', label: 'Color', description: 'the color', validations: { min: 1 } }]);
 		expect(errors).toStrictEqual([`template paramater 'parameters[0].validations' should not be used with type: 'color'`]);
 	});
 
 	it('rejects regex validations on integer and decimal parameters', () => {
 		const errors = validateTemplateParameters([
-			{ name: 'limit', type: 'decimal', label: 'Limit', validations: { regex: '^[0-9]+$', regexExplain: 'numbers only' } },
+			{
+				name: 'limit',
+				type: 'decimal',
+				label: 'Limit',
+				description: 'number of results',
+				validations: { regex: '^[0-9]+$', regexExplain: 'numbers only' },
+			},
 		]);
 		expect(errors).toStrictEqual([
 			`template paramater 'parameters[0].validations.regex' or 'parameters[0].validations.regexExplain' should not be used with type: 'integer' or 'decimal'`,
@@ -178,28 +208,54 @@ describe('validateTemplateParameters function', () => {
 	});
 
 	it('rejects decimal defaultValues that are not numeric strings', () => {
-		const errors = validateTemplateParameters([{ name: 'limit', type: 'decimal', label: 'Limit', defaultValue: 'abc', validations: { min: 1 } }]);
+		const errors = validateTemplateParameters([
+			{ name: 'limit', type: 'decimal', label: 'Limit', description: 'number of results', defaultValue: 'abc', validations: { min: 1 } },
+		]);
 		expect(errors).toStrictEqual([`template paramater 'parameters[0].defaultValue' must be a string containing a number`]);
 	});
 
 	it('rejects integer min and max that are not whole numbers', () => {
-		const errors = validateTemplateParameters([{ name: 'limit', type: 'integer', label: 'Limit', validations: { min: 1.5, max: 10.5 } }]);
+		const errors = validateTemplateParameters([
+			{ name: 'limit', type: 'integer', label: 'Limit', description: 'number of results', validations: { min: 1.5, max: 10.5 } },
+		]);
 		expect(errors).toStrictEqual([
 			`template paramater 'parameters[0].validations.min' must be an integer`,
 			`template paramater 'parameters[0].validations.max' must be an integer`,
 		]);
 	});
 
-	it('rejects negative min and max validations', () => {
-		const minErrors = validateTemplateParameters([{ name: 'title', type: 'string', label: 'Title', validations: { min: -1 } }]);
+	it('rejects negative min and max validations for length based parameters', () => {
+		const minErrors = validateTemplateParameters([
+			{ name: 'title', type: 'string', label: 'Title', description: 'the title', validations: { min: -1 } },
+		]);
 		expect(minErrors).toStrictEqual([`template paramater 'parameters[0].validations.min' must not be a number below 0`]);
 
-		const maxErrors = validateTemplateParameters([{ name: 'title', type: 'string', label: 'Title', validations: { max: -1 } }]);
+		const maxErrors = validateTemplateParameters([
+			{ name: 'title', type: 'string', label: 'Title', description: 'the title', validations: { max: -1 } },
+		]);
 		expect(maxErrors).toStrictEqual([`template paramater 'parameters[0].validations.max' must not be a number below 0`]);
 	});
 
+	it('allows negative min and max validations for integer and decimal parameters', () => {
+		const errors = validateTemplateParameters([
+			{ name: 'zindex', type: 'integer', label: 'Z-index', description: 'set a z-index', validations: { min: -1, max: 2147483647 } },
+			{ name: 'offset', type: 'decimal', label: 'Offset', description: 'set an offset', defaultValue: '-0.5', validations: { min: -1.5, max: 1.5 } },
+		]);
+		expect(errors).toStrictEqual([]);
+	});
+
+	it('rejects min and max validations that are not numbers', () => {
+		const errors = validateTemplateParameters([{ name: 'title', label: 'Title', description: 'the title', validations: { min: '1', max: '5' } }]);
+		expect(errors).toStrictEqual([
+			`template paramater 'parameters[0].validations.min' must be a number`,
+			`template paramater 'parameters[0].validations.max' must be a number`,
+		]);
+	});
+
 	it('rejects min greater than max', () => {
-		const errors = validateTemplateParameters([{ name: 'title', type: 'string', label: 'Title', validations: { min: 10, max: 5 } }]);
+		const errors = validateTemplateParameters([
+			{ name: 'title', type: 'string', label: 'Title', description: 'the title', validations: { min: 10, max: 5 } },
+		]);
 		expect(errors).toStrictEqual([
 			`template paramater 'parameters[0].validations.min' must be a number lower than 'validations.max'`,
 			`template paramater 'parameters[0].validations.min' must be a number lower than 'parameters[0].validations.max'`,

@@ -552,7 +552,7 @@ export function validateTemplate(template, locations) {
 				}
 				break;
 			case 'parameters':
-				invalidParam.push(...validateTemplateParameters(template.details[detail], detail));
+				invalidParam.push(...validateTemplateParameters(template.details[detail], detail, { requireType: true }));
 				break;
 			default:
 				invalidParam.push(`unknown template parameter '${detail}' should be removed`);

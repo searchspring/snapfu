@@ -17,9 +17,12 @@ export function validateTemplateParameters(parameters, detail = 'parameters', { 
 		uniqueNames.push(parameter['name']);
 		uniqueLabels.push(parameter['label']);
 
-		if (requireType && !('type' in parameter)) {
-			invalidParam.push(`template paramater '${detail}[${i}].type' is required`);
-		}
+		const requiredFields = requireType ? ['name', 'type', 'label', 'description'] : ['name', 'label', 'description'];
+		requiredFields.forEach((field) => {
+			if (!(field in parameter)) {
+				invalidParam.push(`template paramater '${detail}[${i}].${field}' is required`);
+			}
+		});
 
 		Object.keys(parameter).forEach((key) => {
 			if (!['name', 'type', 'label', 'description', 'defaultValue', 'validations', 'options'].includes(key)) {
@@ -145,13 +148,24 @@ export function validateTemplateParameters(parameters, detail = 'parameters', { 
 					invalidParam.push(`template paramater '${detail}[${i}].${key}' must be an object`);
 					return;
 				}
-				if ('min' in parameter[key] && (typeof parameter[key]['min'] !== 'number' || parameter[key]['min'] < 0)) {
-					invalidParam.push(`template paramater '${detail}[${i}].${key}.min' must not be a number below 0`);
-				}
-				if ('max' in parameter[key] && (typeof parameter[key]['max'] !== 'number' || parameter[key]['max'] < 0)) {
-					invalidParam.push(`template paramater '${detail}[${i}].${key}.max' must not be a number below 0`);
-				}
-				if ('min' in parameter[key] && 'max' in parameter[key] && parameter[key]['min'] > parameter[key]['max']) {
+				// min and max are numeric bounds for integer and decimal types (negatives allowed),
+				// and character length bounds everywhere else (must not be below 0)
+				const allowsNegatives = ['integer', 'decimal'].includes(parameter['type']);
+				['min', 'max'].forEach((bound) => {
+					if (!(bound in parameter[key])) return;
+					if (typeof parameter[key][bound] !== 'number') {
+						invalidParam.push(`template paramater '${detail}[${i}].${key}.${bound}' must be a number`);
+					} else if (parameter[key][bound] < 0 && !allowsNegatives) {
+						invalidParam.push(`template paramater '${detail}[${i}].${key}.${bound}' must not be a number below 0`);
+					}
+				});
+				if (
+					'min' in parameter[key] &&
+					'max' in parameter[key] &&
+					typeof parameter[key]['min'] === 'number' &&
+					typeof parameter[key]['max'] === 'number' &&
+					parameter[key]['min'] > parameter[key]['max']
+				) {
 					invalidParam.push(`template paramater '${detail}[${i}].${key}.min' must be a number lower than '${detail}[${i}].${key}.max'`);
 				}
 				if ('regex' in parameter[key] && (typeof parameter[key]['regex'] !== 'string' || !parameter[key]['regex'])) {
@@ -167,14 +181,14 @@ export function validateTemplateParameters(parameters, detail = 'parameters', { 
 		});
 	});
 
-	const duplicateParameterNames = uniqueNames.filter((name, index) => uniqueNames.indexOf(name) !== index);
+	const duplicateParameterNames = uniqueNames.filter((name, index) => name !== undefined && uniqueNames.indexOf(name) !== index);
 	if (duplicateParameterNames.length) {
 		invalidParam.push(
 			`template paramater '${detail}' contains duplicate parameter names: ${duplicateParameterNames.map((name) => `'${name}'`).join(', ')}`
 		);
 	}
 
-	const duplicateParameterLabels = uniqueLabels.filter((label, index) => uniqueLabels.indexOf(label) !== index);
+	const duplicateParameterLabels = uniqueLabels.filter((label, index) => label !== undefined && uniqueLabels.indexOf(label) !== index);
 	if (duplicateParameterLabels.length) {
 		invalidParam.push(
 			`template paramater '${detail}' contains duplicate parameter labels: ${duplicateParameterLabels.map((label) => `'${label}'`).join(', ')}`
