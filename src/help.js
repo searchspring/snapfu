@@ -54,7 +54,7 @@ const patchText = `Usage: snapfu patch ${chalk.white('<' + chalk.underline('comm
 These are the snapfu patch commands
 
     ${chalk.whiteBright('apply')}                         Apply patch version (version or latest)
-        ${chalk.green('--ci')}
+        ${chalk.green('--ci')}                Run without interactive prompts
         ${chalk.green('--scaffold')}                Patch a scaffold project (skips siteId validation)
     ${chalk.whiteBright('list')}                          List available versions for project
     ${chalk.whiteBright('fetch')}                         Fetch latest versions of patches`;
