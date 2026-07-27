@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.17.1](https://github.com/AthosCommerce/snapfu/compare/v1.17.0...v1.17.1) (2026-07-27)
+
+
+### Bug Fixes
+
+* allowing scaffold flag to work in other commands ([a9d5582](https://github.com/AthosCommerce/snapfu/commit/a9d5582f63a776b42a949232c6b004f21438af64))
+
 ## [1.17.0](https://github.com/AthosCommerce/snapfu/compare/v1.16.1...v1.17.0) (2026-07-27)
 
 
