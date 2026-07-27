@@ -49,7 +49,7 @@ async function parseArgumentsIntoOptions(rawArgs) {
 	const command = args._[0];
 
 	// scaffold projects contain placeholder siteId values - skip siteId validation when patching them
-	const skipSiteIdValidation = Boolean(args['--scaffold']) && command === 'patch' && args._[1] === 'apply';
+	const skipSiteIdValidation = Boolean(args['--scaffold']) && command === 'patch';
 	const context = await getContext(process.cwd(), { skipSiteIdValidation });
 
 	// exit on commands that require a Snap project

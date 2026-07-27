@@ -82,7 +82,9 @@ snapfu patch <command> <args> [--options]
   - `--ci` - Run without interactive prompts
   - `--scaffold` - Patch a scaffold project (skips siteId validation)
 - `list` - List available versions for project
+  - `--scaffold` - Target a scaffold project (skips siteId validation)
 - `fetch` - Fetch latest versions of patches
+  - `--scaffold` - Target a scaffold project (skips siteId validation)
 
 ### `login` - OAuth with GitHub
 OAuths with GitHub to allow for creating repositories when using the init command
