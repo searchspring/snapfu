@@ -79,6 +79,8 @@ snapfu patch <command> <args> [--options]
 
 **Subcommands:**
 - `apply` - Apply patch version (version or latest)
+  - `--ci` - Run without interactive prompts
+  - `--scaffold` - Patch a scaffold project (skips siteId validation)
 - `list` - List available versions for project
 - `fetch` - Fetch latest versions of patches
 
