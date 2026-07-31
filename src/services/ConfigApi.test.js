@@ -31,6 +31,36 @@ describe('ConfigApi Class', () => {
 		expect(api.secretKey).toBe('');
 	});
 
+	it('prefers the dev host when both dev and athos zone options are set', () => {
+		const api = new ConfigApi('', { dev: true, zone: 'athos' });
+
+		expect(api.host).toBe(DEV_API_HOST);
+	});
+
+	describe('getHost method', () => {
+		it('returns the athos host for at-prefixed siteIds on the default host', () => {
+			const api = new ConfigApi('');
+
+			expect(api.getHost('at123')).toBe(ATHOS_API_HOST);
+			expect(api.getHost('abc123')).toBe(API_HOST);
+			expect(api.getHost()).toBe(API_HOST);
+		});
+
+		it('does not redirect at-prefixed siteIds away from the dev host', () => {
+			const api = new ConfigApi('', { dev: true });
+
+			expect(api.getHost('at123')).toBe(DEV_API_HOST);
+			expect(api.getHost('abc123')).toBe(DEV_API_HOST);
+		});
+
+		it('returns the athos host when the athos zone is set', () => {
+			const api = new ConfigApi('', { zone: 'athos' });
+
+			expect(api.getHost('at123')).toBe(ATHOS_API_HOST);
+			expect(api.getHost('abc123')).toBe(ATHOS_API_HOST);
+		});
+	});
+
 	it('can be constructed with a secretKey', () => {
 		const secretKey = 'secret';
 		const api = new ConfigApi(secretKey);
@@ -81,6 +111,27 @@ describe('ConfigApi Class', () => {
 
 				await expect(api.validateSite({ siteId })).rejects.toThrow();
 			}
+
+			fetch.mockRestore();
+		});
+
+		it('throws a descriptive error for unhandled statuses with empty bodies', async () => {
+			fetch.mockReturnValue(Promise.resolve(new Response('', { status: 418 })));
+
+			const api = new ConfigApi('secret', { dev: true });
+
+			await expect(api.validateSite({ siteId: 'abc123' })).rejects.toThrow('Unhandled response (status 418)');
+
+			fetch.mockRestore();
+		});
+
+		it('returns the response text as a message for unhandled statuses with bodies', async () => {
+			fetch.mockReturnValue(Promise.resolve(new Response('something went wrong', { status: 418 })));
+
+			const api = new ConfigApi('secret', { dev: true });
+
+			const response = await api.validateSite({ siteId: 'abc123' });
+			expect(response).toStrictEqual({ message: 'something went wrong' });
 
 			fetch.mockRestore();
 		});
