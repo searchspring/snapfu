@@ -431,7 +431,11 @@ export async function syncTemplate(options) {
 			console.log(chalk.grey(`\n\tsnapfu secrets add\n`));
 			return;
 		}
-		const payload = buildTemplatePayload(template.details, { branch: branchName, framework: integration.framework });
+		const payload = buildTemplatePayload(template.details, {
+			branch: branchName,
+			framework: integration.framework,
+			distribution: context.project.distribution,
+		});
 
 		try {
 			const { message } = await new ConfigApi(secretKey, options).putTemplate({ payload, siteId });
@@ -676,7 +680,7 @@ export function buildTemplatePayload(template, vars) {
 		component: template.component,
 		meta: {
 			searchspringTemplate: {
-				type: 'snap',
+				type: (vars.distribution || 'Snap').toLowerCase(),
 				label: template.label,
 				description: template.description,
 			},

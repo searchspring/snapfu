@@ -217,6 +217,22 @@ describe('buildTemplatePayload function', () => {
 		const transformed = buildTemplatePayload({ ...mockTemplateSettings, version: '2' }, vars);
 		expect(transformed).toHaveProperty('version', '2');
 	});
+
+	it('uses the project distribution for the template type', async () => {
+		const snapVars = { branch: 'my-branch', framework: 'preact', distribution: 'Snap' };
+		const snapPayload = buildTemplatePayload(mockTemplateSettings, snapVars);
+		expect(snapPayload.meta.searchspringTemplate.type).toBe('snap');
+
+		const templatesVars = { branch: 'my-branch', framework: 'preact', distribution: 'SnapTemplates' };
+		const templatesPayload = buildTemplatePayload(mockTemplateSettings, templatesVars);
+		expect(templatesPayload.meta.searchspringTemplate.type).toBe('snaptemplates');
+	});
+
+	it('defaults the template type to snap when no distribution is provided', async () => {
+		const vars = { branch: 'my-branch', framework: 'preact' };
+		const transformed = buildTemplatePayload(mockTemplateSettings, vars);
+		expect(transformed.meta.searchspringTemplate.type).toBe('snap');
+	});
 });
 
 describe('validateTemplate function', () => {
